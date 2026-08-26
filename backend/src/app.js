@@ -3,6 +3,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
+const compression = require('compression');
 const { frontendUrl, nodeEnv } = require('./config/env');
 const errorHandler = require('./middlewares/errorHandler');
 
@@ -14,22 +15,43 @@ const webhookRoutes = require('./routes/webhook.routes');
 const chatRoutes = require('./routes/chat.routes');
 const adminRoutes = require('./routes/admin.routes');
 const { router: postRoutes, adminRouter: adminPostRoutes } = require('./routes/post.routes');
-const tcgplayerRoutes = require('./routes/tcgplayer.routes'); // MỚI
+const tcgplayerRoutes = require('./routes/tcgplayer.routes');
 
 const app = express();
 
-// Trust proxy để express-rate-limit nhận đúng IP qua X-Forwarded-For khi chạy sau ngrok
+// Trust proxy để express-rate-limit nhận đúng IP qua X-Forwarded-For khi chạy sau ngrok/load balancer
 app.set('trust proxy', 1);
 
-// Security headers
-app.use(helmet());
+// Security headers - Helmet
+app.use(helmet({
+  contentSecurityPolicy: nodeEnv === 'production' ? undefined : false, // Disable CSP in dev for Vite HMR
+  crossOriginEmbedderPolicy: false,
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true
+  }
+}));
+
+// Compression middleware for HTTP responses
+app.use(compression({
+  level: 6, // Balance between compression ratio and CPU usage
+  threshold: 1024, // Only compress responses > 1KB
+  filter: (req, res) => {
+    // Don't compress responses with this header
+    if (req.headers['x-no-compression']) return false;
+    return compression.filter(req, res);
+  }
+}));
 
 // CORS
 app.use(
   cors({
     origin: frontendUrl,
     credentials: true,
-    optionsSuccessStatus: 200
+    optionsSuccessStatus: 200,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
   })
 );
 
@@ -38,7 +60,7 @@ if (nodeEnv !== 'test') {
   app.use(morgan('combined'));
 }
 
-// Body parsing
+// Body parsing with size limits
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
@@ -61,7 +83,7 @@ app.use('/api/v1/chat', chatRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1', postRoutes); // public news routes
 app.use('/api/v1/admin/posts', adminPostRoutes); // admin post management
-app.use('/api/v1/tcgplayer', tcgplayerRoutes); // MỚI
+app.use('/api/v1/tcgplayer', tcgplayerRoutes);
 
 // 404 handler
 app.use((req, res) => {
