@@ -1,0 +1,365 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-[#faf9fe] text-ink-900;
+    overflow-x: hidden;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+  ::selection {
+    @apply bg-primary-200 text-primary-950;
+  }
+  /* Refined, slim scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-ink-300/80 rounded-full border-2 border-transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-primary-400;
+  }
+}
+
+@layer components {
+  /* ── Glassmorphism surfaces ─────────────────────────────── */
+  .card-premium {
+    @apply relative bg-white rounded-2xl border border-ink-100 shadow-card transition-all duration-300;
+  }
+  .card-premium:hover {
+    @apply shadow-card-hover border-primary-200/70 -translate-y-1;
+  }
+
+  /* ── Buttons ────────────────────────────────────────────── */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-white
+      bg-gradient-to-r from-primary-600 via-primary-600 to-fuchsia-600
+      shadow-[0_8px_20px_-6px_rgba(124,58,237,0.5)] ring-1 ring-primary-600/20 ring-inset
+      transition-all duration-300 hover:shadow-glow hover:brightness-110 active:scale-[0.98]
+      disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-ink-700
+      bg-white/80 backdrop-blur border border-ink-200
+      transition-all duration-300 hover:border-primary-300 hover:text-primary-700 hover:bg-primary-50/50
+      active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-ink-500
+      transition-all duration-200 hover:text-primary-700 hover:bg-primary-50
+      active:scale-[0.98] disabled:opacity-50;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-white
+      bg-gradient-to-r from-rose-600 to-red-600
+      shadow-[0_8px_20px_-6px_rgba(225,29,72,0.45)] ring-1 ring-rose-600/20 ring-inset
+      transition-all duration-300 hover:brightness-110 hover:shadow-[0_8px_28px_-6px_rgba(225,29,72,0.55)]
+      active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  /* ── Form inputs ────────────────────────────────────────── */
+  .input-premium {
+    @apply w-full px-4 py-2.5 bg-white/90 text-ink-900 placeholder-ink-400 rounded-xl text-sm
+      border border-ink-200/90 shadow-[inset_0_1px_2px_rgba(15,23,42,0.03)]
+      transition-all duration-300
+      focus:outline-none focus:border-primary-400 focus:ring-4 focus:ring-primary-500/15
+      disabled:bg-ink-50 disabled:text-ink-400;
+  }
+  .label-premium {
+    @apply block text-[13px] font-semibold text-ink-700 mb-1.5 tracking-wide;
+  }
+
+  /* ── Badges & chips ─────────────────────────────────────── */
+  .chip-gradient {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-[0.12em]
+      bg-gradient-to-r from-primary-600 to-fuchsia-600 text-white shadow-sm;
+  }
+
+  /* ── Section helpers ────────────────────────────────────── */
+  .section-eyebrow {
+    @apply text-[11px] font-bold uppercase tracking-[0.22em] bg-gradient-to-r from-primary-600 to-fuchsia-600 bg-clip-text text-transparent;
+  }
+  .heading-display {
+    @apply font-display font-bold tracking-tight text-ink-900;
+  }
+  .text-gradient-brand {
+    @apply bg-gradient-to-r from-primary-600 via-fuchsia-500 to-pink-500 bg-clip-text text-transparent;
+  }
+}
+
+@layer utilities {
+  /* ── Kinetic typography system (compositor-only: transform/opacity/clip-path) ── */
+  /* Staggered count-up word reveal */
+  @keyframes tcg-word-rise {
+    0% {
+      opacity: 0;
+      transform: translate3d(0, 110%, 0) rotateX(35deg);
+      filter: blur(6px);
+    }
+    100% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) rotateX(0deg);
+      filter: blur(0);
+    }
+  }
+  .anim-word-rise {
+    animation: tcg-word-rise 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* Shimmering gradient sweep for highlighted words (background-position is cheap) */
+  @keyframes tcg-gradient-sweep {
+    0% {
+      background-position: 0% 50%;
+    }
+    100% {
+      background-position: -200% 50%;
+    }
+  }
+  .text-gradient-sweep {
+    background-image: linear-gradient(
+      90deg,
+      #f0abfc 0%,
+      #ffffff 18%,
+      #e879f9 32%,
+      #a78bfa 46%,
+      #f5d0fe 55%,
+      #f0abfc 70%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: tcg-gradient-sweep 4.5s linear infinite;
+  }
+
+  /* Animated underline beam drawn after the reveal */
+  @keyframes tcg-beam-draw {
+    0% {
+      transform: scaleX(0);
+      opacity: 0;
+    }
+    60% {
+      opacity: 1;
+    }
+    100% {
+      transform: scaleX(1);
+      opacity: 1;
+    }
+  }
+  .anim-beam-draw {
+    transform-origin: left center;
+    animation: tcg-beam-draw 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Soft ambient glow exhale behind the highlight word */
+  @keyframes tcg-word-breathe {
+    0%, 100% {
+      opacity: 0.45;
+      transform: translate3d(-50%, -50%, 0) scale(1);
+    }
+    50% {
+      opacity: 0.8;
+      transform: translate3d(-50%, -50%, 0) scale(1.08);
+    }
+  }
+  .anim-word-breathe {
+    animation: tcg-word-breathe 3.2s ease-in-out infinite;
+  }
+
+  /* Floating sparkle particles around the statement */
+  @keyframes tcg-spark {
+    0%, 100% {
+      opacity: 0;
+      transform: translate3d(0, 0, 0) scale(0.6);
+    }
+    40% {
+      opacity: 1;
+      transform: translate3d(0, -10px, 0) scale(1);
+    }
+    70% {
+      opacity: 0.4;
+    }
+  }
+  .anim-spark {
+    animation: tcg-spark 3.6s ease-in-out infinite;
+  }
+
+  /* Existing preserved shine sweep (used by Catalog card hover) */
+  @keyframes shine {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  .animate-shine {
+    animation: shine 0.9s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+
+  /* Floating decorative orbs */
+  @keyframes tcg-float {
+    0%, 100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(0, -22px, 0) scale(1.06);
+    }
+  }
+  .animate-tcg-float {
+    animation: tcg-float 7s ease-in-out infinite;
+  }
+  .animate-tcg-float-slow {
+    animation: tcg-float 11s ease-in-out infinite;
+  }
+
+  /* Gradient drift for hero background washes */
+  @keyframes tcg-drift {
+    0%, 100% {
+      transform: translate3d(0, 0, 0);
+    }
+    50% {
+      transform: translate3d(6%, -4%, 0);
+    }
+  }
+  .animate-tcg-drift {
+    animation: tcg-drift 14s ease-in-out infinite;
+  }
+
+  /* Animated gradient text / glow for headlines */
+  @keyframes tcg-gradient-x {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+  .animate-tcg-gradient-x {
+    background-size: 200% 200%;
+    animation: tcg-gradient-x 6s ease infinite;
+  }
+
+  /* Entrance reveal for sections / cards */
+  @keyframes tcg-reveal {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .animate-tcg-reveal {
+    animation: tcg-reveal 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Scale-in for modals, menus, dialogs */
+  @keyframes tcg-scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96) translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+  .animate-tcg-scale-in {
+    animation: tcg-scale-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Overlay fade for modals / drawers */
+  @keyframes tcg-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  .animate-tcg-fade-in {
+    animation: tcg-fade-in 0.2s ease-out both;
+  }
+
+  /* Soft pulse ring for hero primary CTA */
+  @keyframes tcg-pulse-ring {
+    0% {
+      box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.45);
+    }
+    70% {
+      box-shadow: 0 0 0 16px rgba(255, 255, 255, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+    }
+  }
+  .animate-tcg-pulse-ring {
+    animation: tcg-pulse-ring 2.6s ease-out infinite;
+  }
+
+  /* Brand glow pulse for accent elements (compositor-friendly: opacity + scale on a pre-blurred layer) */
+  @keyframes tcg-glow-pulse {
+    0%, 100% {
+      opacity: 0.35;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.75;
+      transform: scale(1.12);
+    }
+  }
+  .animate-tcg-glow-pulse {
+    position: relative;
+  }
+  .animate-tcg-glow-pulse::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: inherit;
+    background: radial-gradient(closest-side, rgba(217, 70, 239, 0.5), transparent);
+    animation: tcg-glow-pulse 3s ease-in-out infinite;
+    pointer-events: none;
+  }
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .anim-word-rise,
+  .anim-beam-draw,
+  .anim-word-breathe,
+  .anim-spark,
+  .text-gradient-sweep,
+  .animate-shine,
+  .animate-tcg-float,
+  .animate-tcg-float-slow,
+  .animate-tcg-drift,
+  .animate-tcg-gradient-x,
+  .animate-tcg-reveal,
+  .animate-tcg-pulse-ring,
+  .animate-tcg-glow-pulse,
+  .animate-tcg-scale-in,
+  .animate-tcg-fade-in {
+    animation: none !important;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}

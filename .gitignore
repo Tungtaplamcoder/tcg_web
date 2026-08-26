@@ -1,0 +1,94 @@
+# =============================================================================
+# Git Ignore for TCG E-Commerce Platform
+# =============================================================================
+
+# Dependencies
+node_modules
+*/node_modules
+
+# Build outputs
+dist
+build
+*.tsbuildinfo
+*/dist
+*/build
+
+# Environment files (secrets!)
+.env
+.env.local
+.env.*.local
+*/.env
+*/.env.local
+*/.env.*.local
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# IDE/Editor
+.idea
+.vscode
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+
+# Docker
+.dockerignore
+
+# Test coverage
+coverage
+.nyc_output
+*.lcov
+
+# Prisma
+prisma/migrations/.migration_lock.toml
+
+# Uploads (runtime data)
+uploads
+public/uploads
+backend/uploads
+
+# Cache
+.cache
+.parcel-cache
+.esbuild
+.vite
+.next
+.nuxt
+.output
+
+# Database backups
+backups
+*/backups
+
+# Misc
+*.pem
+*.key
+*.crt
+*.p12
+
+# Turbo
+.turbo
+
+# Vercel
+.vercel
+
+# Netlify
+.netlify
+
+# TypeScript
+*.tsbuildinfo

@@ -1,0 +1,12 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://192.168.101.12:20128/v1",
+    "ANTHROPIC_AUTH_TOKEN": "sk-cf3cdcc13dd47894-eae4e4-d0cef803",
+    "ANTHROPIC_MODEL": "trk/deepseek/deepseek-v4-pro-0813-free",
+    "ANTHROPIC_SMALL_FAST_MODEL": "trk/deepseek/deepseek-v4-pro-0813-free",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "trk/deepseek/deepseek-v4-pro-0813-free",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "trk/deepseek/deepseek-v4-pro-0813-free",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "trk/deepseek/deepseek-v4-pro-0813-free",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+  }
+}

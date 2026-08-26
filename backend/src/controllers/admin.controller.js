@@ -1,0 +1,584 @@
+const bcrypt = require('bcryptjs');
+const prisma = require('../config/prisma');
+const { NotFoundError, ConflictError, AppError } = require('../utils/errors');
+const imageService = require('../services/image.service');
+
+const slugify = (text) => text.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+// ==================== USER MANAGEMENT ====================
+
+const listUsers = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20, role, status, search } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+    const take = Number(limit);
+    const where = {};
+    if (role) where.role = role;
+    if (status) where.status = status;
+    if (search) where.OR = [
+      { email: { contains: search, mode: 'insensitive' } },
+      { fullName: { contains: search, mode: 'insensitive' } },
+      { phone: { contains: search, mode: 'insensitive' } }
+    ];
+
+    const [items, totalItems] = await Promise.all([
+      prisma.user.findMany({
+        where, skip, take, orderBy: { createdAt: 'desc' },
+        select: { id: true, email: true, fullName: true, phone: true, avatarUrl: true, role: true,
+          status: true, canManageInventory: true, canManagePosts: true, canAccessChat: true,
+          createdAt: true, updatedAt: true }
+      }),
+      prisma.user.count({ where })
+    ]);
+
+    res.status(200).json({ success: true, data: { items, meta: { page: Number(page), limit: take, totalItems, totalPages: Math.ceil(totalItems / take) } }, message: 'Users retrieved' });
+  } catch (error) { next(error); }
+};
+
+const updateUserRole = async (req, res, next) => {
+  try {
+    const { id } = req.params; const { role } = req.body;
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundError('User not found');
+    const updated = await prisma.user.update({ where: { id }, data: { role },
+      select: { id: true, email: true, fullName: true, role: true, status: true, canManageInventory: true, canManagePosts: true, canAccessChat: true, updatedAt: true } });
+    res.status(200).json({ success: true, data: updated, message: 'User role updated' });
+  } catch (error) { next(error); }
+};
+
+const updateUserStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params; const { status } = req.body;
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundError('User not found');
+    if (user.role === 'ADMIN' && status !== 'ACTIVE') throw new ConflictError('Cannot ban or delete an admin user');
+    const updated = await prisma.user.update({ where: { id }, data: { status },
+      select: { id: true, email: true, fullName: true, role: true, status: true, canManageInventory: true, canManagePosts: true, canAccessChat: true, updatedAt: true } });
+    res.status(200).json({ success: true, data: updated, message: 'User status updated' });
+  } catch (error) { next(error); }
+};
+
+const updateUserPermissions = async (req, res, next) => {
+  try {
+    const { id } = req.params; const { canManageInventory, canManagePosts, canAccessChat } = req.body;
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundError('User not found');
+    const updated = await prisma.user.update({ where: { id },
+      data: { canManageInventory: !!canManageInventory, canManagePosts: !!canManagePosts, canAccessChat: !!canAccessChat },
+      select: { id: true, email: true, fullName: true, role: true, canManageInventory: true, canManagePosts: true, canAccessChat: true } });
+    res.status(200).json({ success: true, data: updated, message: 'User permissions updated' });
+  } catch (error) { next(error); }
+};
+
+const changeUserPassword = async (req, res, next) => {
+  try {
+    const { id } = req.params; const { newPassword } = req.body;
+    if (!newPassword || newPassword.length < 8) throw new AppError('Password must be at least 8 characters', 400, 'VALIDATION_ERROR');
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundError('User not found');
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({ where: { id }, data: { passwordHash } });
+    await prisma.refreshToken.updateMany({ where: { userId: id, revoked: false }, data: { revoked: true } });
+    res.status(200).json({ success: true, message: 'Password updated successfully' });
+  } catch (error) { next(error); }
+};
+
+// ==================== PRODUCT MANAGEMENT ====================
+
+const listProducts = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20, search, status, setId } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+    const take = Number(limit);
+    const where = {};
+    if (status) where.status = status;
+    if (setId) where.sets = { some: { id: setId } };
+    if (search) where.OR = [
+      { name: { contains: search, mode: 'insensitive' } },
+      { shortName: { contains: search, mode: 'insensitive' } },
+      { slug: { contains: search, mode: 'insensitive' } },
+      { cardNumber: { contains: search, mode: 'insensitive' } }
+    ];
+
+    const [items, totalItems] = await Promise.all([
+      prisma.product.findMany({
+        where, skip, take, orderBy: { createdAt: 'desc' },
+        include: { sets: true, variants: true }
+      }),
+      prisma.product.count({ where })
+    ]);
+
+    res.status(200).json({ success: true, data: { items, meta: { page: Number(page), limit: take, totalItems, totalPages: Math.ceil(totalItems / take) } }, message: 'Products retrieved' });
+  } catch (error) { next(error); }
+};
+
+const createProduct = async (req, res, next) => {
+  try {
+    const data = req.body;
+    const slug = data.slug || slugify(data.name);
+    const existing = await prisma.product.findUnique({ where: { slug } });
+    if (existing) throw new ConflictError('Slug already exists');
+
+    const { variants, setIds, shortName, backImage, tcgplayerId, ...restData } = data;
+
+    const product = await prisma.product.create({
+      data: {
+        ...restData,
+        slug,
+        shortName: shortName || null,
+        backImage: backImage || null,
+        tcgplayerId: tcgplayerId || null,
+        ...(setIds && setIds.length > 0 && { sets: { connect: setIds.map(id => ({ id })) } }),
+        ...(variants && variants.length > 0 && {
+          variants: {
+            create: variants.map(v => ({
+              condition: v.condition || 'NEAR_MINT',
+              variant: v.variant || 'Normal',
+              price: Number(v.price),
+              stockQuantity: Number(v.stockQuantity) || 0
+            }))
+          }
+        })
+      },
+      include: { variants: true, sets: true }
+    });
+
+    res.status(201).json({ success: true, data: product, message: 'Product created' });
+  } catch (error) { next(error); }
+};
+
+const updateProduct = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const data = { ...req.body };
+    const product = await prisma.product.findUnique({ where: { id }, include: { variants: true, sets: true } });
+    if (!product) throw new NotFoundError('Product not found');
+
+    let slug = product.slug;
+    if (data.slug) slug = data.slug;
+    else if (data.name && data.name !== product.name) slug = slugify(data.name);
+    if (slug !== product.slug) {
+      const existing = await prisma.product.findUnique({ where: { slug } });
+      if (existing && existing.id !== id) throw new ConflictError('Slug already exists');
+    }
+
+    const { variants, setIds, shortName, backImage, tcgplayerId, ...restData } = data;
+
+    // Xử lý variants: xóa cũ, tạo mới (đơn giản và an toàn)
+    await prisma.productVariant.deleteMany({ where: { productId: id } });
+
+    const updateData = {
+      ...restData,
+      slug,
+      shortName: shortName !== undefined ? (shortName || null) : product.shortName,
+      backImage: backImage !== undefined ? (backImage || null) : product.backImage,
+      tcgplayerId: tcgplayerId !== undefined ? (tcgplayerId || null) : product.tcgplayerId,
+    };
+
+    if (setIds !== undefined) {
+      updateData.sets = { set: setIds.map(setId => ({ id: setId })) };
+    }
+
+    await prisma.product.update({
+      where: { id },
+      data: updateData,
+    });
+
+    if (variants && variants.length > 0) {
+      await prisma.productVariant.createMany({
+        data: variants.map(v => ({
+          productId: id,
+          condition: v.condition || 'NEAR_MINT',
+          variant: v.variant || 'Normal',
+          price: Number(v.price),
+          stockQuantity: Number(v.stockQuantity) || 0
+        }))
+      });
+    }
+
+    const updated = await prisma.product.findUnique({ where: { id }, include: { variants: true, sets: true } });
+    res.status(200).json({ success: true, data: updated, message: 'Product updated' });
+  } catch (error) { next(error); }
+};
+
+const deleteProduct = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const product = await prisma.product.findUnique({ where: { id } });
+    if (!product) throw new NotFoundError('Product not found');
+
+    await prisma.productVariant.deleteMany({ where: { productId: id } });
+    await prisma.product.delete({ where: { id } });
+    res.status(200).json({ success: true, message: 'Product deleted permanently' });
+  } catch (error) { next(error); }
+};
+
+// ==================== CARD MANAGEMENT (legacy) ====================
+
+const addCards = async (req, res, next) => {
+  try {
+    const { id: productId } = req.params;
+    const { cards: cardsData } = req.body;
+    const product = await prisma.product.findUnique({ where: { id: productId } });
+    if (!product) throw new NotFoundError('Product not found');
+
+    const skus = cardsData.map(c => c.sku);
+    const existingSkus = await prisma.card.findMany({ where: { sku: { in: skus } }, select: { sku: true } });
+    if (existingSkus.length > 0) throw new ConflictError(`SKUs already exist: ${existingSkus.map(s => s.sku).join(', ')}`);
+
+    const cards = await prisma.$transaction(
+      cardsData.map(card => prisma.card.create({
+        data: { sku: card.sku, productId, condition: card.condition, purchasePrice: card.purchasePrice, notes: card.notes, status: 'AVAILABLE' }
+      }))
+    );
+
+    res.status(201).json({ success: true, data: cards, message: 'Cards added' });
+  } catch (error) { next(error); }
+};
+
+const updateCard = async (req, res, next) => {
+  try {
+    const { id } = req.params; const data = req.body;
+    const card = await prisma.card.findUnique({ where: { id } });
+    if (!card) throw new NotFoundError('Card not found');
+    const updated = await prisma.card.update({ where: { id }, data: { ...data, updatedAt: new Date() } });
+    res.status(200).json({ success: true, data: updated, message: 'Card updated' });
+  } catch (error) { next(error); }
+};
+
+// ==================== IMAGE UPLOAD ====================
+
+const uploadImage = async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'No image file provided' } });
+    const imageUrl = await imageService.uploadToImgbb(req.file.buffer, req.file.originalname);
+    res.status(200).json({ success: true, data: { url: imageUrl }, message: 'Image uploaded successfully' });
+  } catch (error) { next(error); }
+};
+
+// ==================== SET MANAGEMENT (Sản phẩm) ====================
+
+const listSets = async (req, res, next) => {
+  try {
+    const sets = await prisma.set.findMany({ orderBy: { name: 'asc' }, include: { _count: { select: { products: true } } } });
+    res.status(200).json({ success: true, data: sets, message: 'Sets retrieved' });
+  } catch (error) { next(error); }
+};
+
+const createSet = async (req, res, next) => {
+  try {
+    const { name } = req.body;
+    const slug = slugify(name);
+    const existing = await prisma.set.findUnique({ where: { slug } });
+    if (existing) throw new ConflictError('Slug already exists');
+    const set = await prisma.set.create({ data: { name, slug } });
+    res.status(201).json({ success: true, data: set, message: 'Set created' });
+  } catch (error) { next(error); }
+};
+
+const updateSet = async (req, res, next) => {
+  try {
+    const { id } = req.params; const { name } = req.body;
+    const set = await prisma.set.findUnique({ where: { id } });
+    if (!set) throw new NotFoundError('Set not found');
+    const slug = slugify(name || set.name);
+    if (slug !== set.slug) {
+      const existing = await prisma.set.findUnique({ where: { slug } });
+      if (existing && existing.id !== id) throw new ConflictError('Slug already exists');
+    }
+    const updated = await prisma.set.update({ where: { id }, data: { name, slug, updatedAt: new Date() } });
+    res.status(200).json({ success: true, data: updated, message: 'Set updated' });
+  } catch (error) { next(error); }
+};
+
+const deleteSet = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const set = await prisma.set.findUnique({ where: { id }, include: { products: true } });
+    if (!set) throw new NotFoundError('Set not found');
+    const hasStock = set.products.some(p => p.variants && p.variants.some(v => v.stockQuantity > 0));
+    if (hasStock) throw new ConflictError('Cannot delete set with products still in stock.');
+    await prisma.$transaction(async (tx) => {
+      await tx.product.deleteMany({ where: { sets: { some: { id } } } });
+      await tx.set.delete({ where: { id } });
+    });
+    res.status(200).json({ success: true, message: 'Set and its products deleted' });
+  } catch (error) { next(error); }
+};
+
+// ==================== POST MANAGEMENT ====================
+
+const listPosts = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit); const take = Number(limit);
+    const [items, totalItems] = await Promise.all([
+      prisma.post.findMany({ skip, take, orderBy: { createdAt: 'desc' }, include: { author: { select: { id: true, email: true, fullName: true } } } }),
+      prisma.post.count()
+    ]);
+    res.status(200).json({ success: true, data: { items, meta: { page: Number(page), limit: take, totalItems, totalPages: Math.ceil(totalItems / take) } }, message: 'Posts retrieved' });
+  } catch (error) { next(error); }
+};
+
+const createPost = async (req, res, next) => {
+  try {
+    const { title, content, excerpt, thumbnailUrl } = req.body;
+    const authorId = req.user.id;
+    const post = await prisma.post.create({ data: { title, content, excerpt, thumbnailUrl, authorId }, include: { author: { select: { id: true, email: true, fullName: true } } } });
+    res.status(201).json({ success: true, data: post, message: 'Post created' });
+  } catch (error) { next(error); }
+};
+
+const updatePost = async (req, res, next) => {
+  try {
+    const { id } = req.params; const { title, content, excerpt, thumbnailUrl } = req.body;
+    const existing = await prisma.post.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundError('Post not found');
+    const post = await prisma.post.update({ where: { id }, data: { title, content, excerpt, thumbnailUrl }, include: { author: { select: { id: true, email: true, fullName: true } } } });
+    res.status(200).json({ success: true, data: post, message: 'Post updated' });
+  } catch (error) { next(error); }
+};
+
+const deletePost = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.post.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundError('Post not found');
+    await prisma.post.delete({ where: { id } });
+    res.status(200).json({ success: true, data: { success: true }, message: 'Post deleted' });
+  } catch (error) { next(error); }
+};
+
+// ==================== ORDER MANAGEMENT ====================
+
+const listOrders = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20, status, userId, search } = req.query;
+    const skip = (Number(page) - 1) * Number(limit); const take = Number(limit);
+    const where = {};
+    if (status) where.status = status;
+    if (userId) where.userId = userId;
+    if (search) where.orderCode = { contains: search, mode: 'insensitive' };
+
+    const [items, totalItems] = await Promise.all([
+      prisma.order.findMany({ where, skip, take, orderBy: { createdAt: 'desc' },
+        include: { user: { select: { id: true, email: true, fullName: true } }, items: { include: { product: { select: { id: true, name: true, shortName: true } }, variant: true, card: { select: { id: true, sku: true } } } }, payments: true } }),
+      prisma.order.count({ where })
+    ]);
+    res.status(200).json({ success: true, data: { items, meta: { page: Number(page), limit: take, totalItems, totalPages: Math.ceil(totalItems / take) } }, message: 'Orders retrieved' });
+  } catch (error) { next(error); }
+};
+
+const updateOrderStatus = async (req, res, next) => {
+  try {
+    const { id: orderId } = req.params; const { status: newStatus, note } = req.body;
+    const adminUserId = req.user.id;
+
+    const order = await prisma.order.findUnique({ where: { id: orderId }, include: { items: true, payments: { where: { status: 'PENDING' }, orderBy: { createdAt: 'desc' } } } });
+    if (!order) throw new NotFoundError('Order not found');
+
+    const oldStatus = order.status;
+    if (oldStatus === newStatus) throw new ConflictError(`Order already in ${newStatus} status`);
+
+    const allowedTransitions = {
+      PENDING: ['PACKAGING', 'CANCELLED'],
+      PACKAGING: ['SHIPPING', 'CANCELLED'],
+      SHIPPING: ['DELIVERED'],
+      DELIVERED: []
+    };
+    if (!allowedTransitions[oldStatus]?.includes(newStatus)) throw new ConflictError(`Cannot change status from ${oldStatus} to ${newStatus}`);
+
+    if (newStatus === 'PACKAGING' && oldStatus === 'PENDING') {
+      await prisma.$transaction(async (tx) => {
+        const locked = await tx.$queryRaw`SELECT * FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
+        if (!locked || locked.length === 0) throw new NotFoundError('Order not found');
+        if (locked[0].status !== 'PENDING') throw new ConflictError('Order no longer pending');
+
+        const now = new Date();
+        await tx.order.update({ where: { id: orderId }, data: { status: 'PACKAGING', paymentStatus: 'COMPLETED', paidAt: now, version: { increment: 1 } } });
+        if (order.payments.length > 0) {
+          await tx.payment.update({ where: { id: order.payments[0].id }, data: { status: 'COMPLETED', paidAt: now } });
+        }
+        // Giảm stock theo variant
+        for (const item of order.items) {
+          if (item.variantId) {
+            await tx.productVariant.update({
+              where: { id: item.variantId },
+              data: { stockQuantity: { decrement: item.quantity } }
+            });
+          } else if (item.productId) {
+            // fallback: giảm variant đầu tiên hoặc product stock cũ (nếu có)
+            const fallbackVariant = await tx.productVariant.findFirst({ where: { productId: item.productId } });
+            if (fallbackVariant) {
+              await tx.productVariant.update({ where: { id: fallbackVariant.id }, data: { stockQuantity: { decrement: item.quantity } } });
+            }
+          }
+        }
+        await tx.orderStatusHistory.create({ data: { orderId, oldStatus, newStatus, note: note || `Thanh toán xác nhận bởi ${adminUserId}`, changedByUserId: adminUserId } });
+      });
+    } else if (newStatus === 'SHIPPING' && oldStatus === 'PACKAGING') {
+      await prisma.$transaction(async (tx) => {
+        await tx.order.update({ where: { id: orderId }, data: { status: 'SHIPPING', version: { increment: 1 } } });
+        await tx.orderStatusHistory.create({ data: { orderId, oldStatus, newStatus, note: note || `Bắt đầu vận chuyển bởi ${adminUserId}`, changedByUserId: adminUserId } });
+      });
+    } else if (newStatus === 'DELIVERED' && oldStatus === 'SHIPPING') {
+      await prisma.$transaction(async (tx) => {
+        await tx.order.update({ where: { id: orderId }, data: { status: 'DELIVERED', completedAt: new Date(), version: { increment: 1 } } });
+        await tx.orderStatusHistory.create({ data: { orderId, oldStatus, newStatus, note: note || `Đã giao hàng bởi ${adminUserId}`, changedByUserId: adminUserId } });
+      });
+    } else if (newStatus === 'CANCELLED' && ['PENDING', 'PACKAGING'].includes(oldStatus)) {
+      await prisma.$transaction(async (tx) => {
+        for (const item of order.items) {
+          if (item.variantId) {
+            await tx.productVariant.update({ where: { id: item.variantId }, data: { stockQuantity: { increment: item.quantity } } });
+          }
+        }
+        await tx.order.update({ where: { id: orderId }, data: { status: 'CANCELLED', cancelledAt: new Date(), version: { increment: 1 } } });
+        if (oldStatus === 'PENDING') await tx.payment.updateMany({ where: { orderId, status: 'PENDING' }, data: { status: 'FAILED' } });
+        else if (oldStatus === 'PACKAGING') await tx.payment.updateMany({ where: { orderId, status: 'COMPLETED' }, data: { status: 'REFUNDED' } });
+        await tx.orderStatusHistory.create({ data: { orderId, oldStatus, newStatus, note: note || `Hủy bởi ${adminUserId}`, changedByUserId: adminUserId } });
+      });
+    }
+
+    const io = global.io;
+    if (io) {
+      io.to(`user:${order.userId}`).emit('order:status_changed', { orderId: order.id, orderCode: order.orderCode, oldStatus, newStatus });
+      if (newStatus === 'PACKAGING') io.to(`user:${order.userId}`).emit('order:paid', { orderId: order.id, orderCode: order.orderCode, status: 'PACKAGING', paidAt: new Date().toISOString() });
+    }
+
+    const updatedOrder = await prisma.order.findUnique({ where: { id: orderId } });
+    res.status(200).json({ success: true, data: updatedOrder, message: 'Order status updated' });
+  } catch (error) { next(error); }
+};
+
+// ==================== PAYMENT LOGS ====================
+
+const listPaymentLogs = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20, status } = req.query;
+    const skip = (Number(page) - 1) * Number(limit); const take = Number(limit);
+    const where = {};
+    if (status) where.status = status;
+    const [items, totalItems] = await Promise.all([
+      prisma.paymentLog.findMany({ where, skip, take, orderBy: { createdAt: 'desc' }, include: { order: { select: { id: true, orderCode: true, grandTotal: true } }, payment: true } }),
+      prisma.paymentLog.count({ where })
+    ]);
+    res.status(200).json({ success: true, data: { items, meta: { page: Number(page), limit: take, totalItems, totalPages: Math.ceil(totalItems / take) } }, message: 'Payment logs retrieved' });
+  } catch (error) { next(error); }
+};
+
+const reconcilePayment = async (req, res, next) => {
+  try {
+    const { paymentLogId, action, note } = req.body;
+    const adminUserId = req.user.id;
+
+    const log = await prisma.paymentLog.findUnique({ where: { id: paymentLogId }, include: { order: true, payment: true } });
+    if (!log) throw new NotFoundError('Payment log not found');
+
+    if (action === 'MARK_AS_COMPLETED') {
+      if (!log.order) throw new ConflictError('No order associated');
+      const order = log.order;
+      if (order.status !== 'PENDING') throw new ConflictError('Order is not pending');
+
+      await prisma.$transaction(async (tx) => {
+        const locked = await tx.$queryRaw`SELECT * FROM "Order" WHERE "id" = ${order.id} FOR UPDATE`;
+        if (!locked || locked.length === 0) throw new NotFoundError('Order not found');
+        if (locked[0].status !== 'PENDING') throw new ConflictError('Order no longer pending');
+
+        const now = new Date();
+        await tx.order.update({ where: { id: order.id }, data: { status: 'PACKAGING', paymentStatus: 'COMPLETED', paidAt: now, version: { increment: 1 } } });
+        if (log.paymentId) await tx.payment.update({ where: { id: log.paymentId }, data: { status: 'COMPLETED', paidAt: now } });
+        const orderItems = await tx.orderItem.findMany({ where: { orderId: order.id } });
+        for (const item of orderItems) {
+          if (item.variantId) {
+            await tx.productVariant.update({ where: { id: item.variantId }, data: { stockQuantity: { decrement: item.quantity } } });
+          }
+        }
+        await tx.orderStatusHistory.create({ data: { orderId: order.id, oldStatus: 'PENDING', newStatus: 'PACKAGING', note: note || `Manual reconciliation by admin ${adminUserId}` } });
+        await tx.paymentLog.update({ where: { id: paymentLogId }, data: { status: 'COMPLETED', processedAt: now, errorMessage: null } });
+      });
+
+      const io = global.io;
+      if (io) io.to(`user:${log.order.userId}`).emit('order:paid', { orderId: log.order.id, orderCode: log.order.orderCode, status: 'PACKAGING', paidAt: new Date().toISOString() });
+    } else if (action === 'MARK_AS_MISMATCH') {
+      await prisma.paymentLog.update({ where: { id: paymentLogId }, data: { status: 'MISMATCH', errorMessage: note || 'Marked as mismatch by admin' } });
+    } else {
+      throw new AppError('Invalid action', 400, 'INVALID_ACTION');
+    }
+
+    res.status(200).json({ success: true, message: 'Payment reconciled' });
+  } catch (error) { next(error); }
+};
+
+// ==================== DASHBOARD ====================
+
+const getDashboardStats = async (req, res, next) => {
+  try {
+    const [totalRevenue, totalOrders, totalCustomers, totalProducts, totalStock, pendingOrders, packagingOrders, shippingOrders, deliveredOrders, cancelledOrders, recentOrders, revenueByDay] = await Promise.all([
+      prisma.order.aggregate({ _sum: { grandTotal: true }, where: { status: { in: ['PACKAGING', 'SHIPPING', 'DELIVERED'] } } }),
+      prisma.order.count(),
+      prisma.user.count({ where: { role: 'CUSTOMER' } }),
+      prisma.product.count({ where: { status: 'ACTIVE' } }),
+      prisma.productVariant.aggregate({ _sum: { stockQuantity: true } }),
+      prisma.order.count({ where: { status: 'PENDING' } }),
+      prisma.order.count({ where: { status: 'PACKAGING' } }),
+      prisma.order.count({ where: { status: 'SHIPPING' } }),
+      prisma.order.count({ where: { status: 'DELIVERED' } }),
+      prisma.order.count({ where: { status: 'CANCELLED' } }),
+      prisma.order.findMany({ orderBy: { createdAt: 'desc' }, take: 5, include: { user: { select: { email: true, fullName: true } } } }),
+      prisma.$queryRaw`
+        SELECT DATE("paidAt") as date, SUM("grandTotal") as revenue
+        FROM "Order"
+        WHERE "paidAt" IS NOT NULL AND "paidAt" >= CURRENT_DATE - INTERVAL '7 days'
+        GROUP BY DATE("paidAt") ORDER BY date DESC
+      `
+    ]);
+
+    res.status(200).json({ success: true, data: {
+      totalRevenue: totalRevenue._sum.grandTotal || 0,
+      totalOrders,
+      totalCustomers,
+      totalProducts,
+      totalStock: totalStock._sum.stockQuantity || 0,
+      pendingOrders,
+      packagingOrders,
+      shippingOrders,
+      deliveredOrders,
+      cancelledOrders,
+      recentOrders,
+      revenueByDay: revenueByDay.map(r => ({ date: r.date, revenue: Number(r.revenue) }))
+    }, message: 'Dashboard stats retrieved' });
+  } catch (error) { next(error); }
+};
+
+// ==================== CHAT MANAGEMENT ====================
+
+const listChatRooms = async (req, res, next) => {
+  try {
+    const rooms = await prisma.chatRoom.findMany({ orderBy: { updatedAt: 'desc' }, include: { user: { select: { id: true, email: true, fullName: true } }, order: { select: { id: true, orderCode: true, status: true } }, _count: { select: { messages: true } } } });
+    res.status(200).json({ success: true, data: rooms, message: 'Chat rooms retrieved' });
+  } catch (error) { next(error); }
+};
+
+const getChatRoomMessages = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const room = await prisma.chatRoom.findUnique({ where: { id } });
+    if (!room) throw new NotFoundError('Chat room not found');
+    const messages = await prisma.chatMessage.findMany({ where: { roomId: id }, orderBy: { createdAt: 'asc' }, include: { sender: { select: { id: true, fullName: true, avatarUrl: true, role: true } } } });
+    res.status(200).json({ success: true, data: { room, messages }, message: 'Chat room messages retrieved' });
+  } catch (error) { next(error); }
+};
+
+// ==================== EXPORT ====================
+
+module.exports = {
+  listUsers, updateUserRole, updateUserStatus, updateUserPermissions, changeUserPassword,
+  listProducts, createProduct, updateProduct, deleteProduct, addCards, updateCard, uploadImage,
+  listSets, createSet, updateSet, deleteSet,
+  listPosts, createPost, updatePost, deletePost,
+  listOrders, updateOrderStatus,
+  listPaymentLogs, reconcilePayment,
+  getDashboardStats,
+  listChatRooms, getChatRoomMessages
+};
