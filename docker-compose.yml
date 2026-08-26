@@ -1,0 +1,234 @@
+# =============================================================================
+# Docker Compose for TCG E-Commerce Platform
+# =============================================================================
+# Supports both development and production environments
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # -----------------------------------------------------------------------------
+  # PostgreSQL Database
+  # -----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: tcg_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-tcg_db}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-tcg_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - tcg-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+
+  # -----------------------------------------------------------------------------
+  # Redis (for Socket.io scaling, sessions, caching)
+  # -----------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: tcg_redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tcg-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 64M
+
+  # -----------------------------------------------------------------------------
+  # Backend API Server
+  # -----------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: tcg_backend
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${BACKEND_PORT:-4000}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-tcg_db}?schema=public
+      DATABASE_SSL_MODE: ${DATABASE_SSL_MODE:-disable}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      SEPAY_API_URL: ${SEPAY_API_URL:-https://my.sepay.vn}
+      SEPAY_ENV: ${SEPAY_ENV:-sandbox}
+      SEPAY_MERCHANT_ID: ${SEPAY_MERCHANT_ID}
+      SEPAY_MERCHANT_SECRET_KEY: ${SEPAY_MERCHANT_SECRET_KEY}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      REDIS_URL: redis://redis:6379
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_HOSTNAME: ${SMTP_HOSTNAME}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@tcg.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      IMGBB_API_KEY: ${IMGBB_API_KEY}
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - tcg-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/health', (r) => { if (r.statusCode !== 200) process.exit(1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # -----------------------------------------------------------------------------
+  # Frontend (Vite/React) - Production build served by Nginx
+  # -----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+    container_name: tcg_frontend
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:4000/api/v1}
+      VITE_SOCKET_URL: ${VITE_SOCKET_URL:-http://localhost:4000}
+      VITE_APP_URL: ${VITE_APP_URL:-http://localhost:3000}
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - tcg-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 32M
+
+  # -----------------------------------------------------------------------------
+  # Nginx Reverse Proxy (Optional - for production SSL termination)
+  # -----------------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: tcg_nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - tcg-network
+    restart: unless-stopped
+    profiles:
+      - production
+
+  # -----------------------------------------------------------------------------
+  # Database Migration Service (run once on deploy)
+  # -----------------------------------------------------------------------------
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: deps
+    container_name: tcg_migrate
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-tcg_db}?schema=public
+      DATABASE_SSL_MODE: ${DATABASE_SSL_MODE:-disable}
+    command: npx prisma migrate deploy
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - tcg-network
+    profiles:
+      - migrate
+    restart: "no"
+
+  # -----------------------------------------------------------------------------
+  # Database Seeder (run once for initial data)
+  # -----------------------------------------------------------------------------
+  seed:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: deps
+    container_name: tcg_seed
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-tcg_db}?schema=public
+      DATABASE_SSL_MODE: ${DATABASE_SSL_MODE:-disable}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@tcg.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    command: node prisma/seed.js
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - tcg-network
+    profiles:
+      - seed
+    restart: "no"
+
+# -----------------------------------------------------------------------------
+# Networks
+# -----------------------------------------------------------------------------
+networks:
+  tcg-network:
+    driver: bridge
+    name: tcg-network
+
+# -----------------------------------------------------------------------------
+# Volumes
+# -----------------------------------------------------------------------------
+volumes:
+  postgres_data:
+    name: tcg_postgres_data
+  redis_data:
+    name: tcg_redis_data
