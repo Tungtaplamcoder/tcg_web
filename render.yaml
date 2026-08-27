@@ -1,0 +1,195 @@
+# =============================================================================
+# Render Blueprint for TCG E-Commerce Platform
+# =============================================================================
+# Production-ready configuration for Render deployment
+# Includes: PostgreSQL, Backend (Docker), Frontend (Docker), Migration Job
+# =============================================================================
+
+services:
+  # -----------------------------------------------------------------------------
+  # PostgreSQL Database
+  # -----------------------------------------------------------------------------
+  - type: pserv
+    name: tcg-postgres
+    plan: starter
+    region: oregon
+    version: "16"
+    # Database credentials will be auto-generated and available as:
+    # DATABASE_URL, PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD
+    # Additional configuration
+    envVars:
+      - key: PGDATABASE
+        value: tcg_db
+      - key: PGUSER
+        value: postgres
+
+  # -----------------------------------------------------------------------------
+  # Backend API Server (Docker)
+  # -----------------------------------------------------------------------------
+  - type: web
+    name: tcg-backend
+    plan: starter
+    region: oregon
+    runtime: docker
+    repo: https://github.com/YOUR_USERNAME/tcg-ecommerce
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    # Auto-deploy on push to main
+    autoDeploy: true
+    healthCheckPath: /health
+    # Environment variables
+    envVars:
+      # Application
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "4000"
+      # Database - DATABASE_URL is auto-injected from the PostgreSQL service above
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tcg-postgres
+          property: connectionString
+      - key: DATABASE_SSL_MODE
+        value: "require"
+      # JWT Authentication
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: "15m"
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: "7d"
+      # SePay Payment Gateway
+      - key: SEPAY_API_URL
+        value: "https://my.sepay.vn"
+      - key: SEPAY_ENV
+        value: "production"
+      - key: SEPAY_MERCHANT_ID
+        sync: false
+      - key: SEPAY_MERCHANT_SECRET_KEY
+        sync: false
+      # Frontend URL (for CORS and webhooks)
+      - key: FRONTEND_URL
+        value: "https://tcg-frontend.onrender.com"
+      # Email (SMTP)
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_HOSTNAME
+        sync: false
+      # Admin
+      - key: ADMIN_EMAIL
+        value: "admin@tcg.com"
+      - key: ADMIN_PASSWORD
+        sync: false
+      # Image Upload
+      - key: IMGBB_API_KEY
+        sync: false
+
+  # -----------------------------------------------------------------------------
+  # Frontend (Vite/React + Nginx) (Docker)
+  # -----------------------------------------------------------------------------
+  - type: web
+    name: tcg-frontend
+    plan: starter
+    region: oregon
+    runtime: docker
+    repo: https://github.com/YOUR_USERNAME/tcg-ecommerce
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    autoDeploy: true
+    # Health check on root path
+    healthCheckPath: /
+    envVars:
+      - key: VITE_API_URL
+        value: "https://tcg-backend.onrender.com/api/v1"
+      - key: VITE_SOCKET_URL
+        value: "https://tcg-backend.onrender.com"
+      - key: VITE_APP_URL
+        value: "https://tcg-frontend.onrender.com"
+      - key: VITE_ENABLE_CHAT
+        value: "true"
+      - key: VITE_ENABLE_PAYMENT
+        value: "true"
+      - key: VITE_ENABLE_WISHLIST
+        value: "false"
+
+  # -----------------------------------------------------------------------------
+  # Database Migration Job (runs on every deploy)
+  # -----------------------------------------------------------------------------
+  - type: cron
+    name: tcg-migrate
+    plan: free
+    region: oregon
+    runtime: docker
+    repo: https://github.com/YOUR_USERNAME/tcg-ecommerce
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    # Run migrations on deploy
+    schedule: "on-deploy"
+    command: "npx prisma migrate deploy"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tcg-postgres
+          property: connectionString
+      - key: DATABASE_SSL_MODE
+        value: "require"
+
+  # -----------------------------------------------------------------------------
+  # Database Seeder Job (optional - run once for initial data)
+  # -----------------------------------------------------------------------------
+  - type: cron
+    name: tcg-seed
+    plan: free
+    region: oregon
+    runtime: docker
+    repo: https://github.com/YOUR_USERNAME/tcg-ecommerce
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    # Manual trigger only - not on every deploy
+    schedule: "manual"
+    command: "node prisma/seed.js"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tcg-postgres
+          property: connectionString
+      - key: DATABASE_SSL_MODE
+        value: "require"
+      - key: ADMIN_EMAIL
+        value: "admin@tcg.com"
+      - key: ADMIN_PASSWORD
+        sync: false
+
+# -----------------------------------------------------------------------------
+# Databases
+# -----------------------------------------------------------------------------
+databases:
+  - name: tcg-postgres
+    databaseName: tcg_db
+    user: postgres
+    plan: starter
+    region: oregon
+    version: "16"
+
+# =============================================================================
+# NOTES:
+# =============================================================================
+# 1. Replace YOUR_USERNAME with your actual GitHub username
+# 2. Secrets (sync: false) must be set manually in Render Dashboard:
+#    - JWT_ACCESS_SECRET, JWT_REFRESH_SECRET
+#    - SEPAY_MERCHANT_ID, SEPAY_MERCHANT_SECRET_KEY
+#    - SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_HOSTNAME
+#    - ADMIN_PASSWORD, IMGBB_API_KEY
+# 3. DATABASE_URL is automatically injected from the PostgreSQL service
+# 4. The migration job runs on every deploy (on-deploy schedule)
+# 5. The seed job is manual-only to avoid duplicate data on redeploys
+# 6. Render provides free SSL (https://tcg-frontend.onrender.com, https://tcg-backend.onrender.com)
+# 7. For custom domains, add them in Render Dashboard > Settings > Custom Domains
