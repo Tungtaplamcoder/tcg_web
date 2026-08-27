@@ -24,12 +24,12 @@ RUN addgroup -g 1001 -S nodejs && \
 # -----------------------------------------------------------------------------
 FROM base AS deps
 
-# Copy package files
-COPY package*.json ./
+# Copy package files explicitly to ensure package-lock.json is included
+COPY package.json package-lock.json ./
 COPY prisma ./prisma/
 
-# Install production dependencies only
-RUN npm ci --only=production --ignore-scripts && \
+# Install production dependencies only with fallback for peer dependency issues
+RUN npm ci --only=production --ignore-scripts --legacy-peer-deps || npm install --only=production --ignore-scripts --legacy-peer-deps && \
     npm cache clean --force
 
 # Generate Prisma Client
@@ -40,12 +40,12 @@ RUN npx prisma generate
 # -----------------------------------------------------------------------------
 FROM base AS builder
 
-# Copy package files
-COPY package*.json ./
+# Copy package files explicitly to ensure package-lock.json is included
+COPY package.json package-lock.json ./
 COPY prisma ./prisma/
 
-# Install all dependencies (including dev)
-RUN npm ci --ignore-scripts
+# Install all dependencies (including dev) with fallback for peer dependency issues
+RUN npm ci --ignore-scripts --legacy-peer-deps || npm install --ignore-scripts --legacy-peer-deps
 
 # Generate Prisma Client
 RUN npx prisma generate

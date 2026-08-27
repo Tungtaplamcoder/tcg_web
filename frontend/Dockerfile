@@ -11,11 +11,11 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files explicitly to ensure package-lock.json is included
+COPY package.json package-lock.json ./
 
-# Install all dependencies
-RUN npm ci
+# Install all dependencies with fallback for peer dependency issues
+RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
 # Copy source code
 COPY . .
