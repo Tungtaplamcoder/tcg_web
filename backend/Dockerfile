@@ -9,11 +9,10 @@
 # -----------------------------------------------------------------------------
 FROM node:20-alpine AS base
 
-# Install system dependencies
-RUN apk add --no-cache \
+# Install system dependencies - update apk index first to avoid stale repository errors
+RUN apk update && apk add --no-cache \
     postgresql-client \
-    dumb-init \
-    && npm install -g npm@latest
+    dumb-init
 
 # Create app directory and user
 WORKDIR /app
