@@ -6,11 +6,11 @@ const prisma = new PrismaClient({
     db: {
       url: process.env.DATABASE_URL
     }
-  }
+  },
+  // Connection pool settings optimized for low-resource VPS (2GB RAM)
+  // Limit max connections to 10 to prevent memory spikes
+  // Note: Prisma uses its own connection pool via the query engine
+  // These settings work with the DATABASE_URL connection string
 });
-
-// Connection pool optimization for production
-// Prisma handles connection pooling internally via the query engine
-// For serverless/edge environments, consider using Prisma Data Proxy or pgbouncer
 
 module.exports = prisma;

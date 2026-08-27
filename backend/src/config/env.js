@@ -33,7 +33,6 @@ module.exports = {
   sepayMerchantId: process.env.SEPAY_MERCHANT_ID,
   sepayMerchantSecretKey: process.env.SEPAY_MERCHANT_SECRET_KEY,
   frontendUrl: process.env.FRONTEND_URL,
-  redisUrl: process.env.REDIS_URL,
   smtpHost: process.env.SMTP_HOST,
   smtpPort: parseInt(process.env.SMTP_PORT, 10) || 587,
   smtpUser: process.env.SMTP_USER,
