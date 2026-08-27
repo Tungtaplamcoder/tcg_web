@@ -65,12 +65,12 @@ FROM base AS production
 ENV NODE_ENV=production
 
 # Copy production dependencies
-COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --from=deps --chown=nodejs:nodejs /app/package*.json ./
-COPY --from=deps --chown=nodejs:nodejs /app/prisma ./prisma
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/package*.json ./
+COPY --from=deps /app/prisma ./prisma
 
 # Copy built application
-COPY --from=builder --chown=nodejs:nodejs /app/src ./src
+COPY --from=builder /app/src ./src
 
 # Create directories for uploads/logs
 RUN mkdir -p /app/uploads /app/logs && \
