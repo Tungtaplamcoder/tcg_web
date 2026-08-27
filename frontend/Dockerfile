@@ -50,15 +50,11 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Add non-root user
-RUN addgroup -g 1001 -S nginx && \
-    adduser -S nginx -u 1001 -G nginx
-
-# Create cache directories
+# Create cache directories and set permissions (nginx user already exists in base image)
 RUN mkdir -p /var/cache/nginx /var/run /var/log/nginx && \
     chown -R nginx:nginx /var/cache/nginx /var/run /var/log/nginx /usr/share/nginx/html
 
-# Switch to non-root user
+# Switch to non-root user (nginx user exists in base image)
 USER nginx
 
 # Expose port
