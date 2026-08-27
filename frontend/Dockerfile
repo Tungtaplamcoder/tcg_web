@@ -47,12 +47,12 @@ FROM nginx:alpine AS production
 # Copy built assets
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx configuration (now includes http block)
+COPY nginx.conf /etc/nginx/nginx.conf
 
-# Create cache directories and set permissions (nginx user already exists in base image)
-RUN mkdir -p /var/cache/nginx /var/run /var/log/nginx && \
-    chown -R nginx:nginx /var/cache/nginx /var/run /var/log/nginx /usr/share/nginx/html
+# Create temp directories in /tmp for non-root nginx user
+RUN mkdir -p /tmp/client_temp /tmp/proxy_temp /tmp/fastcgi_temp /tmp/uwsgi_temp /tmp/scgi_temp && \
+    chown -R nginx:nginx /tmp/client_temp /tmp/proxy_temp /tmp/fastcgi_temp /tmp/uwsgi_temp /tmp/scgi_temp /usr/share/nginx/html
 
 # Switch to non-root user (nginx user exists in base image)
 USER nginx

@@ -10,9 +10,12 @@
 FROM node:20-alpine AS base
 
 # Install system dependencies - update apk index first to avoid stale repository errors
+# Add openssl for Prisma engine compatibility on Alpine Linux
 RUN apk update && apk add --no-cache \
     postgresql-client \
-    dumb-init
+    dumb-init \
+    openssl \
+    openssl1.1-compat
 
 # Create app directory and user
 WORKDIR /app
