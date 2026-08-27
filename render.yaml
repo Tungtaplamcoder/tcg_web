@@ -2,7 +2,8 @@
 # Render Blueprint for TCG E-Commerce Platform
 # =============================================================================
 # Production-ready configuration for Render deployment
-# Includes: PostgreSQL, Backend (Docker), Frontend (Docker), Migration Job
+# Includes: PostgreSQL, Backend (Docker), Frontend (Docker)
+# Migrations run via preDeployCommand on backend service
 # =============================================================================
 
 services:
@@ -102,59 +103,12 @@ services:
       - key: VITE_ENABLE_WISHLIST
         value: "false"
 
-  # -----------------------------------------------------------------------------
-  # Database Migration Job (manual trigger for maintenance)
-  # -----------------------------------------------------------------------------
-  - type: cron
-    name: tcg-migrate
-    plan: free
-    region: oregon
-    runtime: docker
-    repo: https://github.com/YOUR_USERNAME/tcg-ecommerce
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
-    schedule: "manual"
-    startCommand: "npx prisma migrate deploy"
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: tcg-postgres
-          property: connectionString
-      - key: DATABASE_SSL_MODE
-        value: "require"
-
-  # -----------------------------------------------------------------------------
-  # Database Seeder Job (manual trigger for initial data)
-  # -----------------------------------------------------------------------------
-  - type: cron
-    name: tcg-seed
-    plan: free
-    region: oregon
-    runtime: docker
-    repo: https://github.com/YOUR_USERNAME/tcg-ecommerce
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
-    schedule: "manual"
-    startCommand: "node prisma/seed.js"
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: tcg-postgres
-          property: connectionString
-      - key: DATABASE_SSL_MODE
-        value: "require"
-      - key: ADMIN_EMAIL
-        value: "admin@tcg.com"
-      - key: ADMIN_PASSWORD
-        sync: false
-
 # -----------------------------------------------------------------------------
 # Databases
 # -----------------------------------------------------------------------------
 databases:
   - name: tcg-postgres
     databaseName: tcg_db
-    user: postgres
     plan: starter
     region: oregon
     postgresMajorVersion: "16"
@@ -170,6 +124,6 @@ databases:
 #    - ADMIN_PASSWORD, IMGBB_API_KEY
 # 3. DATABASE_URL is automatically injected from the PostgreSQL database
 # 4. Migrations run automatically via preDeployCommand on every deploy
-# 5. Manual cron jobs available for ad-hoc migrations/seeding
+# 5. For manual seeding, use Render Shell: `npx prisma db seed` or `node prisma/seed.js`
 # 6. Render provides free SSL (https://tcg-frontend.onrender.com, https://tcg-backend.onrender.com)
 # 7. For custom domains, add them in Render Dashboard > Settings > Custom Domains
