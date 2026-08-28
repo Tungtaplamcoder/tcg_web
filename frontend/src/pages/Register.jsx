@@ -68,16 +68,16 @@ const Register = () => {
       <div className="pointer-events-none absolute inset-0 bg-radial-fade" />
       <div className="pointer-events-none absolute -top-24 -right-20 h-96 w-96 rounded-full bg-fuchsia-400/20 blur-[120px] animate-tcg-float" />
       <div className="pointer-events-none absolute -bottom-32 -left-20 h-96 w-96 rounded-full bg-primary-400/20 blur-[120px] animate-tcg-float-slow" />
-      <div className="pointer-events-none absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(rgba(15,23,42,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(15,23,42,0.6) 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.05]" style={{ backgroundImage: 'linear-gradient(rgba(124,88,237,0.55) 1px, transparent 1px), linear-gradient(90deg, rgba(124,88,237,0.55) 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
 
       <div className="relative w-full max-w-lg animate-tcg-reveal">
-        <div className="rounded-3xl bg-white/80 backdrop-blur-xl border border-white/60 shadow-2xl shadow-primary-900/10 p-8 sm:p-10">
+        <div className="rounded-3xl bg-white/80 dark:bg-[#12121a]/80 backdrop-blur-xl border border-white/60 shadow-2xl shadow-primary-900/10 p-8 sm:p-10">
           <div className="text-center mb-8">
             <div className="mx-auto h-14 w-14 rounded-2xl bg-brand-gradient flex items-center justify-center shadow-glow">
               <Sparkles className="h-7 w-7 text-white" />
             </div>
             <h1 className="mt-5 heading-display text-2xl">Create Account</h1>
-            <p className="text-ink-500 text-sm mt-1.5">Join the TCG collector community</p>
+            <p className="text-ink-500 dark:text-ink-300 text-sm mt-1.5">Join the TCG collector community</p>
           </div>
 
           {error && (
@@ -91,7 +91,7 @@ const Register = () => {
             <div>
               <label className="label-premium">Full Name *</label>
               <div className="relative">
-                <UserRound className="absolute left-4 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-ink-400" />
+                <UserRound className="absolute left-4 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-ink-400 dark:text-ink-300" />
                 <input
                   type="text"
                   name="fullName"
@@ -106,7 +106,7 @@ const Register = () => {
             <div>
               <label className="label-premium">Email *</label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-ink-400" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-ink-400 dark:text-ink-300" />
                 <input
                   type="email"
                   name="email"
@@ -123,7 +123,7 @@ const Register = () => {
               <div>
                 <label className="label-premium">Password *</label>
                 <div className="relative">
-                  <LockKeyhole className="absolute left-4 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-ink-400" />
+                  <LockKeyhole className="absolute left-4 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-ink-400 dark:text-ink-300" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     name="password"
@@ -136,7 +136,7 @@ const Register = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md text-ink-400 hover:text-ink-700 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md text-ink-400 dark:text-ink-300 hover:text-ink-700 dark:text-ink-100 transition-colors"
                     aria-label="Toggle password visibility"
                   >
                     {showPassword ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
@@ -146,7 +146,7 @@ const Register = () => {
               <div>
                 <label className="label-premium">Confirm Password *</label>
                 <div className="relative">
-                  <LockKeyhole className="absolute left-4 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-ink-400" />
+                  <LockKeyhole className="absolute left-4 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-ink-400 dark:text-ink-300" />
                   <input
                     type="password"
                     name="confirmPassword"
@@ -164,7 +164,7 @@ const Register = () => {
               <div>
                 <label className="label-premium">Phone</label>
                 <div className="relative">
-                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-ink-400" />
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-ink-400 dark:text-ink-300" />
                   <input
                     type="text"
                     name="phone"
@@ -178,7 +178,7 @@ const Register = () => {
               <div>
                 <label className="label-premium">Address</label>
                 <div className="relative">
-                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-ink-400" />
+                  <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-ink-400 dark:text-ink-300" />
                   <input
                     type="text"
                     name="address"
@@ -205,7 +205,7 @@ const Register = () => {
             </button>
           </form>
 
-          <div className="mt-7 text-center text-sm text-ink-500">
+          <div className="mt-7 text-center text-sm text-ink-500 dark:text-ink-300">
             Already have an account?{' '}
             <Link
               to="/login"

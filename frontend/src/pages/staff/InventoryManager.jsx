@@ -20,12 +20,15 @@ const InventoryManager = () => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [sets, setSets] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     shortName: '',
     description: '',
     cardNumber: '',
     tcgplayerId: '',
+    categoryId: '',
     setIds: [],
     images: [],
     backImage: '',
@@ -43,6 +46,7 @@ const InventoryManager = () => {
     try {
       const params = { page, limit: 20 };
       if (search) params.search = search;
+      if (categoryFilter) params.categoryId = categoryFilter;
       const response = await api.get('/admin/products', { params });
       setProducts(response.data.data.items || []);
       setMeta(response.data.data.meta || { totalPages: 1 });
@@ -56,7 +60,14 @@ const InventoryManager = () => {
     } catch (err) { console.error('Không thể tải danh mục sản phẩm:', err); }
   };
 
-  useEffect(() => { fetchProducts(); fetchSets(); }, [fetchProducts]);
+  const fetchCategories = async () => {
+    try {
+      const response = await api.get('/categories?activeOnly=true');
+      setCategories(response.data.data || []);
+    } catch (err) { console.error('Không thể tải danh mục:', err); }
+  };
+
+  useEffect(() => { fetchProducts(); fetchSets(); fetchCategories(); }, [fetchProducts]);
 
   const handleEdit = (product) => {
     setEditingProduct(product);
@@ -67,6 +78,7 @@ const InventoryManager = () => {
       cardNumber: product.cardNumber || '',
       tcgplayerId: product.tcgplayerId || '',
       setIds: product.sets?.map(s => s.id) || [],
+      categoryId: product.category?.id || '',
       images: product.images || [],
       backImage: product.backImage || '',
       variants: product.variants?.map(v => ({
@@ -86,6 +98,7 @@ const InventoryManager = () => {
       description: '',
       cardNumber: '',
       tcgplayerId: '',
+      categoryId: '',
       setIds: [],
       images: [],
       backImage: '',
@@ -169,6 +182,7 @@ const InventoryManager = () => {
         shortName: formData.shortName || null,
         tcgplayerId: formData.tcgplayerId || null,
         setIds: formData.setIds,
+        categoryId: formData.categoryId || undefined,
         variants: formData.variants.map(v => ({
           condition: v.condition,
           variant: v.variant,
@@ -229,6 +243,16 @@ const InventoryManager = () => {
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+        >
+          <option value="">Tất cả danh mục</option>
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>{cat.name}</option>
+          ))}
+        </select>
       </div>
 
       {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg">{error}</div>}
@@ -244,6 +268,7 @@ const InventoryManager = () => {
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sản phẩm</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mã SP</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Danh mục</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Giá (từ variant)</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tổng tồn kho</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Thao tác</th>
@@ -265,6 +290,7 @@ const InventoryManager = () => {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{product.cardNumber || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{product.category?.name || '-'}</td>
                     <td className="px-4 py-3 text-gray-700">{product.variants?.length ? formatVND(minPrice) : 'Chưa có'}</td>
                     <td className="px-4 py-3"><span className={`font-medium ${totalStock === 0 ? 'text-red-600' : 'text-gray-800'}`}>{totalStock}</span></td>
                     <td className="px-4 py-3">
@@ -309,6 +335,16 @@ const InventoryManager = () => {
                     <label className="block text-sm font-medium text-gray-700">Tên ngắn</label>
                     <input type="text" name="shortName" value={formData.shortName} onChange={handleInputChange} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500" />
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Danh mục *</label>
+                  <select name="categoryId" value={formData.categoryId} onChange={handleInputChange} required className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    <option value="">-- Chọn danh mục --</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>

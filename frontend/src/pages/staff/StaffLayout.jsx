@@ -5,6 +5,7 @@ import {
   User, ClipboardList, Tags, Headset
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
+import ThemeToggle from '../../components/ThemeToggle';
 
 const PAGE_TITLES = {
   '/staff': 'Overview',
@@ -38,7 +39,7 @@ const StaffLayout = () => {
   ].filter(item => item.visible);
 
   return (
-    <div className="min-h-screen bg-[#0b0716] flex">
+    <div className="min-h-screen app-bg flex">
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 lg:hidden animate-tcg-fade-in"
@@ -46,29 +47,29 @@ const StaffLayout = () => {
         />
       )}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-40 w-64 flex flex-col bg-[#100a1f]/95 backdrop-blur-xl border-r border-white/10 text-white transform transition-transform duration-300 ${
+        className={`fixed lg:sticky top-0 lg:h-screen inset-y-0 left-0 z-40 w-64 flex flex-col glass-panel-strong !rounded-none border-r border-subtle transform transition-transform duration-300 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        <div className="flex items-center justify-between h-16 px-5 border-b border-white/10">
+        <div className="flex items-center justify-between h-16 px-5 border-b border-subtle">
           <Link to="/staff" className="flex items-center gap-2.5 group">
             <div className="h-8 w-8 rounded-lg bg-brand-gradient flex items-center justify-center shadow-glow transition-transform duration-300 group-hover:scale-105">
               <Headset className="h-4 w-4 text-white" />
             </div>
-            <span className="font-display text-lg font-bold tracking-tight">Staff Portal</span>
+            <span className="font-display text-lg font-bold tracking-tight text-strong">Staff Portal</span>
           </Link>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 text-white/60 hover:text-white transition-colors">
+          <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 text-muted hover:text-strong transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary-500/30 to-fuchsia-500/30 ring-1 ring-white/15 flex items-center justify-center">
-            <User className="h-5 w-5 text-white/80" />
+        <div className="px-5 py-4 border-b border-subtle flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary-500/30 to-fuchsia-500/30 ring-1 ring-primary-300/30 dark:ring-white/15 flex items-center justify-center">
+            <User className="h-5 w-5 text-primary-700 dark:text-white/80" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-white truncate">{user?.fullName}</p>
-            <p className="text-xs text-white/50 truncate">{user?.email}</p>
+            <p className="text-sm font-semibold text-strong truncate">{user?.fullName}</p>
+            <p className="text-xs text-faint truncate">{user?.email}</p>
           </div>
         </div>
 
@@ -83,7 +84,7 @@ const StaffLayout = () => {
                 `group flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 ${
                   isActive
                     ? 'bg-gradient-to-r from-primary-600 to-fuchsia-600 text-white shadow-[0_6px_20px_-6px_rgba(124,58,237,0.6)]'
-                    : 'text-white/60 hover:bg-white/5 hover:text-white'
+                    : 'text-muted hover:bg-primary-50 dark:hover:bg-white/5 hover:text-strong dark:hover:text-white'
                 }`
               }
             >
@@ -93,10 +94,10 @@ const StaffLayout = () => {
           ))}
         </nav>
 
-        <div className="p-3 border-t border-white/10">
+        <div className="p-3 border-t border-subtle">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm font-medium text-white/60 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl transition-all duration-300"
+            className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm font-medium text-muted hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-all duration-300"
           >
             <LogOut className="h-5 w-5" />
             Logout
@@ -104,19 +105,23 @@ const StaffLayout = () => {
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0 bg-[#faf9fe] lg:rounded-tl-3xl lg:shadow-2xl lg:shadow-black/20">
-        <header className="bg-white/80 backdrop-blur-xl border-b border-ink-100 h-16 flex items-center gap-3 px-4 lg:px-6 sticky top-16 lg:top-[72px] z-20">
+      <div className="flex-1 flex flex-col min-w-0 bg-[var(--bg-app-2)]">
+        <header className="glass-panel !rounded-none border-b border-subtle h-16 flex items-center gap-3 px-4 lg:px-6 sticky top-16 lg:top-[72px] z-20">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-2 rounded-lg text-ink-600 hover:bg-ink-900/5 transition-colors"
+            className="lg:hidden p-2 rounded-lg text-muted hover:bg-ink-900/5 dark:hover:bg-white/10 transition-colors"
           >
             <Menu className="h-6 w-6" />
           </button>
-          <h1 className="font-display text-lg font-bold text-ink-900 tracking-tight">
+          <h1 className="font-display text-lg font-bold text-strong tracking-tight flex-1 truncate">
             {PAGE_TITLES[location.pathname] || 'Staff Dashboard'}
           </h1>
+          <Link to="/" className="hidden sm:inline-flex text-sm font-medium text-muted hover:text-primary-700 dark:hover:text-aura-cyan transition-colors">
+            ← Storefront
+          </Link>
+          <ThemeToggle className="p-2" iconClassName="h-5 w-5" />
         </header>
-        <main className="flex-1 p-4 lg:p-6 overflow-y-auto"><Outlet /></main>
+        <main className="dash-scope flex-1 p-4 lg:p-6 overflow-y-auto"><Outlet /></main>
       </div>
     </div>
   );

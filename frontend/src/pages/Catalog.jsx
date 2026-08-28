@@ -13,6 +13,17 @@ const PRICE_STEP = 100000;
 
 const RARITY_OPTIONS = ['Common', 'Uncommon', 'Rare', 'Holo Rare', 'Ultra Rare', 'Illustration Rare', 'Secret Rare', 'Rainbow Rare'];
 
+const RARITY_DOTS = {
+  Common: 'from-slate-400 to-slate-500',
+  Uncommon: 'from-emerald-400 to-teal-500',
+  Rare: 'from-indigo-400 via-violet-500 to-fuchsia-400',
+  'Holo Rare': 'from-sky-400 via-blue-500 to-violet-400',
+  'Ultra Rare': 'from-violet-500 via-fuchsia-500 to-pink-400',
+  'Illustration Rare': 'from-sky-400 via-indigo-500 to-fuchsia-400',
+  'Secret Rare': 'from-fuchsia-500 via-violet-500 to-cyan-400',
+  'Rainbow Rare': 'from-rose-400 via-fuchsia-500 to-amber-300'
+};
+
 /* Dual-thumb price range slider with animated iridescent fill */
 const RangeSlider = ({ min, max, onChange }) => {
   const lo = Number(min) || PRICE_MIN;
@@ -144,7 +155,7 @@ const Catalog = () => {
   ].filter(Boolean);
 
   const FilterRail = (
-    <div className="p-6 surface rounded-3xl">
+    <div className="p-6 glass-panel rounded-3xl">
       <div className="flex items-center justify-between mb-5">
         <h2 className="font-display font-bold text-lg text-strong">Bộ lọc</h2>
         {hasActiveFilters && (
@@ -172,12 +183,13 @@ const Catalog = () => {
                 <button
                   key={r}
                   onClick={() => setRarityFilter(active ? '' : r)}
-                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 ${
                     active
                       ? 'bg-gradient-to-r from-primary-600 to-fuchsia-600 text-white shadow-sm'
-                      : 'bg-ink-100 dark:bg-white/5 text-muted hover:bg-primary-50 dark:hover:bg-white/10 hover:text-primary-700 dark:hover:text-white'
+                      : 'bg-ink-100/70 dark:bg-white/5 text-muted hover:bg-primary-50 dark:hover:bg-white/10 hover:text-primary-700 dark:hover:text-white'
                   }`}
                 >
+                  <span className={`h-2 w-2 shrink-0 rounded-full bg-gradient-to-r ${RARITY_DOTS[r]} ${active ? 'ring-1 ring-white/60' : ''}`} />
                   {active && <Check className="h-3 w-3" />}
                   {r}
                 </button>
@@ -205,32 +217,34 @@ const Catalog = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 app-bg">
       {/* ===================== HEADER ===================== */}
-      <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-r from-violet-700 via-fuchsia-600 to-pink-500 text-white p-8 sm:p-10 mb-8 dark:from-[#15101f] dark:via-[#1b1230] dark:to-[#0a0a0f] dark:ring-1 dark:ring-white/10">
-        <div className="absolute -top-16 -right-10 h-56 w-56 rounded-full bg-white/15 blur-[90px] animate-tcg-float dark:bg-aura-violet/25" />
-        <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+      <div className="relative overflow-hidden rounded-[2rem] glass-panel p-8 sm:p-10 mb-8">
+        <div className="pointer-events-none absolute -top-20 -right-12 h-56 w-56 rounded-full bg-aura-violet/25 blur-[90px] dark:bg-aura-magenta/25" />
+        <div className="pointer-events-none absolute -bottom-24 left-1/4 h-48 w-48 rounded-full bg-aura-cyan/15 blur-[80px]" />
         <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold flex items-center font-display">
-              <Sparkles className="h-8 w-8 mr-3 text-pink-100" />
+            <h1 className="text-3xl sm:text-4xl font-extrabold flex items-center font-display text-strong tracking-tight">
+              <Sparkles className="h-8 w-8 mr-3 text-fuchsia-500 dark:text-aura-cyan" />
               Bộ sưu tập Cards
             </h1>
-            <p className="mt-2 text-white/80">{loading ? 'Đang tải…' : `${meta.totalItems} sản phẩm`}</p>
+            <p className="mt-2 text-muted">{loading ? 'Đang tải…' : `${meta.totalItems} sản phẩm`}</p>
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="lg:hidden inline-flex items-center px-4 py-2.5 bg-white/10 backdrop-blur-md border border-white/25 rounded-full text-white hover:bg-white/20 transition-all shrink-0"
+            className="lg:hidden btn-secondary !py-2.5 shrink-0"
           >
             <SlidersHorizontal className="h-4 w-4 mr-2" />
             {showFilters ? 'Ẩn bộ lọc' : 'Hiện bộ lọc'}
           </button>
         </div>
+        {/* foil accent line */}
+        <div aria-hidden="true" className="absolute bottom-0 left-8 right-8 h-px bg-iridescent opacity-60" />
       </div>
 
       {/* ===================== SEARCH ===================== */}
       <form onSubmit={handleSearch} className="mb-5">
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-ink-400" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-ink-400 dark:text-ink-300" />
             <input
               type="text"
               value={search}

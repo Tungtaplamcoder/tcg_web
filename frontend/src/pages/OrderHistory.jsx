@@ -87,10 +87,10 @@ const OrderHistory = () => {
   if (loading && orders.length === 0) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-8">
-        <div className="h-8 bg-ink-100 rounded-lg w-56 mb-8 animate-pulse" />
+        <div className="h-8 bg-ink-100 dark:bg-white/10 rounded-lg w-56 mb-8 animate-pulse" />
         <div className="space-y-4">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-24 rounded-2xl bg-ink-50 ring-1 ring-ink-100 animate-pulse" />
+            <div key={i} className="h-24 rounded-2xl bg-ink-50 dark:bg-white/5 ring-1 ring-ink-100 dark:ring-white/10 animate-pulse" />
           ))}
         </div>
       </div>
@@ -112,13 +112,13 @@ const OrderHistory = () => {
       )}
 
       {orders.length === 0 ? (
-        <div className="relative overflow-hidden text-center py-20 rounded-3xl bg-white/85 backdrop-blur-xl border border-ink-100 shadow-card">
+        <div className="relative overflow-hidden text-center py-20 rounded-3xl bg-white/85 dark:bg-[#12121a]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card">
           <div className="pointer-events-none absolute -top-16 right-1/4 h-56 w-56 rounded-full bg-primary-300/15 blur-[80px]" />
           <div className="relative">
-            <div className="mx-auto h-16 w-16 rounded-2xl bg-ink-50 ring-1 ring-ink-100 flex items-center justify-center">
+            <div className="mx-auto h-16 w-16 rounded-2xl bg-ink-50 dark:bg-white/5 ring-1 ring-ink-100 dark:ring-white/10 flex items-center justify-center">
               <Package className="h-8 w-8 text-ink-300" />
             </div>
-            <p className="mt-5 text-ink-600 font-medium">Bạn chưa có đơn hàng nào.</p>
+            <p className="mt-5 text-ink-600 dark:text-ink-200 font-medium">Bạn chưa có đơn hàng nào.</p>
             <Link to="/catalog" className="btn-primary mt-6">
               Bắt đầu mua sắm
             </Link>
@@ -144,11 +144,11 @@ const OrderHistory = () => {
                         <Package className="h-6 w-6 text-primary-700" />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-mono text-sm font-semibold text-ink-900 truncate">{order.orderCode}</p>
-                        <p className="text-xs text-ink-400 mt-1">
+                        <p className="font-mono text-sm font-semibold text-ink-900 dark:text-white truncate">{order.orderCode}</p>
+                        <p className="text-xs text-ink-400 dark:text-ink-300 mt-1">
                           {new Date(order.createdAt).toLocaleDateString()} at {new Date(order.createdAt).toLocaleTimeString()}
                         </p>
-                        <p className="text-xs text-ink-400">{order.items?.length || 0} sản phẩm</p>
+                        <p className="text-xs text-ink-400 dark:text-ink-300">{order.items?.length || 0} sản phẩm</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
@@ -157,7 +157,7 @@ const OrderHistory = () => {
                         <div className="mt-1">{getStatusBadge(order.status)}</div>
                       </div>
                       <ChevronDown
-                        className={`h-5 w-5 text-ink-400 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}
+                        className={`h-5 w-5 text-ink-400 dark:text-ink-300 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}
                       />
                     </div>
                   </div>
@@ -169,9 +169,9 @@ const OrderHistory = () => {
                   style={{ gridTemplateRows: expanded ? '1fr' : '0fr' }}
                 >
                   <div className="overflow-hidden">
-                    <div className="border-t border-ink-100 p-4 sm:p-5 bg-ink-50/60">
+                    <div className="border-t border-ink-100 dark:border-white/10 p-4 sm:p-5 bg-ink-50/60">
                       {/* Progress timeline */}
-                      <div className="mb-6 rounded-2xl bg-white ring-1 ring-ink-100 p-5">
+                      <div className="mb-6 rounded-2xl bg-white dark:bg-white/5 ring-1 ring-ink-100 dark:ring-white/10 p-5">
                         <div className="flex items-center justify-between">
                           {TIMELINE_STEPS.map((step, idx) => {
                             const status = getStepStatus(order.status, step.key);
@@ -183,7 +183,7 @@ const OrderHistory = () => {
                                     className={`h-9 w-9 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
                                       status === 'done' ? 'bg-emerald-500 border-emerald-500 text-white' :
                                       status === 'current' ? 'bg-primary-600 border-primary-600 text-white shadow-glow' :
-                                      'bg-ink-200 border-ink-300 text-ink-500'
+                                      'bg-ink-200 dark:bg-white/15 border-ink-300 text-ink-500 dark:text-ink-300'
                                     }`}
                                   >
                                     <Icon className="h-4 w-4" />
@@ -191,14 +191,14 @@ const OrderHistory = () => {
                                   <span className={`text-[11px] mt-1.5 text-center font-medium ${
                                     status === 'done' ? 'text-emerald-600' :
                                     status === 'current' ? 'text-primary-700' :
-                                    'text-ink-400'
+                                    'text-ink-400 dark:text-ink-300'
                                   }`}>
                                     {step.label}
                                   </span>
                                 </div>
                                 {idx < TIMELINE_STEPS.length - 1 && (
                                   <div className={`flex-1 h-1 mx-1 sm:mx-2 rounded-full transition-colors duration-500 ${
-                                    status === 'done' ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : 'bg-ink-200'
+                                    status === 'done' ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : 'bg-ink-200 dark:bg-white/15'
                                   }`} />
                                 )}
                               </React.Fragment>
@@ -210,23 +210,23 @@ const OrderHistory = () => {
                       {/* Items list */}
                       <div className="space-y-2">
                         {order.items.map((item, idx) => (
-                          <div key={idx} className="flex justify-between gap-3 text-sm bg-white p-3.5 rounded-xl border border-ink-100">
-                            <span className="text-ink-700 truncate">
-                              {item.product?.name || item.card?.sku || 'Sản phẩm'} <span className="text-ink-400">x {item.quantity}</span>
+                          <div key={idx} className="flex justify-between gap-3 text-sm bg-white dark:bg-white/5 p-3.5 rounded-xl border border-ink-100 dark:border-white/10">
+                            <span className="text-ink-700 dark:text-ink-100 truncate">
+                              {item.product?.name || item.card?.sku || 'Sản phẩm'} <span className="text-ink-400 dark:text-ink-300">x {item.quantity}</span>
                             </span>
-                            <span className="font-semibold text-ink-900 flex-shrink-0">${Number(item.totalPrice).toFixed(2)}</span>
+                            <span className="font-semibold text-ink-900 dark:text-white flex-shrink-0">${Number(item.totalPrice).toFixed(2)}</span>
                           </div>
                         ))}
                       </div>
 
                       {/* Shipping address */}
-                      <div className="mt-4 text-sm text-ink-600 bg-white p-4 rounded-xl border border-ink-100">
-                        <p className="font-semibold flex items-center text-ink-800 mb-1.5">
+                      <div className="mt-4 text-sm text-ink-600 dark:text-ink-200 bg-white dark:bg-white/5 p-4 rounded-xl border border-ink-100 dark:border-white/10">
+                        <p className="font-semibold flex items-center text-ink-800 dark:text-white mb-1.5">
                           <MapPin className="h-4 w-4 mr-1.5 text-primary-600" /> Địa chỉ giao hàng
                         </p>
                         <p>{order.shippingAddress?.fullName} - {order.shippingAddress?.phone}</p>
-                        <p className="text-ink-500">{order.shippingAddress?.addressLine1}</p>
-                        <p className="text-ink-500">{order.shippingAddress?.wardName}, {order.shippingAddress?.provinceName}</p>
+                        <p className="text-ink-500 dark:text-ink-300">{order.shippingAddress?.addressLine1}</p>
+                        <p className="text-ink-500 dark:text-ink-300">{order.shippingAddress?.wardName}, {order.shippingAddress?.provinceName}</p>
                       </div>
 
                       {/* Action buttons */}
@@ -271,7 +271,7 @@ const OrderHistory = () => {
           >
             Trước
           </button>
-          <span className="px-3 text-sm font-semibold text-ink-600">Trang {page} / {meta.totalPages}</span>
+          <span className="px-3 text-sm font-semibold text-ink-600 dark:text-ink-200">Trang {page} / {meta.totalPages}</span>
           <button
             onClick={() => setPage(Math.min(meta.totalPages, page + 1))}
             disabled={page >= meta.totalPages}

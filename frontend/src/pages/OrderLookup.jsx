@@ -35,7 +35,7 @@ const getStepStatus = (orderStatus, stepKey) => {
 };
 
 const ProgressBar = ({ status }) => (
-  <div className="rounded-2xl bg-white ring-1 ring-ink-100 p-5">
+  <div className="rounded-2xl bg-white dark:bg-white/5 ring-1 ring-ink-100 dark:ring-white/10 p-5">
     <div className="flex items-center justify-between">
       {TIMELINE_STEPS.map((step, idx) => {
         const stepStatus = getStepStatus(status, step.key);
@@ -47,7 +47,7 @@ const ProgressBar = ({ status }) => (
                 className={`h-9 w-9 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
                   stepStatus === 'done' ? 'bg-emerald-500 border-emerald-500 text-white' :
                   stepStatus === 'current' ? 'bg-primary-600 border-primary-600 text-white shadow-glow' :
-                  'bg-ink-200 border-ink-300 text-ink-500'
+                  'bg-ink-200 dark:bg-white/15 border-ink-300 text-ink-500 dark:text-ink-300'
                 }`}
               >
                 <Icon className="h-4 w-4" />
@@ -55,14 +55,14 @@ const ProgressBar = ({ status }) => (
               <span className={`text-[11px] mt-1.5 text-center font-medium ${
                 stepStatus === 'done' ? 'text-emerald-600' :
                 stepStatus === 'current' ? 'text-primary-700' :
-                'text-ink-400'
+                'text-ink-400 dark:text-ink-300'
               }`}>
                 {step.label}
               </span>
             </div>
             {idx < TIMELINE_STEPS.length - 1 && (
               <div className={`flex-1 h-1 mx-1 sm:mx-2 rounded-full ${
-                stepStatus === 'done' ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : 'bg-ink-200'
+                stepStatus === 'done' ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : 'bg-ink-200 dark:bg-white/15'
               }`} />
             )}
           </React.Fragment>
@@ -74,27 +74,27 @@ const ProgressBar = ({ status }) => (
 
 /* ── skeleton loader mirroring the result card layout ──────────────────── */
 const LookupSkeleton = () => (
-  <div className="mt-8 rounded-3xl bg-white/85 backdrop-blur-xl border border-ink-100 shadow-card p-6 sm:p-8 animate-pulse">
+  <div className="mt-8 rounded-3xl bg-white/85 dark:bg-[#12121a]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-8 animate-pulse">
     <div className="flex items-center justify-between gap-4 mb-6">
-      <div className="h-5 bg-ink-100 rounded-lg w-40" />
-      <div className="h-7 bg-ink-100 rounded-full w-28" />
+      <div className="h-5 bg-ink-100 dark:bg-white/10 rounded-lg w-40" />
+      <div className="h-7 bg-ink-100 dark:bg-white/10 rounded-full w-28" />
     </div>
-    <div className="rounded-2xl bg-ink-50 ring-1 ring-ink-100 p-5">
+    <div className="rounded-2xl bg-ink-50 dark:bg-white/5 ring-1 ring-ink-100 dark:ring-white/10 p-5">
       <div className="flex justify-between mb-4">
         {[...Array(4)].map((_, i) => (
           <div key={i} className="flex flex-col items-center flex-1 gap-2">
-            <div className="h-9 w-9 rounded-full bg-ink-200" />
-            <div className="h-2.5 bg-ink-200 rounded w-12" />
+            <div className="h-9 w-9 rounded-full bg-ink-200 dark:bg-white/15" />
+            <div className="h-2.5 bg-ink-200 dark:bg-white/15 rounded w-12" />
           </div>
         ))}
       </div>
     </div>
     <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
-      {[...Array(4)].map((_, i) => <div key={i} className="h-16 rounded-xl bg-ink-100" />)}
+      {[...Array(4)].map((_, i) => <div key={i} className="h-16 rounded-xl bg-ink-100 dark:bg-white/10" />)}
     </div>
     <div className="mt-5 space-y-2.5">
-      <div className="h-12 rounded-xl bg-ink-100" />
-      <div className="h-12 rounded-xl bg-ink-100 opacity-70" />
+      <div className="h-12 rounded-xl bg-ink-100 dark:bg-white/10" />
+      <div className="h-12 rounded-xl bg-ink-100 dark:bg-white/10 opacity-70" />
     </div>
   </div>
 );
@@ -109,11 +109,11 @@ const OrderResult = ({ order }) => {
   const StatusIcon = config.icon;
 
   return (
-    <div className="mt-8 rounded-3xl bg-white/85 backdrop-blur-xl border border-ink-100 shadow-card p-6 sm:p-8 animate-tcg-reveal">
+    <div className="mt-8 rounded-3xl bg-white/85 dark:bg-[#12121a]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-8 animate-tcg-reveal">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-wider text-ink-400">Mã đơn hàng</p>
-          <p className="font-mono text-lg font-semibold text-ink-900 truncate">{order.orderCode}</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-ink-400 dark:text-ink-300">Mã đơn hàng</p>
+          <p className="font-mono text-lg font-semibold text-ink-900 dark:text-white truncate">{order.orderCode}</p>
         </div>
         <span className={`self-start inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-semibold border ${config.badgeClass}`}>
           <StatusIcon className="h-3.5 w-3.5 mr-1.5" />
@@ -131,25 +131,25 @@ const OrderResult = ({ order }) => {
 
       {/* summary metrics */}
       <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="rounded-xl bg-ink-50/70 ring-1 ring-ink-100 p-3.5">
-          <p className="text-[11px] uppercase tracking-wider text-ink-400 font-semibold">Tổng tiền</p>
+        <div className="rounded-xl bg-ink-50/70 ring-1 ring-ink-100 dark:ring-white/10 p-3.5">
+          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">Tổng tiền</p>
           <p className="font-display font-bold text-gradient-brand mt-1">
             ${Number(order.grandTotal).toFixed(2)}
           </p>
         </div>
-        <div className="rounded-xl bg-ink-50/70 ring-1 ring-ink-100 p-3.5">
-          <p className="text-[11px] uppercase tracking-wider text-ink-400 font-semibold">Sản phẩm</p>
-          <p className="font-bold text-ink-800 mt-1">{order.items?.length || 0} mặt hàng</p>
+        <div className="rounded-xl bg-ink-50/70 ring-1 ring-ink-100 dark:ring-white/10 p-3.5">
+          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">Sản phẩm</p>
+          <p className="font-bold text-ink-800 dark:text-white mt-1">{order.items?.length || 0} mặt hàng</p>
         </div>
-        <div className="rounded-xl bg-ink-50/70 ring-1 ring-ink-100 p-3.5">
-          <p className="text-[11px] uppercase tracking-wider text-ink-400 font-semibold">Ngày tạo</p>
-          <p className="font-semibold text-ink-800 mt-1 text-sm">
+        <div className="rounded-xl bg-ink-50/70 ring-1 ring-ink-100 dark:ring-white/10 p-3.5">
+          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">Ngày tạo</p>
+          <p className="font-semibold text-ink-800 dark:text-white mt-1 text-sm">
             {new Date(order.createdAt).toLocaleDateString()}
           </p>
         </div>
-        <div className="rounded-xl bg-ink-50/70 ring-1 ring-ink-100 p-3.5">
-          <p className="text-[11px] uppercase tracking-wider text-ink-400 font-semibold">Thanh toán</p>
-          <p className="font-semibold text-ink-800 mt-1 text-sm">
+        <div className="rounded-xl bg-ink-50/70 ring-1 ring-ink-100 dark:ring-white/10 p-3.5">
+          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">Thanh toán</p>
+          <p className="font-semibold text-ink-800 dark:text-white mt-1 text-sm">
             {order.paidAt ? new Date(order.paidAt).toLocaleDateString() : 'Chưa thanh toán'}
           </p>
         </div>
@@ -158,15 +158,15 @@ const OrderResult = ({ order }) => {
       {/* items */}
       {order.items && order.items.length > 0 && (
         <div className="mt-5">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-ink-400 mb-3">Sản phẩm</h3>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-3">Sản phẩm</h3>
           <ul className="space-y-2.5">
             {order.items.map((item, idx) => (
-              <li key={idx} className="flex justify-between gap-3 items-center text-sm p-3.5 rounded-xl bg-white ring-1 ring-ink-100">
-                <span className="text-ink-700 truncate">
+              <li key={idx} className="flex justify-between gap-3 items-center text-sm p-3.5 rounded-xl bg-white dark:bg-white/5 ring-1 ring-ink-100 dark:ring-white/10">
+                <span className="text-ink-700 dark:text-ink-100 truncate">
                   {item.product?.shortName || item.product?.name || item.card?.sku || 'Sản phẩm'}{' '}
-                  <span className="text-ink-400">x {item.quantity}</span>
+                  <span className="text-ink-400 dark:text-ink-300">x {item.quantity}</span>
                 </span>
-                <span className="font-semibold text-ink-900 flex-shrink-0">
+                <span className="font-semibold text-ink-900 dark:text-white flex-shrink-0">
                   ${Number(item.totalPrice).toFixed(2)}
                 </span>
               </li>
@@ -177,8 +177,8 @@ const OrderResult = ({ order }) => {
 
       {/* masked shipping info (privacy-safe for guest tracking) */}
       {order.shippingAddress && (
-        <div className="mt-5 text-sm text-ink-600 bg-white p-4 rounded-xl border border-ink-100">
-          <p className="font-semibold flex items-center text-ink-800 mb-1.5">
+        <div className="mt-5 text-sm text-ink-600 dark:text-ink-200 bg-white dark:bg-white/5 p-4 rounded-xl border border-ink-100 dark:border-white/10">
+          <p className="font-semibold flex items-center text-ink-800 dark:text-white mb-1.5">
             <MapPin className="h-4 w-4 mr-1.5 text-primary-600" /> Nơi nhận
           </p>
           <p>
@@ -189,7 +189,7 @@ const OrderResult = ({ order }) => {
         </div>
       )}
 
-      <p className="mt-5 flex items-center justify-center gap-1.5 text-xs text-ink-400">
+      <p className="mt-5 flex items-center justify-center gap-1.5 text-xs text-ink-400 dark:text-ink-300">
         <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
         Thông tin cá nhân được ẩn để bảo vệ quyền riêng tư
       </p>
@@ -246,7 +246,7 @@ const OrderLookup = () => {
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#faf9fe]">
+    <div className="w-full min-h-screen app-bg">
       <div className="relative max-w-3xl mx-auto px-4 py-12">
         {/* Ambient background — entirely contained within the page wrapper */}
         <div className="pointer-events-none absolute -top-10 left-6 h-64 w-64 rounded-full bg-primary-400/10 blur-[100px] animate-tcg-float" />
@@ -259,23 +259,23 @@ const OrderLookup = () => {
           </div>
           <p className="section-eyebrow mt-5">Guest Tracking</p>
           <h1 className="heading-display text-3xl mt-1.5">Tra cứu đơn hàng</h1>
-          <p className="mt-2 text-ink-500 max-w-md mx-auto">
-            Không cần đăng nhập — nhập <strong className="text-ink-700 font-semibold">mã đơn hàng</strong>,{' '}
-            <strong className="text-ink-700 font-semibold">email</strong> hoặc{' '}
-            <strong className="text-ink-700 font-semibold">số điện thoại</strong> để xem trạng thái ngay lập tức.
+          <p className="mt-2 text-ink-500 dark:text-ink-300 max-w-md mx-auto">
+            Không cần đăng nhập — nhập <strong className="text-ink-700 dark:text-ink-100 font-semibold">mã đơn hàng</strong>,{' '}
+            <strong className="text-ink-700 dark:text-ink-100 font-semibold">email</strong> hoặc{' '}
+            <strong className="text-ink-700 dark:text-ink-100 font-semibold">số điện thoại</strong> để xem trạng thái ngay lập tức.
           </p>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-3xl bg-white/80 backdrop-blur-xl border border-ink-100 shadow-card p-6 sm:p-7 animate-tcg-reveal"
+          className="rounded-3xl bg-white/80 dark:bg-[#12121a]/80 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-7 animate-tcg-reveal"
           style={{ animationDelay: '0.08s' }}
         >
           <label htmlFor="lookup-input" className="label-premium">
             Mã đơn hàng, email hoặc số điện thoại *
           </label>
           <div className="relative flex items-center">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-ink-400 pointer-events-none" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-ink-400 dark:text-ink-300 pointer-events-none" />
             <input
               id="lookup-input"
               type="text"
@@ -312,7 +312,7 @@ const OrderLookup = () => {
             )}
           </button>
 
-          <p className="mt-4 text-center text-xs text-ink-400 flex items-center justify-center gap-1.5">
+          <p className="mt-4 text-center text-xs text-ink-400 dark:text-ink-300 flex items-center justify-center gap-1.5">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
             Tra cứu công khai, an toàn — thông tin nhạy cảm luôn được ẩn
           </p>
@@ -322,14 +322,14 @@ const OrderLookup = () => {
         {loading && <LookupSkeleton />}
 
         {!loading && error && (
-          <div className="mt-8 relative overflow-hidden rounded-3xl bg-white/85 backdrop-blur-xl border border-ink-100 shadow-card p-8 text-center animate-tcg-scale-in">
+          <div className="mt-8 relative overflow-hidden rounded-3xl bg-white/85 dark:bg-[#12121a]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-8 text-center animate-tcg-scale-in">
             <div className="pointer-events-none absolute -top-16 left-1/3 h-48 w-48 rounded-full bg-rose-300/15 blur-[80px]" />
             <div className="relative">
               <div className="mx-auto h-14 w-14 rounded-2xl bg-rose-50 ring-1 ring-rose-200 flex items-center justify-center">
                 <Package className="h-7 w-7 text-rose-500" />
               </div>
               <h2 className="heading-display text-lg mt-4">No active shipment found</h2>
-              <p className="mt-2 text-sm text-ink-500 max-w-md mx-auto">{error}</p>
+              <p className="mt-2 text-sm text-ink-500 dark:text-ink-300 max-w-md mx-auto">{error}</p>
               <button onClick={() => { setQuery(''); setOrder(null); setError(''); }} className="btn-secondary !py-2 text-sm mt-5">
                 Thử lại với thông tin khác
               </button>

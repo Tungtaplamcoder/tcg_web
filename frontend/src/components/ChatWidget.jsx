@@ -162,14 +162,14 @@ const ChatWidget = () => {
     return (
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4">
         {isOpen && (
-          <div className="w-80 rounded-2xl bg-white/95 backdrop-blur-xl border border-ink-100 shadow-2xl shadow-ink-900/15 p-5 animate-tcg-scale-in origin-bottom-right">
+          <div className="w-80 rounded-2xl bg-white/95 dark:bg-[#14141e]/95 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-2xl shadow-ink-900/15 p-5 animate-tcg-scale-in origin-bottom-right">
             <div className="flex items-center gap-3 mb-3">
               <div className="h-10 w-10 rounded-xl bg-brand-gradient-soft ring-1 ring-primary-200/60 flex items-center justify-center">
                 <Headset className="h-5 w-5 text-primary-700" />
               </div>
-              <p className="font-display font-bold text-ink-900">Support Chat</p>
+              <p className="font-display font-bold text-ink-900 dark:text-white">Support Chat</p>
             </div>
-            <p className="text-sm text-ink-500 leading-relaxed">
+            <p className="text-sm text-ink-500 dark:text-ink-300 leading-relaxed">
               Please log in to chat with our support team.
             </p>
             <button
@@ -189,7 +189,7 @@ const ChatWidget = () => {
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4">
       {isOpen && (
         <div
-          className="w-80 sm:w-96 flex flex-col rounded-2xl overflow-hidden bg-white/90 backdrop-blur-xl border border-ink-100 shadow-2xl shadow-ink-900/15 animate-tcg-scale-in origin-bottom-right"
+          className="w-80 sm:w-96 flex flex-col rounded-2xl overflow-hidden bg-white/90 dark:bg-[#13131d]/90 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-2xl shadow-ink-900/15 animate-tcg-scale-in origin-bottom-right"
           style={{ height: '500px', maxHeight: '80vh' }}
         >
           {/* Header */}
@@ -213,7 +213,7 @@ const ChatWidget = () => {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-ink-50/80 to-white">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-ink-50/80 to-white dark:from-[#0e0e15] dark:to-[#12121a]">
             {isLoading ? (
               <div className="flex justify-center items-center h-full">
                 <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
@@ -225,8 +225,8 @@ const ChatWidget = () => {
                 <div className="h-12 w-12 rounded-2xl bg-brand-gradient-soft ring-1 ring-primary-200/60 flex items-center justify-center mb-3">
                   <MessageCircle className="h-6 w-6 text-primary-600" />
                 </div>
-                <p className="text-sm font-medium text-ink-600">No messages yet</p>
-                <p className="text-xs text-ink-400 mt-1">Start a conversation!</p>
+                <p className="text-sm font-medium text-ink-600 dark:text-ink-200">No messages yet</p>
+                <p className="text-xs text-ink-400 dark:text-ink-300 mt-1">Start a conversation!</p>
               </div>
             ) : (
               messages.map((msg) => {
@@ -237,7 +237,7 @@ const ChatWidget = () => {
                       className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm animate-tcg-fade-in ${
                         isMine
                           ? 'bg-gradient-to-r from-primary-600 to-fuchsia-600 text-white rounded-br-md'
-                          : 'bg-white border border-ink-100 text-ink-800 rounded-bl-md'
+                          : 'bg-white dark:bg-white/10 border border-ink-100 dark:border-white/10 text-ink-800 dark:text-white rounded-bl-md'
                       }`}
                     >
                       {!isMine && (
@@ -246,7 +246,7 @@ const ChatWidget = () => {
                         </p>
                       )}
                       <p className="leading-relaxed break-words">{msg.content}</p>
-                      <p className={`text-[10px] mt-1 ${isMine ? 'text-white/60' : 'text-ink-400'}`}>
+                      <p className={`text-[10px] mt-1 ${isMine ? 'text-white/60' : 'text-ink-400 dark:text-ink-300'}`}>
                         {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
@@ -258,7 +258,7 @@ const ChatWidget = () => {
           </div>
 
           {/* Input */}
-          <form onSubmit={handleSend} className="p-3 border-t border-ink-100 bg-white/90 backdrop-blur">
+          <form onSubmit={handleSend} className="p-3 border-t border-ink-100 dark:border-white/10 bg-white/90 dark:bg-[#13131d]/90 backdrop-blur">
             <div className="flex items-center gap-2">
               <input
                 type="text"

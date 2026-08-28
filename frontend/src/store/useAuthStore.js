@@ -64,8 +64,25 @@ export const useAuthStore = create((set) => ({
       });
       return { success: true, user };
     } catch (error) {
+      // Capture full detail for debugging (status + server message + body)
+      const status = error.response?.status;
+      const serverMessage = error.response?.data?.error?.message;
+      const rawBody = error.response?.data;
+      console.error('[LOGIN] error', {
+        status,
+        serverMessage,
+        url: error.config?.url,
+        baseURL: error.config?.baseURL,
+        rawBody
+      });
       set({ isLoading: false });
-      return { success: false, error: error.response?.data?.error?.message || 'Login failed' };
+      // Prefer the server's message; fall back to a clear network error hint
+      const message =
+        serverMessage ||
+        (error.code === 'ERR_NETWORK'
+          ? 'Network error: cannot reach the API (check API URL / CORS / firewall)'
+          : 'Login failed');
+      return { success: false, error: message, status, rawBody };
     }
   },
 

@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingCart, Menu, X, User, LogOut, Package, LayoutDashboard, ChevronDown, Sparkles, Sun, Moon } from 'lucide-react';
+import { ShoppingCart, Menu, X, User, LogOut, Package, LayoutDashboard, ChevronDown, Sparkles } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useCartStore } from '../store/useCartStore';
-import { useTheme } from '../context/ThemeContext';
+import ThemeToggle from './ThemeToggle';
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -11,7 +11,6 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const { user, isAuthenticated, logout } = useAuthStore();
   const { totalItems } = useCartStore();
-  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const userMenuRef = useRef(null);
@@ -73,7 +72,7 @@ const Navbar = () => {
               <Sparkles className="h-5 w-5 text-white" />
               <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/25" />
             </div>
-            <span className="font-display text-[22px] font-bold tracking-tight text-ink-900">
+            <span className="font-display text-[22px] font-bold tracking-tight text-ink-900 dark:text-white">
               TCG<span className="text-gradient-brand">Store</span>
             </span>
           </Link>
@@ -87,7 +86,7 @@ const Navbar = () => {
                 className={`relative px-4 py-2 rounded-full text-sm font-semibold transition-all duration-300 ${
                   isActive(link.to)
                     ? 'text-primary-700 bg-primary-50 ring-1 ring-primary-200/70 dark:bg-white/10 dark:text-white'
-                    : 'text-ink-500 hover:text-ink-900 hover:bg-ink-900/5 dark:text-ink-300 dark:hover:text-white dark:hover:bg-white/10'
+                    : 'text-ink-500 dark:text-ink-300 hover:text-ink-900 dark:text-white hover:bg-ink-900/5 dark:text-ink-300 dark:hover:text-white dark:hover:bg-white/10'
                 }`}
               >
                 {link.label}
@@ -106,23 +105,21 @@ const Navbar = () => {
 
           {/* Right icons */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Theme toggle */}
-            <button
-              onClick={toggleTheme}
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              className="relative p-2.5 rounded-full text-ink-500 hover:text-primary-700 hover:bg-primary-50 dark:text-ink-300 dark:hover:text-white dark:hover:bg-white/10 transition-all duration-300"
-            >
-              {theme === 'dark' ? <Sun className="h-[20px] w-[20px]" /> : <Moon className="h-[20px] w-[20px]" />}
-            </button>
+            {/* Theme toggle — animated icon morph */}
+            <ThemeToggle />
 
             {/* Cart */}
             <Link
               to="/cart"
+              aria-label={`Cart with ${totalItems} items`}
               className="relative p-2.5 rounded-full text-ink-500 hover:text-primary-700 hover:bg-primary-50 transition-all duration-300 dark:text-ink-300 dark:hover:text-white dark:hover:bg-white/10"
             >
               <ShoppingCart className="h-[22px] w-[22px]" />
               {totalItems > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[20px] h-5 px-1 flex items-center justify-center bg-gradient-to-r from-fuchsia-600 to-pink-500 text-white text-[11px] font-bold rounded-full ring-2 ring-white shadow-glow animate-tcg-scale-in">
+                <span
+                  key={totalItems}
+                  className="absolute -top-0.5 -right-0.5 min-w-[20px] h-5 px-1 flex items-center justify-center bg-gradient-to-r from-fuchsia-600 to-pink-500 text-white text-[11px] font-bold rounded-full ring-2 ring-white dark:ring-[#0a0a0f] shadow-glow animate-tcg-badge-pop"
+                >
                   {totalItems}
                 </span>
               )}
@@ -144,10 +141,10 @@ const Navbar = () => {
                       <User className="h-[18px] w-[18px] text-primary-700" />
                     )}
                   </div>
-                  <span className="hidden sm:inline text-sm font-semibold text-ink-700 max-w-[140px] truncate">
+                  <span className="hidden sm:inline text-sm font-semibold text-ink-700 dark:text-ink-100 max-w-[140px] truncate">
                     {user.fullName}
                   </span>
-                  <ChevronDown className={`h-4 w-4 text-ink-400 transition-transform duration-300 ${userMenuOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`h-4 w-4 text-ink-400 dark:text-ink-300 transition-transform duration-300 ${userMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {userMenuOpen && (
@@ -186,7 +183,7 @@ const Navbar = () => {
             {/* Mobile menu button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-xl text-ink-600 hover:bg-ink-900/5 focus:outline-none transition-colors"
+              className="md:hidden p-2 rounded-xl text-ink-600 dark:text-ink-200 hover:bg-ink-900/5 dark:hover:bg-white/10 focus:outline-none transition-colors"
             >
               {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
@@ -208,7 +205,7 @@ const Navbar = () => {
               className={`block px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
                 isActive(link.to)
                   ? 'bg-primary-50 text-primary-700 ring-1 ring-primary-200/70 dark:bg-white/10 dark:text-white'
-                  : 'text-ink-600 hover:bg-ink-900/5 dark:text-ink-300 dark:hover:bg-white/10'
+                  : 'text-ink-600 dark:text-ink-200 hover:bg-ink-900/5 dark:text-ink-300 dark:hover:bg-white/10'
               }`}
               onClick={() => setMobileMenuOpen(false)}
             >

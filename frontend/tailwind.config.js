@@ -73,7 +73,17 @@ export default {
           gold: '#e9c46a',
           violet: '#8b5cf6',
           magenta: '#d946ef'
-        }
+        },
+        canvas: 'var(--bg-app)',
+        'canvas-2': 'var(--bg-app-2)',
+        surface: 'var(--bg-surface)',
+        'surface-2': 'var(--bg-surface-2)',
+        pop: 'var(--bg-pop)',
+        strong: 'var(--text-strong)',
+        muted: 'var(--text-muted)',
+        faint: 'var(--text-faint)',
+        edge: 'var(--border-subtle)',
+        brand: 'var(--accent)'
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],

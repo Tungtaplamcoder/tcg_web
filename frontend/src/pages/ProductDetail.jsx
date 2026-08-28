@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ShoppingCart, Star, Shield, Truck, ArrowLeft, Loader2, Minus, Plus, Tag, Check, Boxes
+  ShoppingCart, Star, Shield, Truck, ArrowLeft, Loader2, Minus, Plus, Check, Boxes
 } from 'lucide-react';
 import {
   ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -9,7 +9,9 @@ import {
 import api from '../services/api';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useTheme } from '../context/ThemeContext';
 import { formatVND, USD_TO_VND_RATE } from '../utils/format';
+import { playTick, vibrate } from '../utils/sfx';
 import TiltCard from '../components/TiltCard';
 import RarityBadge from '../components/RarityBadge';
 import PackReveal from '../components/PackReveal';
@@ -19,6 +21,17 @@ const RANGE_LABELS = {
   quarter: '3 Month Snapshot',
   'semi-annual': '6 Month Snapshot',
   annual: '1 Year Snapshot'
+};
+
+const CHART_THEMES = {
+  light: {
+    grid: '#e2e8f0', text: '#94a3b8', axis: '#cbd5e1',
+    bar: '#ede9fe', barRing: 'rgba(196,181,253,0.6)', cursor: '#c4b5fd'
+  },
+  dark: {
+    grid: 'rgba(255,255,255,0.08)', text: '#7c83a3', axis: 'rgba(255,255,255,0.14)',
+    bar: 'rgba(139,92,246,0.25)', barRing: 'rgba(139,92,246,0.45)', cursor: 'rgba(139,92,246,0.55)'
+  }
 };
 
 const ProductDetail = () => {
@@ -37,6 +50,8 @@ const ProductDetail = () => {
   const cacheRef = useRef(new Map());
   const { addItem } = useCartStore();
   const { isAuthenticated } = useAuthStore();
+  const { theme } = useTheme();
+  const chartTheme = CHART_THEMES[theme] || CHART_THEMES.light;
 
   const formatCurrency = (value) => {
     if (value === null || value === undefined || isNaN(Number(value))) return 'N/A';
@@ -144,6 +159,8 @@ const ProductDetail = () => {
       stockQuantity: selectedVariant.stockQuantity
     }, quantity, selectedVariant.id);
 
+    playTick();
+    vibrate([12]);
     setAdded(true);
     setTimeout(() => navigate('/cart'), 750);
   };
@@ -152,13 +169,13 @@ const ProductDetail = () => {
     return (
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-pulse">
-          <div className="h-[420px] rounded-3xl bg-gradient-to-br from-ink-100 to-ink-50 ring-1 ring-ink-100" />
+          <div className="h-[420px] rounded-3xl surface" />
           <div className="space-y-4 py-4">
-            <div className="h-9 bg-ink-100 rounded-xl w-3/4" />
-            <div className="h-5 bg-ink-100 rounded-lg w-1/3" />
-            <div className="h-10 bg-ink-100 rounded-xl w-1/2" />
-            <div className="h-32 bg-ink-100 rounded-2xl" />
-            <div className="h-12 bg-ink-100 rounded-xl" />
+            <div className="h-9 bg-ink-100 dark:bg-white/5 rounded-xl w-3/4" />
+            <div className="h-5 bg-ink-100 dark:bg-white/5 rounded-lg w-1/3" />
+            <div className="h-10 bg-ink-100 dark:bg-white/5 rounded-xl w-1/2" />
+            <div className="h-32 bg-ink-100 dark:bg-white/5 rounded-2xl" />
+            <div className="h-12 bg-ink-100 dark:bg-white/5 rounded-xl" />
           </div>
         </div>
       </div>
@@ -212,17 +229,17 @@ const ProductDetail = () => {
     const data = payload[0].payload;
     return (
         <div className="glass-panel-strong text-strong rounded-xl shadow-2xl shadow-ink-900/15 border border-subtle p-3.5" style={{ minWidth: '200px' }}>
-        <div className="text-ink-400 text-xs font-semibold border-b border-ink-100 pb-1.5 mb-2">
+        <div className="text-ink-400 dark:text-ink-300 text-xs font-semibold border-b border-ink-100 dark:border-white/10 pb-1.5 mb-2">
           {data.dateLabel || formatFullDate(data.date)}
         </div>
         <div className="text-gradient-brand font-bold text-lg">
           {formatVND(data.marketPrice * USD_TO_VND_RATE)}
         </div>
-        <div className="text-ink-500 text-sm">
+        <div className="text-ink-500 dark:text-ink-300 text-sm">
           {data.quantitySold} items sold
         </div>
         {(data.lowPrice !== null || data.highPrice !== null) && (
-          <div className="text-ink-500 text-sm">
+          <div className="text-ink-500 dark:text-ink-300 text-sm">
             {data.lowPrice !== null ? formatVND(data.lowPrice * USD_TO_VND_RATE) : '—'} - {data.highPrice !== null ? formatVND(data.highPrice * USD_TO_VND_RATE) : '—'}
           </div>
         )}
@@ -239,7 +256,7 @@ const ProductDetail = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
         {/* Ảnh sản phẩm */}
         <div className="lg:sticky lg:top-24 self-start">
-          <div className="relative overflow-hidden rounded-3xl surface aura-glow p-8 sm:p-10 flex items-center justify-center" style={{ minHeight: '300px' }}>
+          <div className="relative overflow-hidden rounded-3xl glass-panel-strong aura-glow p-8 sm:p-10 flex items-center justify-center" style={{ minHeight: '300px' }}>
             <div className="pointer-events-none absolute -top-16 -right-16 h-56 w-56 rounded-full bg-fuchsia-400/15 blur-[80px] animate-tcg-float" />
             <div className="pointer-events-none absolute -bottom-16 -left-16 h-56 w-56 rounded-full bg-primary-400/15 blur-[80px] animate-tcg-float-slow" />
             {product.rarity && (
@@ -255,7 +272,7 @@ const ProductDetail = () => {
                   className="relative max-h-[440px] w-auto object-contain drop-shadow-[0_24px_40px_rgba(15,23,42,0.35)] dark:drop-shadow-[0_24px_50px_rgba(34,211,238,0.25)]"
                 />
               ) : (
-                <div className="w-full h-96 flex items-center justify-center text-ink-400">
+                <div className="w-full h-96 flex items-center justify-center text-ink-400 dark:text-ink-300">
                   Không có ảnh
                 </div>
               )}
@@ -266,20 +283,20 @@ const ProductDetail = () => {
         {/* Chi tiết */}
         <div>
           {product.rarity && (
-            <span className="chip-gradient mb-3">
-              <Tag className="h-3 w-3" /> {product.rarity}
-            </span>
+            <div className="mb-3">
+              <RarityBadge rarity={product.rarity} size="lg" />
+            </div>
           )}
           <h1 className="heading-display text-3xl sm:text-4xl leading-tight">{product.name}</h1>
           {product.sets && product.sets.length > 0 && (
-            <p className="text-ink-500 mt-2 font-medium">{product.sets.map(s => s.name).join(', ')}</p>
+            <p className="text-ink-500 dark:text-ink-300 mt-2 font-medium">{product.sets.map(s => s.name).join(', ')}</p>
           )}
 
           <div className="mt-4 flex items-center gap-2.5">
             <div className="flex text-amber-400">
               {[...Array(5)].map((_, i) => <Star key={i} className="h-[18px] w-[18px] fill-current" />)}
             </div>
-            <span className="text-sm text-ink-400">(0 đánh giá)</span>
+            <span className="text-sm text-ink-400 dark:text-ink-300">(0 đánh giá)</span>
           </div>
 
           <div className="mt-6 inline-flex items-baseline gap-3 rounded-2xl bg-brand-gradient-soft ring-1 ring-primary-200/60 px-5 py-3.5">
@@ -307,7 +324,7 @@ const ProductDetail = () => {
                       <span className={`font-semibold ${selectedVariantId === v.id ? 'text-primary-800 dark:text-white' : 'text-ink-800 dark:text-white/90'}`}>
                         {v.condition} - {v.variant}
                       </span>
-                      <span className="text-xs text-ink-400 block mt-0.5">Còn {v.stockQuantity}</span>
+                      <span className="text-xs text-ink-400 dark:text-ink-300 block mt-0.5">Còn {v.stockQuantity}</span>
                     </div>
                       <span className={`font-bold ${selectedVariantId === v.id ? 'text-primary-700 dark:text-white' : 'text-ink-800 dark:text-white/90'}`}>
                       {formatVND(v.price)}
@@ -322,15 +339,15 @@ const ProductDetail = () => {
             <div className="inline-flex items-center self-start rounded-xl border border-subtle surface overflow-hidden">
               <button
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="p-3 text-ink-500 hover:text-primary-700 hover:bg-primary-50 transition-colors"
+                className="p-3 text-ink-500 dark:text-ink-300 hover:text-primary-700 hover:bg-primary-50 transition-colors"
                 aria-label="Decrease quantity"
               >
                 <Minus className="h-4 w-4" />
               </button>
-              <span className="px-5 py-3 font-bold text-ink-900 min-w-[3rem] text-center">{quantity}</span>
+              <span className="px-5 py-3 font-bold text-ink-900 dark:text-white min-w-[3rem] text-center">{quantity}</span>
               <button
                 onClick={() => setQuantity(Math.min(selectedVariant?.stockQuantity || 10, quantity + 1))}
-                className="p-3 text-ink-500 hover:text-primary-700 hover:bg-primary-50 transition-colors"
+                className="p-3 text-ink-500 dark:text-ink-300 hover:text-primary-700 hover:bg-primary-50 transition-colors"
                 aria-label="Increase quantity"
               >
                 <Plus className="h-4 w-4" />
@@ -352,20 +369,20 @@ const ProductDetail = () => {
           </div>
 
           {product.description && (
-            <div className="mt-6 p-5 rounded-2xl surface text-muted text-sm leading-relaxed whitespace-pre-wrap">
+            <div className="mt-6 p-5 rounded-2xl glass-panel text-muted text-sm leading-relaxed whitespace-pre-wrap">
               {product.description}
             </div>
           )}
 
           <div className="mt-5 space-y-2 text-sm">
-            {product.artist && <p className="text-ink-600"><strong className="text-ink-800">Họa sĩ:</strong> {product.artist}</p>}
+            {product.artist && <p className="text-ink-600 dark:text-ink-200"><strong className="text-ink-800 dark:text-white">Họa sĩ:</strong> {product.artist}</p>}
           </div>
 
           <div className="mt-7 grid grid-cols-2 gap-3">
-            <div className="flex items-center gap-2.5 rounded-xl bg-emerald-50/80 ring-1 ring-emerald-100 px-4 py-3 text-sm font-medium text-emerald-800">
+            <div className="flex items-center gap-2.5 rounded-xl bg-emerald-50/80 dark:bg-emerald-400/10 ring-1 ring-emerald-100 dark:ring-emerald-400/20 px-4 py-3 text-sm font-medium text-emerald-800 dark:text-emerald-300">
               <Shield className="h-[18px] w-[18px] text-emerald-600" /> Hàng chính hãng
             </div>
-            <div className="flex items-center gap-2.5 rounded-xl bg-primary-50/80 ring-1 ring-primary-100 px-4 py-3 text-sm font-medium text-primary-800">
+            <div className="flex items-center gap-2.5 rounded-xl bg-primary-50/80 dark:bg-primary-400/10 ring-1 ring-primary-100 dark:ring-primary-400/20 px-4 py-3 text-sm font-medium text-primary-800 dark:text-primary-200">
               <Truck className="h-[18px] w-[18px] text-primary-600" /> Vận chuyển nhanh
             </div>
           </div>
@@ -382,11 +399,11 @@ const ProductDetail = () => {
           </div>
 
           {priceData === null && !isLoadingRange ? (
-            <p className="text-ink-400">Không có dữ liệu lịch sử giá.</p>
+            <p className="text-ink-400 dark:text-ink-300">Không có dữ liệu lịch sử giá.</p>
           ) : (
             <div className="relative">
               {isLoadingRange && (
-                <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-20 flex items-center justify-center rounded-2xl">
+                <div className="absolute inset-0 bg-white/60 dark:bg-ink-950/60 backdrop-blur-sm z-20 flex items-center justify-center rounded-2xl">
                   <Loader2 className="h-10 w-10 animate-spin text-primary-600" />
                 </div>
               )}
@@ -404,19 +421,19 @@ const ProductDetail = () => {
                               <stop offset="100%" stopColor="#d946ef" />
                             </linearGradient>
                           </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.grid} />
                           <XAxis
                             dataKey="date"
                             ticks={evenDateTicks}
                             tickFormatter={formatDateShort}
-                            tick={{ fontSize: 12, fill: '#94a3b8' }}
-                            axisLine={{ stroke: '#cbd5e1' }}
+                            tick={{ fontSize: 12, fill: chartTheme.text }}
+                            axisLine={{ stroke: chartTheme.axis }}
                             tickLine={false}
                           />
                           <YAxis
                             yAxisId="left"
                             tickFormatter={(value) => formatVND(value * USD_TO_VND_RATE)}
-                            tick={{ fontSize: 12, fill: '#94a3b8' }}
+                            tick={{ fontSize: 12, fill: chartTheme.text }}
                             axisLine={false}
                             tickLine={false}
                             width={100}
@@ -427,16 +444,16 @@ const ProductDetail = () => {
                             orientation="right"
                             domain={[0, volumeTop]}
                             ticks={volumeTicks}
-                            tick={{ fontSize: 12, fill: '#94a3b8' }}
+                            tick={{ fontSize: 12, fill: chartTheme.text }}
                             axisLine={false}
                             tickLine={false}
                             width={60}
                           />
-                          <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#c4b5fd', strokeDasharray: '4 4' }} />
+                          <Tooltip content={<CustomTooltip />} cursor={{ stroke: chartTheme.cursor, strokeDasharray: '4 4' }} />
                           <Bar
                             yAxisId="right"
                             dataKey="quantitySold"
-                            fill="#ede9fe"
+                            fill={chartTheme.bar}
                             barCategoryGap="2%"
                             barSize={14}
                             radius={[4, 4, 0, 0]}
@@ -458,7 +475,7 @@ const ProductDetail = () => {
                   )}
 
                   {/* Tabs chuyển mốc thời gian */}
-                  <div className="flex justify-center mt-5 gap-1.5 rounded-full bg-ink-50 ring-1 ring-ink-100 p-1.5 w-fit mx-auto">
+                  <div className="flex justify-center mt-5 gap-1.5 rounded-full bg-ink-50 dark:bg-white/5 ring-1 ring-ink-100 dark:ring-white/10 p-1.5 w-fit mx-auto">
                     {[
                       { key: 'month', label: '1M' },
                       { key: 'quarter', label: '3M' },
@@ -471,7 +488,7 @@ const ProductDetail = () => {
                         className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-300 ${
                           priceRange === tab.key
                             ? 'bg-gradient-to-r from-primary-600 to-fuchsia-600 text-white shadow-[0_4px_12px_-4px_rgba(124,58,237,0.5)]'
-                            : 'text-ink-500 hover:text-ink-800'
+                            : 'text-ink-500 dark:text-ink-300 hover:text-ink-800 dark:hover:text-white'
                         }`}
                       >
                         {tab.label}
@@ -480,9 +497,9 @@ const ProductDetail = () => {
                   </div>
 
                   {/* Chú thích */}
-                  <div className="mt-4 flex items-center justify-center flex-wrap gap-x-6 gap-y-2 text-xs text-ink-500">
+                  <div className="mt-4 flex items-center justify-center flex-wrap gap-x-6 gap-y-2 text-xs text-ink-500 dark:text-ink-300">
                     <div className="flex items-center">
-                      <span className="w-3 h-3 rounded-sm bg-[#ede9fe] ring-1 ring-primary-200 mr-1.5"></span>
+                      <span className="w-3 h-3 rounded-sm bg-[#ede9fe] dark:bg-primary-500/30 ring-1 ring-primary-200 dark:ring-primary-400/30 mr-1.5"></span>
                       Tổng số sản phẩm đã bán (Items Sold)
                     </div>
                     <div className="flex items-center">
@@ -495,25 +512,25 @@ const ProductDetail = () => {
                 {/* Cột phải: Thông số */}
                 <div className="space-y-4">
                   <div className="rounded-2xl bg-gradient-to-br from-primary-50/80 to-fuchsia-50/60 ring-1 ring-primary-200/50 p-5 dark:from-white/5 dark:to-aura-violet/10 dark:ring-white/10">
-                    <h3 className="font-display font-bold text-ink-900">Thông số giá & Thị trường</h3>
+                    <h3 className="font-display font-bold text-ink-900 dark:text-white">Thông số giá & Thị trường</h3>
                     <div className="mt-4 space-y-3">
                       <div className="flex justify-between items-baseline">
-                        <span className="text-sm text-ink-500">Market Price</span>
+                        <span className="text-sm text-ink-500 dark:text-ink-300">Market Price</span>
                         <span className="text-xl font-bold text-gradient-brand">
                           {metrics?.price_points ? formatCurrency(metrics.price_points.marketPrice) : 'N/A'}
                         </span>
                       </div>
                       <div className="flex justify-between items-baseline">
-                        <span className="text-sm text-ink-500">Most Recent Sale</span>
-                        <span className="text-sm font-semibold text-ink-700">
+                        <span className="text-sm text-ink-500 dark:text-ink-300">Most Recent Sale</span>
+                        <span className="text-sm font-semibold text-ink-700 dark:text-ink-100">
                           {metrics?.price_points ? formatCurrency(metrics.price_points.mostRecentSale) : 'N/A'}
                         </span>
                       </div>
                       <div>
-                        <span className="text-sm text-ink-500">
+                        <span className="text-sm text-ink-500 dark:text-ink-300">
                           {metrics?.price_points?.volatility || 'Med Volatility'}
                         </span>
-                        <div className="w-full h-1.5 bg-white/80 rounded-full mt-1.5 overflow-hidden">
+                        <div className="w-full h-1.5 bg-white/80 dark:bg-[#12121a]/80 rounded-full mt-1.5 overflow-hidden">
                           <div className="h-1.5 rounded-full bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500" style={{ width: '50%' }} />
                         </div>
                       </div>
@@ -521,12 +538,12 @@ const ProductDetail = () => {
 
                     {metrics?.comparison_prices?.length > 0 && (
                       <div className="mt-4 pt-4 border-t border-primary-200/40">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-ink-400 mb-2.5">Near Mint Comparison Prices</p>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2.5">Near Mint Comparison Prices</p>
                         <div className="flex flex-wrap gap-2">
                           {metrics.comparison_prices.map((item, idx) => (
-                            <div key={idx} className="flex items-center gap-2 bg-white/85 rounded-lg px-3 py-1.5 ring-1 ring-primary-200/50 shadow-sm">
-                              <span className="text-sm text-ink-500">{item.label}:</span>
-                              <span className="font-bold text-ink-800">{formatCurrency(item.value)}</span>
+                            <div key={idx} className="flex items-center gap-2 bg-white/85 dark:bg-white/10 rounded-lg px-3 py-1.5 ring-1 ring-primary-200/50 dark:ring-white/10 shadow-sm">
+                              <span className="text-sm text-ink-500 dark:text-ink-300">{item.label}:</span>
+                              <span className="font-bold text-ink-800 dark:text-white">{formatCurrency(item.value)}</span>
                             </div>
                           ))}
                         </div>
@@ -535,28 +552,28 @@ const ProductDetail = () => {
                   </div>
 
                   <div className="rounded-2xl surface p-5">
-                    <h3 className="font-display font-bold text-ink-900">{snapshotTitle}</h3>
+                    <h3 className="font-display font-bold text-ink-900 dark:text-white">{snapshotTitle}</h3>
                     {metrics?.snapshot ? (
                       <div className="grid grid-cols-2 gap-2.5 mt-4">
                         <div className="rounded-xl surface-2 p-3 text-center">
-                          <p className="text-[11px] uppercase tracking-wider text-ink-400 font-semibold">Low Sale Price</p>
-                          <p className="font-bold text-ink-800 mt-1">{formatCurrency(metrics.snapshot.lowSalePrice)}</p>
+                          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">Low Sale Price</p>
+                          <p className="font-bold text-ink-800 dark:text-white mt-1">{formatCurrency(metrics.snapshot.lowSalePrice)}</p>
                         </div>
                         <div className="rounded-xl surface-2 p-3 text-center">
-                          <p className="text-[11px] uppercase tracking-wider text-ink-400 font-semibold">High Sale Price</p>
-                          <p className="font-bold text-ink-800 mt-1">{formatCurrency(metrics.snapshot.highSalePrice)}</p>
+                          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">High Sale Price</p>
+                          <p className="font-bold text-ink-800 dark:text-white mt-1">{formatCurrency(metrics.snapshot.highSalePrice)}</p>
                         </div>
                         <div className="rounded-xl surface-2 p-3 text-center">
-                          <p className="text-[11px] uppercase tracking-wider text-ink-400 font-semibold">Total Sold</p>
-                          <p className="font-bold text-ink-800 mt-1">{formatNumber(metrics.snapshot.totalSold)}</p>
+                          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">Total Sold</p>
+                          <p className="font-bold text-ink-800 dark:text-white mt-1">{formatNumber(metrics.snapshot.totalSold)}</p>
                         </div>
                         <div className="rounded-xl surface-2 p-3 text-center">
-                          <p className="text-[11px] uppercase tracking-wider text-ink-400 font-semibold">Avg. Daily Sold</p>
-                          <p className="font-bold text-ink-800 mt-1">{formatNumber(metrics.snapshot.avgDailySold)}</p>
+                          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">Avg. Daily Sold</p>
+                          <p className="font-bold text-ink-800 dark:text-white mt-1">{formatNumber(metrics.snapshot.avgDailySold)}</p>
                         </div>
                       </div>
                     ) : (
-                      <p className="text-sm text-ink-400 mt-2">N/A</p>
+                      <p className="text-sm text-ink-400 dark:text-ink-300 mt-2">N/A</p>
                     )}
                   </div>
                 </div>

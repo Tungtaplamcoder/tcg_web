@@ -172,37 +172,37 @@ const Checkout = () => {
         <div className="pointer-events-none absolute -top-24 left-1/4 h-64 w-64 rounded-full bg-primary-400/15 blur-[100px] animate-tcg-float" />
         <div className="pointer-events-none absolute -bottom-24 right-1/4 h-64 w-64 rounded-full bg-fuchsia-400/15 blur-[100px] animate-tcg-float-slow" />
 
-        <div className="relative rounded-3xl bg-white/85 backdrop-blur-xl border border-ink-100 shadow-card p-6 sm:p-9">
+        <div className="relative rounded-3xl bg-white/85 dark:bg-[#12121a]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-9">
           <div className="text-center">
             <div className="mx-auto h-14 w-14 rounded-2xl bg-gradient-to-br from-primary-50 to-fuchsia-100 ring-1 ring-primary-200/60 flex items-center justify-center animate-tcg-glow-pulse">
               <Lock className="h-7 w-7 text-primary-700" />
             </div>
             <h2 className="heading-display text-2xl mt-4">Chuyển hướng đến SePay</h2>
-            <p className="mt-2 text-ink-500">Nhấn nút bên dưới để tiến hành thanh toán an toàn.</p>
+            <p className="mt-2 text-ink-500 dark:text-ink-300">Nhấn nút bên dưới để tiến hành thanh toán an toàn.</p>
           </div>
 
-          <div className="mt-7 rounded-2xl bg-ink-50/80 ring-1 ring-ink-100 p-5 space-y-3.5 text-sm">
+          <div className="mt-7 rounded-2xl bg-ink-50/80 ring-1 ring-ink-100 dark:ring-white/10 p-5 space-y-3.5 text-sm">
             <div className="flex justify-between items-center">
-              <span className="text-ink-500">Mã đơn hàng</span>
-              <span className="font-mono font-semibold text-ink-900">{orderData.order.orderCode}</span>
+              <span className="text-ink-500 dark:text-ink-300">Mã đơn hàng</span>
+              <span className="font-mono font-semibold text-ink-900 dark:text-white">{orderData.order.orderCode}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-ink-500">Số tiền (VND)</span>
+              <span className="text-ink-500 dark:text-ink-300">Số tiền (VND)</span>
               <span className="font-display font-bold text-xl text-gradient-brand">
                 {Number(amount).toLocaleString('vi-VN')} ₫
               </span>
             </div>
             {transferContent && (
               <div className="flex justify-between items-center gap-4">
-                <span className="text-ink-500 shrink-0">Nội dung chuyển khoản</span>
-                <span className="font-mono font-semibold text-ink-900 break-all text-right">{transferContent}</span>
+                <span className="text-ink-500 dark:text-ink-300 shrink-0">Nội dung chuyển khoản</span>
+                <span className="font-mono font-semibold text-ink-900 dark:text-white break-all text-right">{transferContent}</span>
               </div>
             )}
           </div>
 
           <div className="mt-7 flex flex-col items-center gap-3">
             {polling && (
-              <div className="inline-flex items-center gap-2 text-sm font-medium text-ink-500 rounded-full bg-primary-50 ring-1 ring-primary-200/70 px-4 py-2">
+              <div className="inline-flex items-center gap-2 text-sm font-medium text-ink-500 dark:text-ink-300 rounded-full bg-primary-50 ring-1 ring-primary-200/70 px-4 py-2">
                 <Loader2 className="h-4 w-4 animate-spin text-primary-600" />
                 Đang chờ xác nhận thanh toán...
               </div>
@@ -222,7 +222,7 @@ const Checkout = () => {
               Thanh toán ngay
             </button>
 
-            <p className="flex items-center gap-1.5 text-xs text-ink-400 mt-1">
+            <p className="flex items-center gap-1.5 text-xs text-ink-400 dark:text-ink-300 mt-1">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
               Giao dịch được mã hóa và bảo mật
             </p>
@@ -241,7 +241,7 @@ const Checkout = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Shipping Form */}
-        <div className="lg:col-span-2 rounded-3xl bg-white/85 backdrop-blur-xl border border-ink-100 shadow-card p-6 sm:p-8">
+        <div className="lg:col-span-2 rounded-3xl bg-white/85 dark:bg-[#12121a]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-8">
           <h2 className="heading-display text-lg flex items-center gap-2.5">
             <MapPin className="h-5 w-5 text-primary-600" />
             Địa chỉ giao hàng
@@ -291,7 +291,7 @@ const Checkout = () => {
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-400 pointer-events-none" />
+                  <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-400 dark:text-ink-300 pointer-events-none" />
                 </div>
               </div>
 
@@ -312,7 +312,7 @@ const Checkout = () => {
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-400 pointer-events-none" />
+                  <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-400 dark:text-ink-300 pointer-events-none" />
                 </div>
               </div>
             </div>
@@ -373,37 +373,37 @@ const Checkout = () => {
 
         {/* Order Summary */}
         <div className="lg:col-span-1">
-          <div className="sticky top-24 rounded-3xl bg-white/85 backdrop-blur-xl border border-ink-100 shadow-card p-6 sm:p-7">
+          <div className="sticky top-24 rounded-3xl bg-white/85 dark:bg-[#12121a]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-7">
             <h2 className="heading-display text-lg">Tóm tắt đơn hàng</h2>
             <div className="mt-5 space-y-3 text-sm">
-              <div className="flex justify-between text-ink-600">
+              <div className="flex justify-between text-ink-600 dark:text-ink-200">
                 <span>Sản phẩm ({totalItems})</span>
-                <span className="font-semibold text-ink-800">${totalPrice.toFixed(2)}</span>
+                <span className="font-semibold text-ink-800 dark:text-white">${totalPrice.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-ink-600">
+              <div className="flex justify-between text-ink-600 dark:text-ink-200">
                 <span>Phí vận chuyển</span>
-                <span className="font-semibold text-ink-800">${shippingFee.toFixed(2)}</span>
+                <span className="font-semibold text-ink-800 dark:text-white">${shippingFee.toFixed(2)}</span>
               </div>
               <div className="h-px bg-gradient-to-r from-transparent via-ink-200 to-transparent my-4" />
               <div className="flex justify-between items-baseline">
-                <span className="font-semibold text-ink-900">Tổng cộng</span>
+                <span className="font-semibold text-ink-900 dark:text-white">Tổng cộng</span>
                 <span className="text-2xl font-display font-bold text-gradient-brand">${grandTotal.toFixed(2)}</span>
               </div>
             </div>
 
             <div className="mt-6">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-ink-400 mb-3">Sản phẩm</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-3">Sản phẩm</h3>
               <ul className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
                 {items.map((item, idx) => (
                   <li key={idx} className="flex justify-between gap-3 text-sm">
-                    <span className="text-ink-600 truncate">{item.name} <span className="text-ink-400">x {item.quantity}</span></span>
-                    <span className="font-semibold text-ink-800 flex-shrink-0">${(item.price * item.quantity).toFixed(2)}</span>
+                    <span className="text-ink-600 dark:text-ink-200 truncate">{item.name} <span className="text-ink-400 dark:text-ink-300">x {item.quantity}</span></span>
+                    <span className="font-semibold text-ink-800 dark:text-white flex-shrink-0">${(item.price * item.quantity).toFixed(2)}</span>
                   </li>
                 ))}
               </ul>
             </div>
 
-            <div className="mt-6 flex items-center justify-center gap-1.5 text-xs text-ink-400 border-t border-ink-100 pt-5">
+            <div className="mt-6 flex items-center justify-center gap-1.5 text-xs text-ink-400 dark:text-ink-300 border-t border-ink-100 dark:border-white/10 pt-5">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
               Thanh toán bảo mật qua SePay
             </div>

@@ -100,8 +100,8 @@ function App() {
               <div className="pointer-events-none absolute -bottom-24 right-1/4 h-64 w-64 rounded-full bg-fuchsia-400/20 blur-[100px] animate-tcg-float-slow" />
               <div className="relative text-center animate-tcg-reveal">
                 <p className="font-display text-7xl sm:text-8xl font-bold text-gradient-brand">404</p>
-                <h1 className="mt-3 text-xl font-semibold text-ink-900">Page Not Found</h1>
-                <p className="mt-2 text-sm text-ink-500">The page you're looking for doesn't exist or was moved.</p>
+                <h1 className="mt-3 text-xl font-semibold text-ink-900 dark:text-white">Page Not Found</h1>
+                <p className="mt-2 text-sm text-ink-500 dark:text-ink-300">The page you're looking for doesn't exist or was moved.</p>
                 <a href="/" className="btn-primary mt-6">Back to Home</a>
               </div>
             </div>

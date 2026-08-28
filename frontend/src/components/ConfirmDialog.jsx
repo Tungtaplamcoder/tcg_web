@@ -60,12 +60,12 @@ const ConfirmDialog = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-950/50 backdrop-blur-sm animate-tcg-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-950/50 dark:bg-black/70 backdrop-blur-sm animate-tcg-fade-in"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && !loading) onCancel();
       }}
     >
-      <div className="relative w-full max-w-md rounded-3xl bg-white/95 backdrop-blur-xl border border-ink-100 shadow-2xl shadow-ink-900/20 p-6 sm:p-7 animate-tcg-scale-in">
+      <div className="relative w-full max-w-md rounded-3xl bg-white/95 dark:bg-[#14141e]/95 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-2xl shadow-ink-900/20 p-6 sm:p-7 animate-tcg-scale-in">
         <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-primary-400/60 to-transparent" />
 
         <div className="flex items-start gap-4">
@@ -73,13 +73,13 @@ const ConfirmDialog = ({
             {selected.icon}
           </div>
           <div className="flex-1 pt-0.5">
-            <h3 className="text-lg font-bold text-ink-900 font-display tracking-tight">{title}</h3>
-            <p className="mt-1.5 text-sm leading-relaxed text-ink-500">{message}</p>
+            <h3 className="text-lg font-bold text-ink-900 dark:text-white font-display tracking-tight">{title}</h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-ink-500 dark:text-ink-300">{message}</p>
           </div>
           <button
             onClick={onCancel}
             disabled={loading}
-            className="p-1.5 rounded-lg text-ink-400 hover:text-ink-700 hover:bg-ink-900/5 transition-colors disabled:opacity-50"
+            className="p-1.5 rounded-lg text-ink-400 dark:text-ink-300 hover:text-ink-700 dark:text-ink-100 hover:bg-ink-900/5 dark:hover:bg-white/10 transition-colors disabled:opacity-50"
             aria-label="Close"
           >
             <X className="h-5 w-5" />

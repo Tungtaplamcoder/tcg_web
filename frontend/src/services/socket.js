@@ -15,8 +15,9 @@ export const initializeSocket = () => {
     return socket;
   }
 
-  // Use environment variable for socket URL, fallback to default for development
-  const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:4000';
+  // Use environment variable for socket URL; fall back to the page's own origin
+  // so the WebSocket connects to whatever host served the app (works on LAN).
+  const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin;
 
   socket = io(socketUrl, {
     auth: {
