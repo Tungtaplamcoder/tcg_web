@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ShoppingCart, Star, Shield, Truck, ArrowLeft, Loader2, Minus, Plus, Tag
+  ShoppingCart, Star, Shield, Truck, ArrowLeft, Loader2, Minus, Plus, Tag, Check, Boxes
 } from 'lucide-react';
 import {
   ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -10,6 +10,9 @@ import api from '../services/api';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { formatVND, USD_TO_VND_RATE } from '../utils/format';
+import TiltCard from '../components/TiltCard';
+import RarityBadge from '../components/RarityBadge';
+import PackReveal from '../components/PackReveal';
 
 const RANGE_LABELS = {
   month: '1 Month Snapshot',
@@ -29,6 +32,8 @@ const ProductDetail = () => {
   const [priceRange, setPriceRange] = useState('semi-annual');
   const [priceData, setPriceData] = useState(null);
   const [isLoadingRange, setIsLoadingRange] = useState(false);
+  const [added, setAdded] = useState(false);
+  const [revealOpen, setRevealOpen] = useState(false);
   const cacheRef = useRef(new Map());
   const { addItem } = useCartStore();
   const { isAuthenticated } = useAuthStore();
@@ -138,7 +143,9 @@ const ProductDetail = () => {
       images: product.images || [],
       stockQuantity: selectedVariant.stockQuantity
     }, quantity, selectedVariant.id);
-    navigate('/cart');
+
+    setAdded(true);
+    setTimeout(() => navigate('/cart'), 750);
   };
 
   if (loading) {
@@ -204,7 +211,7 @@ const ProductDetail = () => {
     if (!active || !payload || payload.length === 0) return null;
     const data = payload[0].payload;
     return (
-      <div className="bg-white/95 backdrop-blur-xl text-ink-800 rounded-xl shadow-2xl shadow-ink-900/15 border border-ink-100 p-3.5" style={{ minWidth: '200px' }}>
+        <div className="glass-panel-strong text-strong rounded-xl shadow-2xl shadow-ink-900/15 border border-subtle p-3.5" style={{ minWidth: '200px' }}>
         <div className="text-ink-400 text-xs font-semibold border-b border-ink-100 pb-1.5 mb-2">
           {data.dateLabel || formatFullDate(data.date)}
         </div>
@@ -224,7 +231,7 @@ const ProductDetail = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 animate-tcg-reveal">
+    <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 app-bg animate-tcg-reveal">
       <button onClick={() => navigate(-1)} className="btn-ghost mb-6 !px-3">
         <ArrowLeft className="h-4 w-4 mr-1.5" /> Quay lại
       </button>
@@ -232,20 +239,27 @@ const ProductDetail = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
         {/* Ảnh sản phẩm */}
         <div className="lg:sticky lg:top-24 self-start">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-white to-primary-50/40 ring-1 ring-ink-100 shadow-card p-8 sm:p-10 flex items-center justify-center" style={{ minHeight: '300px' }}>
-            <div className="pointer-events-none absolute -top-16 -right-16 h-56 w-56 rounded-full bg-fuchsia-400/10 blur-[80px]" />
-            <div className="pointer-events-none absolute -bottom-16 -left-16 h-56 w-56 rounded-full bg-primary-400/10 blur-[80px]" />
-            {product.images && product.images.length > 0 ? (
-              <img
-                src={product.images[0]}
-                alt={product.name}
-                className="relative max-h-[440px] w-auto object-contain drop-shadow-2xl transition-transform duration-700 hover:scale-105 hover:-rotate-1"
-              />
-            ) : (
-              <div className="w-full h-96 flex items-center justify-center text-ink-400">
-                Không có ảnh
+          <div className="relative overflow-hidden rounded-3xl surface aura-glow p-8 sm:p-10 flex items-center justify-center" style={{ minHeight: '300px' }}>
+            <div className="pointer-events-none absolute -top-16 -right-16 h-56 w-56 rounded-full bg-fuchsia-400/15 blur-[80px] animate-tcg-float" />
+            <div className="pointer-events-none absolute -bottom-16 -left-16 h-56 w-56 rounded-full bg-primary-400/15 blur-[80px] animate-tcg-float-slow" />
+            {product.rarity && (
+              <div className="absolute top-4 left-4 z-20">
+                <RarityBadge rarity={product.rarity} size="lg" />
               </div>
             )}
+            <TiltCard max={16} scale={1.05} className="relative w-full flex items-center justify-center">
+              {product.images && product.images.length > 0 ? (
+                <img
+                  src={product.images[0]}
+                  alt={product.name}
+                  className="relative max-h-[440px] w-auto object-contain drop-shadow-[0_24px_40px_rgba(15,23,42,0.35)] dark:drop-shadow-[0_24px_50px_rgba(34,211,238,0.25)]"
+                />
+              ) : (
+                <div className="w-full h-96 flex items-center justify-center text-ink-400">
+                  Không có ảnh
+                </div>
+              )}
+            </TiltCard>
           </div>
         </div>
 
@@ -286,16 +300,16 @@ const ProductDetail = () => {
                     className={`group w-full flex justify-between items-center p-3.5 rounded-xl border-2 transition-all duration-300 ${
                       selectedVariantId === v.id
                         ? 'border-primary-500 bg-primary-50/70 shadow-[0_4px_16px_-6px_rgba(124,58,237,0.3)]'
-                        : 'border-ink-200/80 bg-white hover:border-primary-300 hover:bg-primary-50/30'
+                        : 'border-ink-200/80 bg-white hover:border-primary-300 hover:bg-primary-50/30 dark:border-white/10 dark:bg-white/5 dark:hover:border-aura-cyan/50 dark:hover:bg-white/10'
                     } disabled:opacity-45 disabled:pointer-events-none`}
                   >
                     <div className="text-left">
-                      <span className={`font-semibold ${selectedVariantId === v.id ? 'text-primary-800' : 'text-ink-800'}`}>
+                      <span className={`font-semibold ${selectedVariantId === v.id ? 'text-primary-800 dark:text-white' : 'text-ink-800 dark:text-white/90'}`}>
                         {v.condition} - {v.variant}
                       </span>
                       <span className="text-xs text-ink-400 block mt-0.5">Còn {v.stockQuantity}</span>
                     </div>
-                    <span className={`font-bold ${selectedVariantId === v.id ? 'text-primary-700' : 'text-ink-800'}`}>
+                      <span className={`font-bold ${selectedVariantId === v.id ? 'text-primary-700 dark:text-white' : 'text-ink-800 dark:text-white/90'}`}>
                       {formatVND(v.price)}
                     </span>
                   </button>
@@ -305,7 +319,7 @@ const ProductDetail = () => {
           )}
 
           <div className="mt-7 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            <div className="inline-flex items-center self-start rounded-xl border border-ink-200 bg-white overflow-hidden">
+            <div className="inline-flex items-center self-start rounded-xl border border-subtle surface overflow-hidden">
               <button
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
                 className="p-3 text-ink-500 hover:text-primary-700 hover:bg-primary-50 transition-colors"
@@ -324,15 +338,21 @@ const ProductDetail = () => {
             </div>
             <button
               onClick={handleAddToCart}
-              disabled={!selectedVariantId || !selectedVariant?.stockQuantity}
-              className="btn-primary flex-1 !py-3.5 text-base"
+              disabled={!selectedVariantId || !selectedVariant?.stockQuantity || added}
+              className={`btn-primary flex-1 !py-3.5 text-base ${added ? '!from-emerald-500 !to-teal-500' : ''}`}
             >
-              <ShoppingCart className="h-5 w-5" /> Thêm vào giỏ
+              {added ? (<><Check className="h-5 w-5" /> Đã thêm!</> ) : (<><ShoppingCart className="h-5 w-5" /> Thêm vào giỏ</>)}
+            </button>
+            <button
+              onClick={() => setRevealOpen(true)}
+              className="btn-secondary flex-1 !py-3.5 text-base"
+            >
+              <Boxes className="h-5 w-5" /> Mở thử pack
             </button>
           </div>
 
           {product.description && (
-            <div className="mt-6 p-5 rounded-2xl bg-white/80 border border-ink-100 text-ink-600 text-sm leading-relaxed whitespace-pre-wrap">
+            <div className="mt-6 p-5 rounded-2xl surface text-muted text-sm leading-relaxed whitespace-pre-wrap">
               {product.description}
             </div>
           )}
@@ -354,7 +374,7 @@ const ProductDetail = () => {
 
       {/* ==================== BIẾN ĐỘNG GIÁ THỊ TRƯỜNG ==================== */}
       {product.tcgplayerId && (
-        <div className="relative mt-12 overflow-hidden rounded-3xl bg-white/85 backdrop-blur-xl border border-ink-100 shadow-card p-6 sm:p-8">
+        <div className="relative mt-12 overflow-hidden rounded-3xl glass-panel p-6 sm:p-8">
           <div className="pointer-events-none absolute -top-24 right-1/4 h-64 w-64 rounded-full bg-fuchsia-400/10 blur-[90px]" />
           <div className="mb-6">
             <p className="section-eyebrow">Market Insights</p>
@@ -373,7 +393,7 @@ const ProductDetail = () => {
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Cột trái: Chart */}
-                <div className="rounded-2xl border border-ink-100 bg-white/70 p-4 sm:p-5">
+                <div className="rounded-2xl surface-2 p-4 sm:p-5">
                   {chartDataMapped.length > 0 && (
                     <div style={{ width: '100%', height: 320 }}>
                       <ResponsiveContainer>
@@ -474,7 +494,7 @@ const ProductDetail = () => {
 
                 {/* Cột phải: Thông số */}
                 <div className="space-y-4">
-                  <div className="rounded-2xl bg-gradient-to-br from-primary-50/80 to-fuchsia-50/60 ring-1 ring-primary-200/50 p-5">
+                  <div className="rounded-2xl bg-gradient-to-br from-primary-50/80 to-fuchsia-50/60 ring-1 ring-primary-200/50 p-5 dark:from-white/5 dark:to-aura-violet/10 dark:ring-white/10">
                     <h3 className="font-display font-bold text-ink-900">Thông số giá & Thị trường</h3>
                     <div className="mt-4 space-y-3">
                       <div className="flex justify-between items-baseline">
@@ -514,23 +534,23 @@ const ProductDetail = () => {
                     )}
                   </div>
 
-                  <div className="rounded-2xl bg-white/85 ring-1 ring-ink-100 p-5">
+                  <div className="rounded-2xl surface p-5">
                     <h3 className="font-display font-bold text-ink-900">{snapshotTitle}</h3>
                     {metrics?.snapshot ? (
                       <div className="grid grid-cols-2 gap-2.5 mt-4">
-                        <div className="rounded-xl bg-ink-50/70 ring-1 ring-ink-100 p-3 text-center">
+                        <div className="rounded-xl surface-2 p-3 text-center">
                           <p className="text-[11px] uppercase tracking-wider text-ink-400 font-semibold">Low Sale Price</p>
                           <p className="font-bold text-ink-800 mt-1">{formatCurrency(metrics.snapshot.lowSalePrice)}</p>
                         </div>
-                        <div className="rounded-xl bg-ink-50/70 ring-1 ring-ink-100 p-3 text-center">
+                        <div className="rounded-xl surface-2 p-3 text-center">
                           <p className="text-[11px] uppercase tracking-wider text-ink-400 font-semibold">High Sale Price</p>
                           <p className="font-bold text-ink-800 mt-1">{formatCurrency(metrics.snapshot.highSalePrice)}</p>
                         </div>
-                        <div className="rounded-xl bg-ink-50/70 ring-1 ring-ink-100 p-3 text-center">
+                        <div className="rounded-xl surface-2 p-3 text-center">
                           <p className="text-[11px] uppercase tracking-wider text-ink-400 font-semibold">Total Sold</p>
                           <p className="font-bold text-ink-800 mt-1">{formatNumber(metrics.snapshot.totalSold)}</p>
                         </div>
-                        <div className="rounded-xl bg-ink-50/70 ring-1 ring-ink-100 p-3 text-center">
+                        <div className="rounded-xl surface-2 p-3 text-center">
                           <p className="text-[11px] uppercase tracking-wider text-ink-400 font-semibold">Avg. Daily Sold</p>
                           <p className="font-bold text-ink-800 mt-1">{formatNumber(metrics.snapshot.avgDailySold)}</p>
                         </div>
@@ -545,6 +565,8 @@ const ProductDetail = () => {
           )}
         </div>
       )}
+
+      <PackReveal open={revealOpen} onClose={() => setRevealOpen(false)} product={product} />
     </div>
   );
 };

@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingCart, Menu, X, User, LogOut, Package, LayoutDashboard, ChevronDown, Sparkles } from 'lucide-react';
+import { ShoppingCart, Menu, X, User, LogOut, Package, LayoutDashboard, ChevronDown, Sparkles, Sun, Moon } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useCartStore } from '../store/useCartStore';
+import { useTheme } from '../context/ThemeContext';
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -10,6 +11,7 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const { user, isAuthenticated, logout } = useAuthStore();
   const { totalItems } = useCartStore();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const userMenuRef = useRef(null);
@@ -58,8 +60,10 @@ const Navbar = () => {
   return (
     <nav
       className={`sticky top-0 z-40 transition-all duration-500 ${
-        scrolled ? 'bg-white/80 backdrop-blur-xl shadow-[0_8px_30px_-12px_rgba(15,23,42,0.15)]' : 'bg-white/60 backdrop-blur-md'
-      }`}
+        scrolled
+          ? 'glass-panel shadow-[0_8px_30px_-12px_rgba(15,23,42,0.18)] dark:shadow-[0_8px_40px_-10px_rgba(0,0,0,0.6)]'
+          : 'glass-panel'
+      } border-b border-subtle`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 lg:h-[72px]">
@@ -82,8 +86,8 @@ const Navbar = () => {
                 to={link.to}
                 className={`relative px-4 py-2 rounded-full text-sm font-semibold transition-all duration-300 ${
                   isActive(link.to)
-                    ? 'text-primary-700 bg-primary-50 ring-1 ring-primary-200/70'
-                    : 'text-ink-500 hover:text-ink-900 hover:bg-ink-900/5'
+                    ? 'text-primary-700 bg-primary-50 ring-1 ring-primary-200/70 dark:bg-white/10 dark:text-white'
+                    : 'text-ink-500 hover:text-ink-900 hover:bg-ink-900/5 dark:text-ink-300 dark:hover:text-white dark:hover:bg-white/10'
                 }`}
               >
                 {link.label}
@@ -102,10 +106,19 @@ const Navbar = () => {
 
           {/* Right icons */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Theme toggle */}
+            <button
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              className="relative p-2.5 rounded-full text-ink-500 hover:text-primary-700 hover:bg-primary-50 dark:text-ink-300 dark:hover:text-white dark:hover:bg-white/10 transition-all duration-300"
+            >
+              {theme === 'dark' ? <Sun className="h-[20px] w-[20px]" /> : <Moon className="h-[20px] w-[20px]" />}
+            </button>
+
             {/* Cart */}
             <Link
               to="/cart"
-              className="relative p-2.5 rounded-full text-ink-500 hover:text-primary-700 hover:bg-primary-50 transition-all duration-300"
+              className="relative p-2.5 rounded-full text-ink-500 hover:text-primary-700 hover:bg-primary-50 transition-all duration-300 dark:text-ink-300 dark:hover:text-white dark:hover:bg-white/10"
             >
               <ShoppingCart className="h-[22px] w-[22px]" />
               {totalItems > 0 && (
@@ -121,7 +134,7 @@ const Navbar = () => {
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className={`flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full transition-all duration-300 focus:outline-none ${
-                    userMenuOpen ? 'bg-primary-50 ring-1 ring-primary-200' : 'hover:bg-ink-900/5'
+                    userMenuOpen ? 'bg-primary-50 ring-1 ring-primary-200 dark:bg-white/10' : 'hover:bg-ink-900/5 dark:hover:bg-white/10'
                   }`}
                 >
                   <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary-100 to-fuchsia-100 ring-1 ring-primary-200/60 flex items-center justify-center overflow-hidden">
@@ -138,14 +151,14 @@ const Navbar = () => {
                 </button>
 
                 {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white/95 backdrop-blur-xl shadow-2xl shadow-ink-900/10 border border-ink-100 p-1.5 z-50 animate-tcg-scale-in origin-top-right">
+                  <div className="absolute right-0 mt-2 w-64 rounded-2xl glass-panel-strong p-1.5 z-50 animate-tcg-scale-in origin-top-right">
                     <div className="px-4 py-3 rounded-xl bg-brand-gradient-soft mb-1">
-                      <p className="text-sm font-bold text-ink-900 truncate">{user.fullName}</p>
-                      <p className="text-xs text-ink-500 truncate mt-0.5">{user.email}</p>
+                      <p className="text-sm font-bold text-strong truncate">{user.fullName}</p>
+                      <p className="text-xs text-muted truncate mt-0.5">{user.email}</p>
                     </div>
                     <Link
                       to="/orders"
-                      className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-medium text-ink-600 hover:bg-primary-50 hover:text-primary-700 transition-colors"
+                      className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-medium text-muted hover:bg-primary-50 hover:text-primary-700 dark:hover:bg-white/10 dark:hover:text-white transition-colors"
                       onClick={() => setUserMenuOpen(false)}
                     >
                       <Package className="h-4 w-4" />
@@ -164,7 +177,7 @@ const Navbar = () => {
             ) : (
               <Link
                 to="/login"
-                className="hidden sm:inline-flex items-center px-5 py-2.5 rounded-full bg-ink-900 text-white text-sm font-semibold transition-all duration-300 hover:bg-ink-800 hover:shadow-glow active:scale-[0.97]"
+                className="hidden sm:inline-flex items-center px-5 py-2.5 rounded-full bg-ink-900 text-white text-sm font-semibold transition-all duration-300 hover:bg-ink-800 hover:shadow-glow active:scale-[0.97] dark:bg-white/10 dark:text-white dark:ring-1 dark:ring-white/15 dark:hover:bg-white/20"
               >
                 Login
               </Link>
@@ -187,15 +200,15 @@ const Navbar = () => {
           mobileMenuOpen ? 'max-h-[480px] opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
-        <div className="px-4 pb-5 pt-2 space-y-1.5 bg-white/85 backdrop-blur-xl border-t border-ink-100">
+        <div className="px-4 pb-5 pt-2 space-y-1.5 glass-panel border-t border-subtle">
           {navLinks.map((link) => (
             <Link
               key={link.to}
               to={link.to}
               className={`block px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
                 isActive(link.to)
-                  ? 'bg-primary-50 text-primary-700 ring-1 ring-primary-200/70'
-                  : 'text-ink-600 hover:bg-ink-900/5'
+                  ? 'bg-primary-50 text-primary-700 ring-1 ring-primary-200/70 dark:bg-white/10 dark:text-white'
+                  : 'text-ink-600 hover:bg-ink-900/5 dark:text-ink-300 dark:hover:bg-white/10'
               }`}
               onClick={() => setMobileMenuOpen(false)}
             >
