@@ -50,31 +50,36 @@ const FAN_CARDS = [
     key: 'blastoise',
     name: 'Blastoise',
     alt: 'Blastoise — Base Set Rare Holo',
-    src: 'https://images.pokemontcg.io/base1/2_hires.png'
+    src: 'https://images.pokemontcg.io/base1/2_hires.png',
+    rarity: 'holo rare'
   },
   {
     key: 'gengar',
     name: 'Gengar ex',
     alt: 'Gengar ex — Expedition Set',
-    src: 'https://images.pokemontcg.io/ex6/108_hires.png'
+    src: 'https://images.pokemontcg.io/ex6/108_hires.png',
+    rarity: 'holo rare'
   },
   {
     key: 'charizard',
     name: 'Charizard',
     alt: 'Charizard — Base Set Rare Holo',
-    src: 'https://images.pokemontcg.io/base1/4_hires.png'
+    src: 'https://images.pokemontcg.io/base1/4_hires.png',
+    rarity: 'secret rare'
   },
   {
     key: 'pikachu',
     name: 'Pikachu ex',
     alt: 'Pikachu ex — Paldea Evolved',
-    src: 'https://images.pokemontcg.io/sv2/63_hires.png'
+    src: 'https://images.pokemontcg.io/sv2/63_hires.png',
+    rarity: 'illustration rare'
   },
   {
     key: 'mew',
     name: 'Mew ex',
     alt: 'Mew ex — Legend Maker',
-    src: 'https://images.pokemontcg.io/ex12/88_hires.png'
+    src: 'https://images.pokemontcg.io/ex12/88_hires.png',
+    rarity: 'hyper rare'
   }
 ];
 
@@ -120,16 +125,23 @@ const FAN_SLOTS = [
 const FanCard = ({ card, slot, delay = 0 }) => (
   <div className={`absolute left-1/2 top-1/2 ${slot.z}`} style={{ transform: 'translate(-50%, -50%)' }}>
     <div className="animate-tcg-reveal" style={{ animationDelay: `${delay}s` }}>
-      <div className={slot.cls}>
+      <div className={`will-change-transform ${slot.cls}`}>
         <TiltCard
           max={slot.center ? 15 : 12}
           scale={slot.center ? 1.06 : 1.04}
           foil={Boolean(slot.center)}
           spotlight
           glare
+          glitch={Boolean(slot.center)}
+          edge={Boolean(slot.center)}
+          rarity={card.rarity}
           className={`aspect-[5/7] rounded-[1.15rem] bg-white p-2 ring-1 ring-black/[0.04] dark:bg-white/90 dark:ring-white/10 ${slot.w} ${slot.shadow}`}
         >
-          <div className="relative h-full w-full overflow-hidden rounded-[0.8rem]">
+          {/* Art layer lifted at its own depth for parallax drift */}
+          <div
+            className="relative h-full w-full overflow-hidden rounded-[0.8rem] vip-depth-mid"
+            style={{ transform: 'translateZ(16px)' }}
+          >
             <ProductImage
               src={card.src}
               alt={card.alt}
@@ -333,19 +345,22 @@ const Home = ({ hero: heroProp }) => {
             <h2 className="sr-only">Browse by power type</h2>
             <div
               className="animate-tcg-reveal mx-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-transparent bg-white/70 px-4 py-3 shadow-lg ring-1 ring-white/70 backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] dark:ring-white/10 sm:justify-center sm:px-6"
+              role="list"
+              aria-label="Elemental power types"
               style={{ animationDelay: '0.42s' }}
             >
               {POWER_TYPES.map(({ id, label, Icon, iconCls }) => (
-                <Link
+                <span
                   key={id}
-                  to={`/catalog?search=${encodeURIComponent(label.toLowerCase())}`}
-                  className="group inline-flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 transition-all duration-300 ease-out hover:-translate-y-1.5 hover:bg-white/80 dark:hover:bg-white/10 motion-reduce:transition-none"
+                  role="listitem"
+                  aria-label={`${label} type`}
+                  className="group inline-flex shrink-0 cursor-default select-none items-center gap-2 rounded-full px-3 py-1.5 transition-[transform,background-color] duration-300 ease-out hover:-translate-y-1.5 hover:bg-white/80 dark:hover:bg-white/10 motion-reduce:transition-none"
                 >
                   <span className={`flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br shadow-sm transition-transform duration-300 group-hover:scale-110 ${iconCls}`}>
                     <Icon className="h-4 w-4" aria-hidden="true" />
                   </span>
                   <span className="text-sm font-semibold text-ink-700 dark:text-purple-100">{label}</span>
-                </Link>
+                </span>
               ))}
             </div>
           </div>

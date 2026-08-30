@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  Boxes, ChevronLeft, ChevronRight, Layers, Loader2, PackageOpen,
-  ShieldCheck, Sparkles
+  Boxes, ChevronLeft, ChevronRight, Layers, PackageOpen, Sparkles
 } from 'lucide-react';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import ProductImage from '../../components/ProductImage';
+import GachaOpeningModal from '../../components/gacha/GachaOpeningModal';
 
 const RARITY_ORDER = ['COMMON', 'RARE', 'EPIC', 'LEGENDARY'];
 
@@ -15,33 +15,25 @@ const RARITY_META = {
     label: 'Common',
     dot: 'bg-gradient-to-r from-slate-400 to-slate-500',
     bar: 'linear-gradient(90deg, #94a3b8, #64748b)',
-    chip: 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-200',
-    flash: 'rgba(226, 232, 240, 0.85)',
-    text: 'text-slate-500 dark:text-slate-300'
+    chip: 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-200'
   },
   RARE: {
     label: 'Rare',
     dot: 'bg-gradient-to-r from-sky-400 to-blue-500',
     bar: 'linear-gradient(90deg, #38bdf8, #3b82f6)',
-    chip: 'bg-sky-50 text-sky-700 dark:bg-sky-400/10 dark:text-sky-300',
-    flash: 'rgba(56, 189, 248, 0.9)',
-    text: 'text-sky-600 dark:text-sky-300'
+    chip: 'bg-sky-50 text-sky-700 dark:bg-sky-400/10 dark:text-sky-300'
   },
   EPIC: {
     label: 'Epic',
     dot: 'bg-gradient-to-r from-violet-500 to-fuchsia-500',
     bar: 'linear-gradient(90deg, #8b5cf6, #d946ef)',
-    chip: 'bg-primary-50 text-primary-700 dark:bg-primary-400/10 dark:text-primary-300',
-    flash: 'rgba(217, 70, 239, 0.9)',
-    text: 'text-fuchsia-600 dark:text-fuchsia-300'
+    chip: 'bg-primary-50 text-primary-700 dark:bg-primary-400/10 dark:text-primary-300'
   },
   LEGENDARY: {
     label: 'Legendary',
     dot: 'bg-gradient-to-r from-amber-400 to-orange-500',
     bar: 'linear-gradient(90deg, #fbbf24, #f97316)',
-    chip: 'bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300',
-    flash: 'rgba(233, 196, 106, 0.95)',
-    text: 'text-amber-600 dark:text-amber-300'
+    chip: 'bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300'
   }
 };
 
@@ -136,7 +128,7 @@ const DropRatePreview = ({ dropRates }) => {
 const BoxCard = ({ box, index, onPlay }) => {
   const background = boxBackground(box, index);
   return (
-    <article className="group relative flex h-full flex-col overflow-hidden rounded-3xl glass-panel transition-all duration-300 hover:-translate-y-1.5 hover:ring-iridescent animate-tcg-reveal" style={{ animationDelay: `${Math.min(index * 0.06, 0.42)}s` }}>
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-3xl glass-panel transition-[transform,box-shadow] duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1.5 hover:ring-iridescent animate-tcg-reveal" style={{ animationDelay: `${Math.min(index * 0.06, 0.42)}s` }}>
       {/* Box art */}
       <div className="relative aspect-[16/10] overflow-hidden">
         <div
@@ -191,18 +183,12 @@ const BoxCard = ({ box, index, onPlay }) => {
 
         <DropRatePreview dropRates={box.dropRates} />
 
-        <div className="mt-auto flex items-end justify-between gap-3 border-t border-subtle pt-4">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-faint">Entry</p>
-            <span className="mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-violet-500 px-3 py-1 font-display text-lg font-bold uppercase tracking-wide text-white shadow-lg">
-              <Sparkles className="h-4 w-4" />
-              Free
-            </span>
-          </div>
+        {/* Footer CTA — full-width centered play button */}
+        <div className="mt-auto border-t border-subtle pt-4">
           <button
             type="button"
             onClick={() => onPlay(box)}
-            className="btn-aura shrink-0 !px-5 !py-2.5 text-sm"
+            className="btn-aura w-full justify-center"
             aria-label={`Play or open ${box.name}`}
           >
             <PackageOpen className="h-4 w-4" />
@@ -225,10 +211,7 @@ const VirtualBoxesPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const [pendingBox, setPendingBox] = useState(null);
-  const [opening, setOpening] = useState(false);
-  const [flowError, setFlowError] = useState('');
-  const [result, setResult] = useState(null);
+  const [activeBox, setActiveBox] = useState(null);
 
   const fetchBoxes = useCallback(async (targetPage) => {
     setLoading(true);
@@ -247,66 +230,19 @@ const VirtualBoxesPage = () => {
 
   useEffect(() => { fetchBoxes(page); }, [fetchBoxes, page]);
 
-  /* Lock body scroll while a flow modal is open */
-  useEffect(() => {
-    if (pendingBox || result) {
-      document.body.style.overflow = 'hidden';
-      return () => { document.body.style.overflow = ''; };
-    }
-    return undefined;
-  }, [pendingBox, result]);
-
-  /* Escape closes the modals */
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === 'Escape' && !opening) { setPendingBox(null); setResult(null); setFlowError(''); }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [opening]);
-
   const handlePlay = (box) => {
     if (!isAuthenticated) {
       navigate('/login', { state: { from: location } });
       return;
     }
-    setFlowError('');
-    setPendingBox(box);
+    setActiveBox(box);
   };
 
-  const closeFlow = () => {
-    if (opening) return;
-    setPendingBox(null);
-    setResult(null);
-    setFlowError('');
-  };
+  const closeModal = () => setActiveBox(null);
 
-  const confirmOpen = async () => {
-    if (!pendingBox || opening) return;
-    setOpening(true);
-    setFlowError('');
-    try {
-      const response = await api.post(`/virtual-boxes/${pendingBox.id}/open`);
-      const data = response.data.data;
-      setResult({ ...data, boxName: data.opening?.boxName || pendingBox.name });
-      setPendingBox(null);
-    } catch (err) {
-      const apiError = err.response?.data?.error;
-      setFlowError(apiError?.message || 'Opening failed. Please try again.');
-    } finally {
-      setOpening(false);
-    }
-  };
-
-  const openAnother = () => {
-    if (!result) return;
-    const box = boxes.find((b) => b.id === result.opening?.boxId);
-    setFlowError('');
-    setResult(null);
-    if (box) setPendingBox(box);
-  };
-
-  const rarityMeta = result ? RARITY_META[String(result.card?.rarity).toUpperCase()] || RARITY_META.COMMON : null;
+  /* Keep "Open Another" working: the modal itself owns the retry ceremony,
+     we just resolve the box from the current page's list. */
+  const resolveBox = (boxId) => boxes.find((b) => b.id === boxId) || null;
 
   return (
     <div className="app-bg min-h-screen">
@@ -395,104 +331,18 @@ const VirtualBoxesPage = () => {
         )}
       </div>
 
-      {/* ===================== CONFIRM OPEN MODAL ===================== */}
-      {pendingBox && (
-        <div className="dash-overlay" onClick={closeFlow} role="presentation">
-          <div
-            className="dash-modal max-w-md p-0 overflow-hidden"
-            role="dialog"
-            aria-modal="true"
-            aria-label={`Open ${pendingBox.name}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="relative h-28 overflow-hidden">
-              <div aria-hidden="true" className="absolute inset-0" style={{ backgroundImage: boxBackground(pendingBox) }} />
-              <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
-              {pendingBox.imageUrl && (
-                <ProductImage src={pendingBox.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" fallbackClassName="h-full w-full" label={pendingBox.name} />
-              )}
-              <div className="absolute inset-x-0 bottom-0 p-5">
-                <h2 className="font-display text-xl font-bold text-white drop-shadow">{pendingBox.name}</h2>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="flex items-center justify-between rounded-2xl surface-2 px-4 py-3">
-                <span className="text-sm font-medium text-muted">Entry</span>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-violet-500 px-3 py-0.5 font-display text-sm font-bold uppercase tracking-wide text-white shadow">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Free
-                </span>
-              </div>
-              <p className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-faint px-1">
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                One random card is drawn from {pendingBox.cardPoolCount ?? 'the'} pool using the published drop rates and added to your collection.
-              </p>
-
-              {flowError && <div className="alert-error mt-4">{flowError}</div>}
-
-              <div className="mt-6 flex gap-3">
-                <button type="button" onClick={closeFlow} disabled={opening} className="btn-secondary flex-1">
-                  Cancel
-                </button>
-                <button type="button" onClick={confirmOpen} disabled={opening} className="btn-aura flex-1">
-                  {opening ? (<><Loader2 className="h-4 w-4 animate-spin" /> Opening…</>) : (<><PackageOpen className="h-4 w-4" /> Open Box</>)}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ===================== REVEAL MODAL ===================== */}
-      {result && rarityMeta && (
-        <div className="dash-overlay" role="presentation">
-          <div
-            className="dash-modal relative max-w-md overflow-hidden p-0"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Your pull"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="relative flex h-44 items-center justify-center overflow-hidden bg-obsidian-300">
-              <div className="pack-god-rays" aria-hidden="true" />
-              <div className="pack-flash" style={{ '--flash-c': rarityMeta.flash }} aria-hidden="true" />
-              <div className="relative z-10 pack-card-rise text-center px-6">
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] ${rarityMeta.chip}`}>
-                  <span className={`h-2 w-2 rounded-full ${rarityMeta.dot}`} />
-                  {rarityMeta.label} pull
-                </span>
-                <h2 className="mt-3 font-display text-2xl font-bold text-white drop-shadow [text-wrap:balance]">
-                  {result.card?.product?.shortName || result.card?.product?.name || 'Mystery Card'}
-                </h2>
-                {result.card?.product?.cardNumber && (
-                  <p className="mt-1 text-xs font-semibold text-white/70">#{result.card.product.cardNumber} · {result.boxName}</p>
-                )}
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="mx-auto w-40 pack-card-rise" style={{ animationDelay: '0.25s' }}>
-                <div className="rounded-2xl p-[1.5px]" style={{ backgroundImage: RARITY_META[result.card?.rarity]?.bar || RARITY_META.COMMON.bar }}>
-                  <div className="overflow-hidden rounded-[calc(1rem-1.5px)] bg-white dark:bg-obsidian-100">
-                    <ProductImage
-                      src={result.card?.product?.images?.[0]}
-                      alt={result.card?.product?.name || 'Pulled card'}
-                      className="aspect-[3/4] w-full object-contain p-2"
-                      fallbackClassName="aspect-[3/4] w-full"
-                      label={result.card?.product?.shortName || result.card?.product?.name || 'Pulled Card'}
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="mt-6 flex gap-3">
-                <button type="button" onClick={closeFlow} className="btn-secondary flex-1">Done</button>
-                <button type="button" onClick={openAnother} className="btn-aura flex-1">
-                  <PackageOpen className="h-4 w-4" /> Open Another
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ===================== INTERACTIVE UNBOXING MODAL =====================
+          Immersive 3-tap tear ceremony: sealed pack → jolt/ripple taps →
+          foil tear with particle sparks → face-down card → 3D Y-axis flip →
+          rarity reveal with light sweep + glowing halo + Done / Open Another. */}
+      <GachaOpeningModal
+        open={Boolean(activeBox)}
+        boxId={activeBox?.id || null}
+        boxName={activeBox?.name || 'Mystery Box'}
+        boxGradient={activeBox ? boxBackground(activeBox) : undefined}
+        boxImageUrl={activeBox?.imageUrl || null}
+        onClose={closeModal}
+      />
     </div>
   );
 };

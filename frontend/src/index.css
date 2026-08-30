@@ -973,6 +973,119 @@ html.theme-boot *::after {
   100% { transform: translateY(170%) rotate(11deg); filter: blur(3px); opacity: 0; }
 }
 
+/* ── Interactive tear ceremony (Phase 3C): tap jolt, ripples, 3D flip ── */
+
+/* One-shot jolt when the sealed pack is tapped. --jolt scales the amplitude
+   (set from JS) so each successive tap feels progressively angrier. */
+@keyframes gacha-jolt {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+  20% { transform: translate3d(calc(var(--jolt, 1) * -7px), calc(var(--jolt, 1) * 4px), 0) rotate(calc(var(--jolt, 1) * -2.2deg)) scale(1.015); }
+  45% { transform: translate3d(calc(var(--jolt, 1) * 6px), calc(var(--jolt, 1) * -5px), 0) rotate(calc(var(--jolt, 1) * 2.6deg)) scale(1.025); }
+  70% { transform: translate3d(calc(var(--jolt, 1) * -4px), calc(var(--jolt, 1) * 2px), 0) rotate(calc(var(--jolt, 1) * -1.4deg)) scale(1.01); }
+  100% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+}
+
+/* Expanding ripple rings born from each tap — --rs ring size, --rdx/--rdy drift */
+@keyframes gacha-ripple-ring {
+  0% { opacity: 0.9; transform: translate(calc(-50% + var(--rdx, 0px)), calc(-50% + var(--rdy, 0px))) scale(0.25); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+}
+.gacha-ripple {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--rs, 120px);
+  height: var(--rs, 120px);
+  border-radius: 9999px;
+  border: 2px solid rgba(233, 196, 106, 0.55);
+  box-shadow: 0 0 18px rgba(233, 196, 106, 0.35), inset 0 0 14px rgba(139, 92, 246, 0.25);
+  pointer-events: none;
+  animation: gacha-ripple-ring 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ── Card flip: back shows first, then a full Y-axis spin reveals the front ──
+   The front face lives at 180°; 540° = one full 360° tour + the 180°
+   swap, so the card whirls all the way around yet lands face-up. */
+.gacha-flip-scene {
+  perspective: 1200px;
+  width: 15rem;
+  aspect-ratio: 3 / 4;
+}
+@media (min-width: 640px) { .gacha-flip-scene { width: 16rem; } }
+.gacha-flipper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 1.15s cubic-bezier(0.3, 0.9, 0.28, 1.01);
+  will-change: transform;
+}
+.gacha-flipper.is-flipped { transform: rotateY(540deg); }
+.gacha-flip-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: 1.4rem;
+}
+.gacha-flip-back { transform: rotateY(0deg); }
+.gacha-flip-front { transform: rotateY(180deg); }
+
+/* ── Rarity badge celebration after the flip lands ── */
+
+/* Glowing halo backdrop pulsing behind the RARE PULL badge.
+   The wrapper only establishes the pulse loop; the translate(-50%,-50%)
+   scale lives on the absolutely-positioned ::before so the badge
+   itself never shifts. */
+@keyframes gacha-badge-halo {
+  0%, 100% { opacity: 0.45; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); }
+}
+.gacha-badge-glow { position: relative; }
+.gacha-badge-glow::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 130%;
+  height: 160%;
+  border-radius: 9999px;
+  background: radial-gradient(closest-side, var(--badge-glow, rgba(139, 92, 246, 0.55)), transparent 75%);
+  pointer-events: none;
+  animation: gacha-badge-halo 2s ease-in-out infinite;
+}
+
+/* Light sweep travelling across the badge once revealed */
+.gacha-badge-sheen { position: relative; }
+.gacha-badge-sheen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.65) 50%, transparent 70%);
+  background-size: 250% 100%;
+  animation: gacha-badge-sweep 2.6s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 20;
+}
+@keyframes gacha-badge-sweep {
+  0% { background-position: 160% 0; }
+  55% { background-position: -60% 0; }
+  100% { background-position: -60% 0; }
+}
+
+/* Outer rarity halo ring wrapping the flipped card */
+.gacha-halo {
+  width: 110%;
+  height: 110%;
+  transform: translate(-50%, -50%);
+  opacity: 0.5;
+  animation: gacha-badge-halo 2.6s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 5;
+}
+
 /* Flowing animated gradient for Epic+ foil card frames */
 @keyframes gacha-frame-flow {
   0% { background-position: 0% 50%; }
@@ -998,6 +1111,295 @@ html.theme-boot *::after {
   100% { opacity: 1; transform: translateY(0) scale(1) rotateX(0deg); }
 }
 .pack-card-rise { animation: pack-card-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* ════════════════════════════════════════════════════════════
+   VIP PRO HOVER STACK — dynamic holo, chasing edge light,
+   breakout particles, micro-glitch entry, layered parallax
+   All layers read CSS vars written by TiltCard's rAF loop:
+     --mx/--my (cursor %), --edge (rarity neon color),
+     --px/--py (pointer px, for particle drift)
+   ════════════════════════════════════════════════════════════ */
+
+/* ── 1. Dynamic holographic sheen (oil-slick foil) ──
+   Gradient angle + hue offset bend with cursor position; two
+   counter-rotating conic layers create an iridescent oil film. */
+.vip-holo {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  background:
+    conic-gradient(
+      from calc(180deg + (var(--mx, 50) - 50) * 1.6deg) at calc(var(--mx, 50) * 1%) calc(var(--my, 50) * 1%),
+      rgba(255, 0, 128, 0.16) 0deg,
+      rgba(255, 184, 0, 0.13) 55deg,
+      rgba(64, 255, 160, 0.12) 120deg,
+      rgba(0, 192, 255, 0.16) 185deg,
+      rgba(168, 85, 247, 0.18) 245deg,
+      rgba(255, 0, 128, 0.16) 360deg
+    ),
+    linear-gradient(
+      calc(100deg + (var(--mx, 50) - 50) * 0.9deg),
+      rgba(255, 0, 128, 0) 20%,
+      rgba(255, 200, 64, 0.10) 32%,
+      rgba(64, 255, 208, 0.10) 44%,
+      rgba(56, 189, 248, 0.12) 56%,
+      rgba(192, 132, 252, 0.14) 68%,
+      rgba(255, 0, 128, 0) 80%
+    );
+  background-size: 220% 220%, 260% 260%;
+  background-position:
+    calc(var(--mx, 50) * 0.6%) calc(var(--my, 50) * 0.6%),
+    calc(100% - var(--mx, 50) * 0.8%) calc(100% - var(--my, 50) * 0.8%);
+  mix-blend-mode: color-dodge;
+  filter: saturate(1.45) contrast(1.05);
+  z-index: 14;
+}
+.dark .vip-holo { mix-blend-mode: screen; }
+.holo-card:hover .vip-holo,
+.holo-card.is-hovering .vip-holo { opacity: 0.9; }
+
+/* ── 2. Chasing edge light ──
+   A thin high-intensity neon runner races the card perimeter.
+   --edge holds the rarity color (JS-injected). The border ring is
+   carved out with a content-box mask; a rotating conic light head
+   sweeps around the full frame like a laser chasing the edges. */
+@keyframes vip-edge-chase {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.vip-edge {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  padding: 1.5px;
+  /* rotating two-headed laser: bright head + trailing comet tail */
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 30deg,
+    color-mix(in srgb, var(--edge, #d946ef) 35%, transparent) 55deg,
+    var(--edge, #d946ef) 78deg,
+    #ffffff 90deg,
+    var(--edge, #d946ef) 102deg,
+    color-mix(in srgb, var(--edge, #d946ef) 35%, transparent) 125deg,
+    transparent 150deg,
+    transparent 190deg,
+    color-mix(in srgb, var(--edge, #d946ef) 30%, transparent) 235deg,
+    var(--edge, #d946ef) 262deg,
+    #ffffff 270deg,
+    var(--edge, #d946ef) 278deg,
+    color-mix(in srgb, var(--edge, #d946ef) 30%, transparent) 305deg,
+    transparent 330deg,
+    transparent 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: vip-edge-chase 1.6s linear infinite;
+  animation-play-state: paused;
+  z-index: 18;
+}
+.holo-card.is-hovering .vip-edge { opacity: 1; animation-play-state: running; }
+
+/* Glow bloom echoing the chasing border */
+@keyframes vip-edge-bloom {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.6; }
+}
+.vip-edge-glow {
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  box-shadow:
+    0 0 24px -2px var(--edge, #d946ef),
+    0 0 56px -8px var(--edge, #d946ef);
+  animation: vip-edge-bloom 1.6s ease-in-out infinite;
+  z-index: 1;
+}
+.holo-card.is-hovering .vip-edge-glow { opacity: 0.55; }
+
+/* ── 3. Breakout particles / light grid ──
+   Glowing geometric motes drifting outward behind the frame,
+   plus a perspective light-grid floor peeking from behind edges. */
+.vip-breakout {
+  position: absolute;
+  inset: -14%;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 0;
+}
+.holo-card.is-hovering .vip-breakout { opacity: 1; }
+@keyframes vip-mote-drift {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.4) rotate(0deg);
+  }
+  20% { opacity: 0.9; }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--dx, 40px), var(--dy, -40px), 0) scale(1.15) rotate(var(--rot, 90deg));
+  }
+}
+.vip-mote {
+  position: absolute;
+  width: var(--ms, 6px);
+  height: var(--ms, 6px);
+  background: var(--mc, rgba(233, 196, 106, 0.9));
+  box-shadow: 0 0 10px var(--mc, rgba(233, 196, 106, 0.9));
+  animation: vip-mote-drift var(--md, 2.4s) ease-out infinite;
+  animation-delay: var(--mde, 0s);
+  pointer-events: none;
+}
+/* diamond / triangle geometry via clip-path */
+.vip-mote.is-diamond { clip-path: polygon(50% 0, 100% 50%, 55% 100%, 0 55%); }
+.vip-mote.is-tri { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+/* perspective light grid streaming from behind the card */
+@keyframes vip-grid-flow {
+  0% { background-position: 0% 0%, 0% 0%; }
+  100% { background-position: 0% 34%, 0% 34%; }
+}
+.vip-grid {
+  position: absolute;
+  inset: -18% -30%;
+  background-image:
+    linear-gradient(rgba(139, 92, 246, 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 92, 246, 0.14) 1px, transparent 1px);
+  background-size: 34px 34px;
+  transform: perspective(600px) rotateX(58deg) translateY(30%);
+  transform-origin: 50% 100%;
+  animation: vip-grid-flow 3.2s linear infinite;
+  pointer-events: none;
+  mask-image: radial-gradient(60% 60% at 50% 55%, #000 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(60% 60% at 60% 55%, #000 30%, transparent 75%);
+}
+
+/* ── 4. Micro-glitch / chromatic aberration on hover entry ──
+   One-shot 100ms RGB-split + slice jitter when the pointer first
+   enters, simulating card "activation". Two pseudo-element ghost
+   copies (cyan / magenta) shear against each other while the
+   layer itself jitters; the ghosts inherit the card's background
+   so the split reads against any surface. */
+@keyframes vip-glitch {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+  10% { opacity: 1; transform: translate3d(-2.5px, 1px, 0); }
+  25% { transform: translate3d(2px, -1.5px, 0); }
+  40% { transform: translate3d(-1.5px, 0.5px, 0); }
+  55% { transform: translate3d(1px, 1px, 0); }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+}
+@keyframes vip-glitch-cyan {
+  0%, 100% { opacity: 0; }
+  15% { opacity: 0.75; transform: translate3d(3px, -1px, 0); }
+  40% { opacity: 0.4; transform: translate3d(-2px, 1.5px, 0); }
+  70% { opacity: 0.25; transform: translate3d(1px, -0.5px, 0); }
+}
+@keyframes vip-glitch-magenta {
+  0%, 100% { opacity: 0; }
+  15% { opacity: 0.75; transform: translate3d(-3px, 1px, 0); }
+  40% { opacity: 0.4; transform: translate3d(2px, -1.5px, 0); }
+  70% { opacity: 0.25; transform: translate3d(-1px, 0.5px, 0); }
+}
+.vip-glitch-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 19;
+  opacity: 0;
+  overflow: hidden;
+}
+/* scanline slice that flicks across during the glitch window */
+.vip-glitch-layer::before {
+  content: '';
+  position: absolute;
+  left: -20%;
+  right: -20%;
+  top: var(--gslice, 30%);
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+  opacity: 0;
+}
+.holo-card.is-glitching .vip-glitch-layer {
+  animation: vip-glitch 100ms steps(2, jump-none) both;
+}
+.holo-card.is-glitching .vip-glitch-layer::before {
+  animation: vip-glitch-cyan 100ms steps(2, jump-none) both;
+}
+/* RGB ghost copies */
+.vip-glitch-cyan,
+.vip-glitch-magenta {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 20;
+  opacity: 0;
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+.holo-card.is-glitching .vip-glitch-cyan {
+  animation: vip-glitch-cyan 100ms steps(2, jump-none) both;
+  background: radial-gradient(60% 60% at 50% 50%, rgba(34, 211, 238, 0.22), transparent 70%);
+}
+.holo-card.is-glitching .vip-glitch-magenta {
+  animation: vip-glitch-magenta 100ms steps(2, jump-none) both;
+  background: radial-gradient(60% 60% at 50% 50%, rgba(217, 70, 239, 0.22), transparent 70%);
+}
+
+/* ── 5. Smooth base interactions (anti-stutter) ──
+   GPU-composited will-change hints + extra smooth bezier; applied
+   only while hovering so layerization cost is never paid at rest. */
+.holo-card {
+  transition:
+    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.holo-card.is-hovering {
+  will-change: transform;
+  /* lift + settle cue without layout shift */
+  transition: none;
+}
+/* Rarity edge color applied as a soft frame even at rest (subtle) */
+.holo-card.is-hovering { box-shadow: 0 0 0 1px color-mix(in srgb, var(--edge, #d946ef) 26%, transparent); }
+
+/* ── 6. True parallax depth ──
+   Utility classes for elements at different Z offsets; the tilt
+   rotation from TiltCard's 3D transform makes translateZ layers
+   drift at different screen rates = authentic 3D layer depth. */
+.vip-depth { transform-style: preserve-3d; }
+.vip-depth-back   { transform: translateZ(6px); }
+.vip-depth-mid    { transform: translateZ(16px); }
+.vip-depth-frame  { transform: translateZ(26px); }
+.vip-depth-front  { transform: translateZ(40px); }
+.vip-depth-pop    { transform: translateZ(52px); }
+@media (prefers-reduced-motion: reduce) {
+  .vip-depth-back, .vip-depth-mid, .vip-depth-frame, .vip-depth-front, .vip-depth-pop {
+    transform: none;
+  }
+}
 
 /* Respect reduced-motion preferences */
 @media (prefers-reduced-motion: reduce) {

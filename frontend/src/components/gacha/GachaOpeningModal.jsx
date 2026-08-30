@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { X, Sparkles, MousePointerClick, AlertTriangle, RefreshCw, Gem, Crown, Sparkle } from 'lucide-react';
+import {
+  X, Sparkles, MousePointerClick, AlertTriangle, RefreshCw, Gem, Crown, Sparkle, Scissors
+} from 'lucide-react';
 import api from '../../services/api';
 import TiltCard from '../TiltCard';
 import ProductImage from '../ProductImage';
-import { playTear, playReveal, playTick, vibrate } from '../../utils/sfx';
+import { playTear, playReveal, playTick, playPop, vibrate } from '../../utils/sfx';
 
 /* ── Gacha rarity treatments (backend enum: COMMON/RARE/EPIC/LEGENDARY) ── */
 const GACHA_RARITY = {
@@ -61,8 +63,12 @@ const PACK_W = 168;
 const PACK_H = 238;
 const PACK_D = 44;
 const FRAME_PAD = 3;
-const MIN_SHAKE_MS = 1400;
+const REQUIRED_TAPS = 3;
+const MIN_CHARGE_MS = 1400;
 const TEAR_MS = 680;
+const FLIP_DELAY_MS = 520;
+const FLIP_MS = 1150;
+const REVEAL_EXTRA_MS = 90;
 const DEFAULT_GRADIENT = 'from-violet-600 via-fuchsia-600 to-pink-500';
 
 const faceBase = {
@@ -79,12 +85,18 @@ const PARTICLE_COLORS = ['#22d3ee', '#d946ef', '#8b5cf6', '#e9c46a', '#ffffff'];
 const EMBER_COLORS = ['#e9c46a', '#d946ef', '#22d3ee', '#ffffff'];
 const ORBIT_COLORS = ['#22d3ee', '#d946ef', '#e9c46a', '#a78bfa', '#ffffff', '#f0abfc'];
 
-const makeParticles = (count, spread = 160) =>
+let fxClock = 0;
+const nextFxClock = () => {
+  fxClock = (fxClock + 1) % 100000;
+  return fxClock;
+};
+
+const makeParticles = (count, spread = 160, prefix = 'p') =>
   Array.from({ length: count }).map((_, i) => {
     const angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
     const dist = 70 + Math.random() * spread;
     return {
-      id: i,
+      id: `${prefix}${nextFxClock()}-${i}`,
       px: `${Math.cos(angle) * dist}px`,
       py: `${Math.sin(angle) * dist}px`,
       pc: PARTICLE_COLORS[i % PARTICLE_COLORS.length],
@@ -95,7 +107,7 @@ const makeParticles = (count, spread = 160) =>
 
 const makeEmbers = (count) =>
   Array.from({ length: count }).map((_, i) => ({
-    id: i,
+    id: `e${nextFxClock()}-${i}`,
     ex: `${((Math.random() - 0.5) * 170).toFixed(0)}px`,
     ey: `${-(90 + Math.random() * 170).toFixed(0)}px`,
     size: 3 + Math.random() * 5,
@@ -114,13 +126,25 @@ const makeOrbits = (count = 8) =>
     size: 4 + (i % 3) * 2
   }));
 
-const GachaRarityBadge = ({ rarity, size = 'lg' }) => {
+/* Expanding ripple rings born on each pack tap */
+const makeRipples = (count = 2) =>
+  Array.from({ length: count }).map((_, i) => ({
+    id: `r${nextFxClock()}-${i}`,
+    dx: `${((Math.random() - 0.5) * 26).toFixed(0)}px`,
+    dy: `${((Math.random() - 0.5) * 26).toFixed(0)}px`,
+    size: 96 + i * 54 + Math.random() * 20,
+    delay: `${(i * 0.09).toFixed(2)}s`
+  }));
+
+const GachaRarityBadge = ({ rarity, size = 'lg', sheen = false }) => {
   const meta = resolveGachaRarity(rarity);
   const Icon = meta.icon;
   const sizing = size === 'lg' ? 'text-[12px] px-3.5 py-1.5' : 'text-[10px] px-2.5 py-1';
   return (
     <span
-      className={`relative inline-flex items-center gap-1.5 overflow-hidden rounded-full font-bold uppercase tracking-[0.16em] text-white shadow-lg ${sizing}`}
+      className={`relative inline-flex items-center gap-1.5 overflow-hidden rounded-full font-bold uppercase tracking-[0.16em] text-white shadow-lg ${sizing} ${
+        sheen ? 'gacha-badge-sheen' : ''
+      }`}
     >
       <span className={`absolute inset-0 bg-gradient-to-r ${meta.badge} ${meta.tier >= 3 ? 'animate-tcg-gradient-x' : ''}`} />
       {meta.tier >= 3 && <span aria-hidden="true" className="foil-sheen absolute inset-0" />}
@@ -133,15 +157,21 @@ const GachaRarityBadge = ({ rarity, size = 'lg' }) => {
 };
 
 /**
- * GachaOpeningModal — unboxing FX for POST /api/v1/virtual-boxes/:id/open.
+ * GachaOpeningModal — interactive unboxing FX for POST /api/v1/virtual-boxes/:id/open.
  *
  * Visual state flow:
- *   ready   → floating 3D pack, click to tear
- *   shaking → 3D pack shake + particle glow + haptics while the roll resolves
- *   tearing → jagged halves fly apart, depth-of-field rack focus
- *   revealed→ pulled card with 3D tilt physics, holo sheen and a foil frame
- *             scaled by rarity (Common / Rare / Epic / Legendary)
- *   error   → friendly failure panel with retry
+ *   ready    → sealed 3D pack floating center; user must tap it 3 times
+ *              (or hit the "Tear Pack" shortcut). Each tap fires a jolt
+ *              shake, expanding ripple rings and a small spark burst.
+ *   charging → 3rd tap: escalating 3D shake + orbiting motes + haptics
+ *              while the weighted roll resolves (min anticipation window).
+ *   tearing  → jagged foil halves split apart with glowing particle sparks
+ *              and a depth-of-field rack focus.
+ *   flipping → pulled card rises face-down, then a CSS 3D Y-flip
+ *              (preserve-3d + backface-visibility) reveals the front.
+ *   revealed → foil frame scaled by rarity, 3D tilt on hover, rarity badge
+ *              with glowing halo + light sweep, Done / Open Another CTAs.
+ *   error    → friendly failure panel with retry.
  */
 const GachaOpeningModal = ({
   open,
@@ -154,16 +184,21 @@ const GachaOpeningModal = ({
   onResult
 }) => {
   const [phase, setPhase] = useState('ready');
+  const [taps, setTaps] = useState(0);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [shakeHard, setShakeHard] = useState(false);
+  const [flipped, setFlipped] = useState(false);
   const [bursts, setBursts] = useState([]);
   const [embers, setEmbers] = useState([]);
+  const [ripples, setRipples] = useState([]);
 
   const phaseRef = useRef('ready');
   const busyRef = useRef(false);
+  const tapsRef = useRef(0);
   const mountedRef = useRef(true);
   const timersRef = useRef([]);
+  const joltRef = useRef(null);
   const onCloseRef = useRef(onClose);
   const onResultRef = useRef(onResult);
   const orbits = useMemo(() => makeOrbits(8), []);
@@ -203,15 +238,32 @@ const GachaOpeningModal = ({
 
   const sleep = useCallback((ms) => new Promise((resolve) => addTimer(resolve, ms)), [addTimer]);
 
-  const openBox = useCallback(async () => {
+  /* Restart the one-shot tap-jolt animation without remounting the 3D pack.
+     --jolt scales the jolt amplitude with each successive tap. */
+  const triggerJolt = useCallback(() => {
+    const el = joltRef.current;
+    if (!el || reducedMotion) return;
+    el.style.setProperty('--jolt', (0.9 + tapsRef.current * 0.35).toFixed(2));
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = `gacha-jolt ${Math.round(320 + tapsRef.current * 70)}ms cubic-bezier(0.34, 1.56, 0.64, 1) both`;
+  }, [reducedMotion]);
+
+  const beginOpen = useCallback(async () => {
     if (busyRef.current || !boxId) return;
+    const p = phaseRef.current;
+    if (p !== 'ready' && p !== 'error') return;
     busyRef.current = true;
+    /* hand the pack over to the charging shake classes */
+    if (joltRef.current) joltRef.current.style.animation = '';
     setError('');
     setResult(null);
+    setFlipped(false);
     setBursts([]);
     setEmbers([]);
+    setRipples([]);
     setShakeHard(false);
-    goto('shaking');
+    goto('charging');
     vibrate([8, 30, 8]);
     if (!reducedMotion) addTimer(() => { if (mountedRef.current) setShakeHard(true); }, 750);
 
@@ -219,31 +271,35 @@ const GachaOpeningModal = ({
     try {
       const res = await api.post(`/virtual-boxes/${boxId}/open`);
       const data = res.data?.data;
-      const wait = Math.max(0, MIN_SHAKE_MS - (Date.now() - startedAt));
+      const wait = Math.max(0, MIN_CHARGE_MS - (Date.now() - startedAt));
       if (wait > 0) await sleep(wait);
       if (!mountedRef.current) return;
 
       const pullTier = resolveGachaRarity(data?.card?.rarity).tier;
       playTear();
       vibrate(pullTier >= 3 ? [20, 30, 40] : [15]);
-      if (!reducedMotion) setBursts(makeParticles(10 + pullTier * 6, 150));
+      if (!reducedMotion) setBursts(makeParticles(10 + pullTier * 6, 150, 's'));
       goto('tearing');
 
       await sleep(reducedMotion ? 180 : TEAR_MS);
       if (!mountedRef.current) return;
 
-      playReveal(pullTier);
-      vibrate(pullTier >= 4 ? [30, 40, 60, 40, 90] : pullTier === 3 ? [25, 35, 50] : [20, 30, 30]);
-      if (!reducedMotion) {
-        setBursts((prev) => [
-          ...prev,
-          ...makeParticles(8 + pullTier * 10, 190 + pullTier * 30).map((p) => ({ ...p, id: `b-${p.id}` }))
-        ]);
-        if (pullTier >= 3) setEmbers(makeEmbers(8 + pullTier * 4));
-      }
+      /* Card rises face-down, then flips to reveal the pull */
       setResult(data);
-      goto('revealed');
-      if (onResultRef.current) onResultRef.current(data);
+      goto('flipping');
+      const flipDelay = reducedMotion ? 120 : FLIP_DELAY_MS;
+      addTimer(() => { if (mountedRef.current) setFlipped(true); }, flipDelay);
+      addTimer(() => { if (mountedRef.current) playReveal(pullTier); }, flipDelay + 180);
+      addTimer(() => {
+        if (!mountedRef.current) return;
+        vibrate(pullTier >= 4 ? [30, 40, 60, 40, 90] : pullTier === 3 ? [25, 35, 50] : [20, 30, 30]);
+        if (!reducedMotion) {
+          setBursts((prev) => [...prev, ...makeParticles(8 + pullTier * 10, 190 + pullTier * 30, 'b')]);
+          if (pullTier >= 3) setEmbers(makeEmbers(8 + pullTier * 4));
+        }
+        goto('revealed');
+        if (onResultRef.current) onResultRef.current(data);
+      }, reducedMotion ? flipDelay + 200 : flipDelay + FLIP_MS + REVEAL_EXTRA_MS);
     } catch (err) {
       console.error('Gacha open failed:', err.response?.status, err.response?.data?.error?.message || err.message);
       if (!mountedRef.current) return;
@@ -254,10 +310,45 @@ const GachaOpeningModal = ({
     }
   }, [boxId, goto, addTimer, sleep, reducedMotion]);
 
+  /* One pack tap: jolt + ripples + sparks; the third tap starts the tear */
+  const handleTap = useCallback(() => {
+    if (busyRef.current || phaseRef.current !== 'ready') return;
+    const next = Math.min(tapsRef.current + 1, REQUIRED_TAPS);
+    tapsRef.current = next;
+    setTaps(next);
+    playPop();
+    vibrate(next >= REQUIRED_TAPS ? [10, 30, 10] : 6 + next * 4);
+    triggerJolt();
+    if (!reducedMotion) {
+      setRipples((prev) => [...prev.slice(-6), ...makeRipples(2)]);
+      setBursts((prev) => [...prev.slice(-30), ...makeParticles(4 + next * 3, 60 + next * 18, 't')]);
+    }
+    if (next >= REQUIRED_TAPS) beginOpen();
+  }, [beginOpen, triggerJolt, reducedMotion]);
+
+  /* Full ceremony replay from the sealed pack */
+  const openAnother = useCallback(() => {
+    if (busyRef.current) return;
+    playTick();
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current = [];
+    tapsRef.current = 0;
+    setTaps(0);
+    setResult(null);
+    setError('');
+    setFlipped(false);
+    setBursts([]);
+    setEmbers([]);
+    setRipples([]);
+    setShakeHard(false);
+    goto('ready');
+  }, [goto]);
+
   const handleEscape = useCallback((e) => {
     if (e.key !== 'Escape') return;
     const p = phaseRef.current;
-    if (p !== 'shaking' && p !== 'tearing') onCloseRef.current();
+    if (p === 'charging' || p === 'tearing' || p === 'flipping') return;
+    onCloseRef.current();
   }, []);
 
   useEffect(() => {
@@ -268,17 +359,21 @@ const GachaOpeningModal = ({
   useEffect(() => {
     if (!open || !boxId) return undefined;
     busyRef.current = false;
+    tapsRef.current = 0;
     goto('ready');
+    setTaps(0);
     setResult(null);
     setError('');
     setBursts([]);
     setEmbers([]);
+    setRipples([]);
+    setFlipped(false);
     setShakeHard(false);
 
     document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', handleEscape);
     let auto = null;
-    if (autoOpen) auto = setTimeout(() => openBox(), 650);
+    if (autoOpen) auto = setTimeout(() => beginOpen(), 650);
 
     return () => {
       if (auto) clearTimeout(auto);
@@ -288,16 +383,22 @@ const GachaOpeningModal = ({
       window.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = '';
     };
-  }, [open, boxId, autoOpen, goto, handleEscape, openBox]);
+  }, [open, boxId, autoOpen, goto, handleEscape, beginOpen]);
 
   if (!open || !boxId) return null;
 
-  const animating = phase === 'shaking' || phase === 'tearing';
-  const backdropBlur = phase === 'tearing' ? 18 : phase === 'revealed' ? 14 : 10;
-  const shakeCls = phase === 'shaking' && !reducedMotion ? (shakeHard ? 'gacha-shake-hard' : 'gacha-shake') : '';
+  const animating = phase === 'charging' || phase === 'tearing' || phase === 'flipping';
+  const backdropBlur = phase === 'tearing' ? 18 : phase === 'revealed' || phase === 'flipping' ? 14 : 10;
+  const shakeCls = phase === 'charging' && !reducedMotion ? (shakeHard ? 'gacha-shake-hard' : 'gacha-shake') : '';
   const frontFace = packFace({ ...faceBase, inset: 0, transform: `translateZ(${PACK_D / 2}px)`, boxShadow: '0 28px 56px -16px rgba(0,0,0,0.55)' }, 'sheen-sweep');
   const sideFace = packFace({ ...faceBase, top: 0, right: 0, width: PACK_D, height: PACK_H, transform: `rotateY(90deg) translateZ(${PACK_W - PACK_D / 2}px)` });
   const topFace = packFace({ ...faceBase, top: 0, left: 0, width: PACK_W, height: PACK_D, transform: `rotateX(90deg) translateZ(${PACK_D / 2}px)`, border: '1px solid rgba(255,255,255,0.25)' });
+
+  const tapHint = taps <= 0
+    ? `Click the pack ${REQUIRED_TAPS}× to crack the seal`
+    : taps === 1
+      ? 'Nice hit — keep going!'
+      : 'One more click to tear it open!';
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={`Opening ${boxName}`}>
@@ -377,7 +478,7 @@ const GachaOpeningModal = ({
             <h3 className="mt-4 font-display text-lg font-bold text-white">Opening failed</h3>
             <p className="mt-1.5 text-sm text-white/70">{error}</p>
             <div className="mt-6 flex items-center justify-center gap-3">
-              <button onClick={() => openBox()} className="btn-primary !px-6 !py-2.5 text-sm">
+              <button onClick={beginOpen} className="btn-primary !px-6 !py-2.5 text-sm">
                 <RefreshCw className="mr-2 h-4 w-4" /> Try Again
               </button>
               <button
@@ -388,18 +489,19 @@ const GachaOpeningModal = ({
               </button>
             </div>
           </div>
-        ) : phase === 'ready' || phase === 'shaking' ? (
+        ) : phase === 'ready' || phase === 'charging' ? (
           <div className="relative flex flex-col items-center">
-            {/* Charge aura behind the pack */}
+            {/* Charge aura — brightens with every tap */}
             <div
               aria-hidden="true"
               className={`pointer-events-none absolute left-1/2 top-[44%] h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-violet-500/70 via-fuchsia-500/60 to-cyan-400/60 blur-[70px] ${
-                phase === 'shaking' && !reducedMotion ? 'gacha-glow-pulse' : 'opacity-40'
+                phase === 'charging' && !reducedMotion ? 'gacha-glow-pulse' : ''
               }`}
+              style={phase === 'ready' ? { opacity: 0.35 + taps * 0.16, transition: 'opacity 0.35s ease' } : undefined}
             />
 
             {/* Orbiting glow motes while the roll resolves */}
-            {phase === 'shaking' && !reducedMotion && (
+            {phase === 'charging' && !reducedMotion && (
               <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-[44%] z-20 h-0 w-0">
                 {orbits.map((o) => (
                   <span
@@ -419,64 +521,104 @@ const GachaOpeningModal = ({
             {/* Contact shadow */}
             <div aria-hidden="true" className="absolute left-1/2 top-[86%] h-6 w-40 -translate-x-1/2 rounded-[100%] bg-black/40 blur-md" />
 
-            <button
-              onClick={phase === 'ready' ? () => openBox() : undefined}
-              disabled={phase !== 'ready'}
-              aria-label={`Tear open ${boxName}`}
-              className={`relative z-10 block cursor-pointer rounded-3xl pb-6 pt-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-aura-cyan/70 ${
-                phase === 'ready' ? '' : 'cursor-wait'
-              }`}
-            >
-              <div className="box3d-stage">
-                <div className={phase === 'ready' ? 'animate-tcg-float' : ''} style={{ animationDuration: '4.5s' }}>
-                  <div className={`will-change-transform ${shakeCls}`}>
+            <div className="relative">
+              {/* Tap ripple rings */}
+              {!reducedMotion && (
+                <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 z-30 h-0 w-0">
+                  {ripples.map((r) => (
+                    <span
+                      key={r.id}
+                      className="gacha-ripple"
+                      style={{ '--rs': `${r.size}px`, '--rdx': r.dx, '--rdy': r.dy, animationDelay: r.delay }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              <button
+                onClick={handleTap}
+                disabled={phase !== 'ready'}
+                aria-label={`Tear open ${boxName} — click ${REQUIRED_TAPS} times`}
+                className={`relative z-10 block cursor-pointer rounded-3xl pb-6 pt-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-aura-cyan/70 ${
+                  phase === 'ready' ? '' : 'cursor-wait'
+                }`}
+              >
+                <div className="box3d-stage">
+                  <div className={phase === 'ready' && !reducedMotion ? 'animate-tcg-float' : ''} style={{ animationDuration: '4.5s' }}>
                     <div
-                      className="box3d"
-                      style={{ width: PACK_W, height: PACK_H, transform: 'rotateX(-9deg) rotateY(26deg)' }}
+                      ref={joltRef}
+                      className={`will-change-transform ${shakeCls}`}
                     >
-                      {/* front */}
-                      <div {...frontFace}>
-                        <div className="absolute inset-0 opacity-[0.16]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.7) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.7) 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
-                        <div className="absolute inset-x-0 top-2.5 h-1.5 rounded-full bg-white/25 mx-2.5" />
-                        <div className="absolute inset-x-0 bottom-2.5 h-1.5 rounded-full bg-black/20 mx-2.5" />
-                        {boxImageUrl && (
-                          <img
-                            src={boxImageUrl}
-                            alt=""
-                            aria-hidden="true"
-                            className="absolute inset-0 h-full w-full object-cover opacity-90"
-                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                          />
-                        )}
-                        <div className="absolute top-0 inset-x-0 h-1/3 bg-gradient-to-b from-white/35 to-transparent" />
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center">
-                          <Sparkles className="h-10 w-10 text-white/90 drop-shadow" />
-                          <p className="font-display text-sm font-bold leading-tight text-white drop-shadow">{boxName}</p>
-                          <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/70">Virtual Pack · 1 Card</p>
+                      <div
+                        className="box3d"
+                        style={{ width: PACK_W, height: PACK_H, transform: 'rotateX(-9deg) rotateY(26deg)' }}
+                      >
+                        {/* front */}
+                        <div {...frontFace}>
+                          <div className="absolute inset-0 opacity-[0.16]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.7) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.7) 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
+                          <div className="absolute inset-x-0 top-2.5 h-1.5 rounded-full bg-white/25 mx-2.5" />
+                          <div className="absolute inset-x-0 bottom-2.5 h-1.5 rounded-full bg-black/20 mx-2.5" />
+                          {boxImageUrl && (
+                            <img
+                              src={boxImageUrl}
+                              alt=""
+                              aria-hidden="true"
+                              className="absolute inset-0 h-full w-full object-cover opacity-90"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                          )}
+                          <div className="absolute top-0 inset-x-0 h-1/3 bg-gradient-to-b from-white/35 to-transparent" />
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center">
+                            <Sparkles className="h-10 w-10 text-white/90 drop-shadow" />
+                            <p className="font-display text-sm font-bold leading-tight text-white drop-shadow">{boxName}</p>
+                            <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-white/70">Virtual Pack · 1 Card</p>
+                          </div>
+                          <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/90 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-violet-700 shadow ring-1 ring-violet-200">
+                            {taps === 0 ? 'Sealed' : 'Cracking…'}
+                          </span>
                         </div>
-                        <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/90 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide text-violet-700 shadow ring-1 ring-violet-200">
-                          Sealed
-                        </span>
-                      </div>
-                      {/* right side */}
-                      <div {...sideFace}>
-                        <div aria-hidden="true" className="absolute inset-0 bg-black/35" />
-                      </div>
-                      {/* top lid */}
-                      <div {...topFace}>
-                        <div aria-hidden="true" className="absolute inset-0" style={{ background: 'linear-gradient(120deg, rgba(255,255,255,0.34), rgba(255,255,255,0.06) 55%)' }} />
+                        {/* right side */}
+                        <div {...sideFace}>
+                          <div aria-hidden="true" className="absolute inset-0 bg-black/35" />
+                        </div>
+                        {/* top lid */}
+                        <div {...topFace}>
+                          <div aria-hidden="true" className="absolute inset-0" style={{ background: 'linear-gradient(120deg, rgba(255,255,255,0.34), rgba(255,255,255,0.06) 55%)' }} />
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </button>
+              </button>
+            </div>
 
             {phase === 'ready' ? (
-              <span className="relative z-10 mt-2 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white/90 ring-1 ring-white/25 backdrop-blur animate-tcg-pulse-ring">
-                <MousePointerClick className="h-4 w-4 text-aura-gold" />
-                Click to tear open
-              </span>
+              <>
+                {/* Tap progress */}
+                <div className="relative z-10 mt-2 flex items-center gap-2" aria-label={`${REQUIRED_TAPS - taps} more ${REQUIRED_TAPS - taps === 1 ? 'click' : 'clicks'} to tear`}>
+                  {Array.from({ length: REQUIRED_TAPS }).map((_, i) => (
+                    <span
+                      key={i}
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        i < taps
+                          ? 'w-6 bg-gradient-to-r from-cyan-400 via-violet-400 to-fuchsia-400 shadow-[0_0_12px_rgba(139,92,246,0.9)]'
+                          : 'w-2 bg-white/25'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="relative z-10 mt-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white/90 ring-1 ring-white/25 backdrop-blur animate-tcg-pulse-ring">
+                  <MousePointerClick className="h-4 w-4 text-aura-gold" />
+                  {tapHint}
+                </span>
+                <button
+                  type="button"
+                  onClick={beginOpen}
+                  className="btn-primary relative z-10 mt-3 !px-6 !py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-aura-cyan/70"
+                >
+                  <Scissors className="h-4 w-4" /> Tear Pack
+                </button>
+              </>
             ) : (
               <span className="relative z-10 mt-2 inline-flex items-center gap-2 text-sm font-semibold text-white/80" aria-live="polite">
                 <RefreshCw className="h-4 w-4 animate-spin text-aura-gold" />
@@ -500,77 +642,129 @@ const GachaOpeningModal = ({
               </div>
             )}
 
-            {/* Revealed card — 3D tilt physics + holo sheen + rarity foil frame */}
-            <div className={`relative z-10 ${phase === 'revealed' ? 'pack-card-rise' : 'opacity-0'}`}>
-              <div
-                aria-hidden="true"
-                className={`pointer-events-none absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br ${rarity.aura} blur-3xl ${
-                  phase === 'revealed' ? 'animate-aura-pulse opacity-80' : 'opacity-0'
-                }`}
-              />
-              <TiltCard max={18} scale={1.06} foil spotlight stiffness={180} damping={20} className="relative w-60 rounded-[1.4rem] shadow-[0_36px_80px_-20px_rgba(124,58,237,0.55)] sm:w-64">
-                <div className="relative overflow-hidden rounded-[inherit]" style={{ padding: FRAME_PAD }}>
-                  {/* Rarity foil frame: static (Common/Rare), flowing (Epic), rotating metallic (Legendary) */}
-                  {rarity.spin && !reducedMotion ? (
-                    <div aria-hidden="true" className="gacha-frame-spin absolute left-1/2 top-1/2 aspect-square w-[240%]" style={{ background: rarity.frame }} />
-                  ) : (
-                    <div
-                      aria-hidden="true"
-                      className={`absolute inset-0 ${rarity.flow && !reducedMotion ? 'gacha-frame-flow' : ''}`}
-                      style={{ background: rarity.frame }}
-                    />
-                  )}
-                  {tier >= 3 && <span aria-hidden="true" className="foil-sheen pointer-events-none absolute inset-0" />}
+            {/* Pulled card: rises face-down, 3D Y-flip reveals the front, tilt on hover after reveal */}
+            {(phase === 'flipping' || phase === 'revealed') && (
+              <div className="relative z-10 pack-card-rise">
+                <div
+                  aria-hidden="true"
+                  className={`pointer-events-none absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br ${rarity.aura} blur-3xl ${
+                    phase === 'revealed' ? 'animate-aura-pulse opacity-80' : 'opacity-40'
+                  }`}
+                />
+                <TiltCard
+                  max={16}
+                  scale={1.05}
+                  foil
+                  spotlight
+                  stiffness={180}
+                  damping={20}
+                  rarity={result?.card?.rarity}
+                  className="relative rounded-[1.4rem] shadow-[0_36px_80px_-20px_rgba(124,58,237,0.55)]"
+                >
+                  <div className="gacha-flip-scene">
+                    <div className={`gacha-flipper ${flipped ? 'is-flipped' : ''}`}>
+                      {/* BACK — the face-down mystery card */}
+                      <div className="gacha-flip-face gacha-flip-back">
+                        <div className="relative flex h-full w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-[calc(1.4rem-2px)] bg-gradient-to-br from-[#1d1533] via-[#0d0a18] to-[#181026] ring-1 ring-white/15">
+                          <div aria-hidden="true" className="absolute inset-0 opacity-[0.12]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.7) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.7) 1px, transparent 1px)', backgroundSize: '16px 16px' }} />
+                          <div aria-hidden="true" className="absolute inset-2 rounded-xl border border-white/15" />
+                          <div aria-hidden="true" className="sheen-sweep absolute inset-0" />
+                          <Sparkles className="relative h-12 w-12 text-white/80 drop-shadow" />
+                          <p className="relative font-display text-sm font-bold uppercase tracking-[0.3em] text-white/75">
+                            TCG
+                          </p>
+                          <p className="relative text-[9px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                            Mystery Pull
+                          </p>
+                        </div>
+                      </div>
 
-                  <div className="relative overflow-hidden bg-gradient-to-b from-[#17131f] to-[#0b0a12]" style={{ borderRadius: `calc(1.4rem - ${FRAME_PAD}px)` }}>
-                    <div className="relative aspect-[3/4] w-full p-3">
-                      <div className="absolute left-5 top-5 z-20" style={{ transform: 'translateZ(28px)' }}>
-                        <GachaRarityBadge rarity={result?.card?.rarity} size="sm" />
+                      {/* FRONT — the revealed pull with rarity foil frame */}
+                      <div className="gacha-flip-face gacha-flip-front">
+                        <div className="relative h-full overflow-hidden rounded-[1.4rem]" style={{ padding: FRAME_PAD }}>
+                          {/* Rarity foil frame: static (Common/Rare), flowing (Epic), rotating metallic (Legendary) */}
+                          {rarity.spin && !reducedMotion ? (
+                            <div aria-hidden="true" className="gacha-frame-spin absolute left-1/2 top-1/2 aspect-square w-[240%]" style={{ background: rarity.frame }} />
+                          ) : (
+                            <div
+                              aria-hidden="true"
+                              className={`absolute inset-0 ${rarity.flow && !reducedMotion ? 'gacha-frame-flow' : ''}`}
+                              style={{ background: rarity.frame }}
+                            />
+                          )}
+                          {tier >= 3 && <span aria-hidden="true" className="foil-sheen pointer-events-none absolute inset-0" />}
+
+                          <div className="relative flex h-full flex-col overflow-hidden bg-gradient-to-b from-[#17131f] to-[#0b0a12]" style={{ borderRadius: `calc(1.4rem - ${FRAME_PAD}px)` }}>
+                            <div className="relative min-h-0 flex-1 p-3">
+                              <div className="absolute left-5 top-5 z-20" style={{ transform: 'translateZ(28px)' }}>
+                                <GachaRarityBadge rarity={result?.card?.rarity} size="sm" />
+                              </div>
+                              <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-xl" style={{ transform: 'translateZ(18px)' }}>
+                                <ProductImage
+                                  src={cardImage}
+                                  alt={cardName}
+                                  className="max-h-full w-auto object-contain drop-shadow-[0_16px_30px_rgba(0,0,0,0.45)]"
+                                  fallbackClassName="h-full w-full rounded-xl"
+                                  iconClassName="h-9 w-9 text-white/90"
+                                  label={cardName}
+                                />
+                              </div>
+                            </div>
+                            <div className="border-t border-white/10 bg-white/[0.05] px-4 py-3">
+                              <p className="truncate text-sm font-bold text-white">{cardName}</p>
+                              <p className="mt-0.5 truncate text-[11px] text-white/55">
+                                {product?.cardNumber ? `${product.cardNumber} · ` : ''}from {boxName}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-xl" style={{ transform: 'translateZ(18px)' }}>
-                        <ProductImage
-                          src={cardImage}
-                          alt={cardName}
-                          className="max-h-full w-auto object-contain drop-shadow-[0_16px_30px_rgba(0,0,0,0.45)]"
-                          fallbackClassName="h-full w-full rounded-xl"
-                          iconClassName="h-9 w-9 text-white/90"
-                          label={cardName}
-                        />
-                      </div>
-                    </div>
-                    <div className="border-t border-white/10 bg-white/[0.05] px-4 py-3">
-                      <p className="truncate text-sm font-bold text-white">{cardName}</p>
-                      <p className="mt-0.5 truncate text-[11px] text-white/55">
-                        {product?.cardNumber ? `${product.cardNumber} · ` : ''}from {boxName}
-                      </p>
                     </div>
                   </div>
-                </div>
-              </TiltCard>
-            </div>
+                </TiltCard>
+
+                {/* Rarity halo — glowing backdrop ring once fully revealed */}
+                {phase === 'revealed' && !reducedMotion && (
+                  <div
+                    aria-hidden="true"
+                    className="gacha-halo pointer-events-none absolute left-1/2 top-1/2 rounded-full"
+                    style={{ boxShadow: `0 0 90px 12px ${rarity.flash}` }}
+                  />
+                )}
+              </div>
+            )}
 
             {/* Pull summary + actions */}
-            <div className={`mt-6 text-center ${phase === 'revealed' ? 'animate-tcg-reveal' : 'opacity-0'}`}>
-              <GachaRarityBadge rarity={result?.card?.rarity} />
-              <p className={`mt-3 font-display text-2xl font-bold drop-shadow ${tier === 4 ? 'text-gradient-sweep' : 'text-white'}`}>
-                {tier >= 3 ? rarity.headline : 'Congrats!'}
-              </p>
-              <p className="mt-0.5 text-sm text-white/75">{cardName}</p>
-
-              <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-                <button onClick={() => { playTick(); openBox(); }} className="btn-primary !px-6 !py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-aura-cyan/70">
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Open Again
-                </button>
-                <button
-                  onClick={() => { playTick(); onClose(); }}
-                  className="inline-flex items-center justify-center rounded-full border border-white/25 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-aura-cyan/70"
+            {(phase === 'flipping' || phase === 'revealed') && (
+              <div className={`mt-6 text-center ${phase === 'revealed' ? 'animate-tcg-reveal' : 'opacity-0'}`}>
+                <div
+                  className={`inline-block rounded-full ${phase === 'revealed' && !reducedMotion ? 'gacha-badge-glow' : ''}`}
+                  style={{ '--badge-glow': rarity.flash }}
                 >
-                  Keep &amp; Close
-                </button>
+                  <GachaRarityBadge rarity={result?.card?.rarity} sheen={phase === 'revealed'} />
+                </div>
+                <p className={`mt-3 font-display text-2xl font-bold drop-shadow ${tier === 4 ? 'text-gradient-sweep' : 'text-white'}`}>
+                  {tier >= 3 ? rarity.headline : 'Congrats!'}
+                </p>
+                <p className="mt-0.5 text-sm text-white/75">{cardName}</p>
+
+                {phase === 'revealed' && (
+                  <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+                    <button
+                      onClick={() => { playTick(); onClose(); }}
+                      className="inline-flex items-center justify-center rounded-full border border-white/25 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-aura-cyan/70"
+                    >
+                      Done
+                    </button>
+                    <button onClick={openAnother} className="btn-primary !px-6 !py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-aura-cyan/70">
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Open Another
+                    </button>
+                  </div>
+                )}
+                <p className="mt-3 text-[11px] text-white/45">Card saved to your collection</p>
               </div>
-              <p className="mt-3 text-[11px] text-white/45">Card saved to your collection</p>
-            </div>
+            )}
           </div>
         )}
       </div>

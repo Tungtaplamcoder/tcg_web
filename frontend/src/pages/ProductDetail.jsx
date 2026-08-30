@@ -282,7 +282,7 @@ const ProductDetail = () => {
                 <RarityBadge rarity={product.rarity} size="lg" />
               </div>
             )}
-            <TiltCard max={16} scale={1.05} className="relative w-full flex items-center justify-center">
+            <TiltCard max={16} scale={1.05} rarity={product.rarity} className="relative w-full flex items-center justify-center">
               <ProductImage
                 src={product.images && product.images.length > 0 ? product.images[0] : null}
                 alt={product.name}

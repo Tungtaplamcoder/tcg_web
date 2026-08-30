@@ -20,9 +20,13 @@ const getStock = (product) => {
 };
 
 /**
- * HoloCard — premium product card. The artwork sits on a TiltCard with
- * mouse-reactive rainbow foil + specular glare; boxes carry a holographic
- * security seal and a foil BOX/CARD category badge.
+ * HoloCard — premium product card with the VIP PRO hover stack.
+ * Artwork sits on a TiltCard whose rAF loop drives:
+ *   dynamic holographic sheen, chasing rarity-neon edge light,
+ *   breakout particles, a 100ms micro-glitch activation on entry,
+ *   and true parallax depth — background art, card frame and text
+ *   each live at different translateZ offsets under 1200px
+ *   perspective, so they drift at different rates while tilting.
  */
 const HoloCard = ({ product, sealed = false, className = '' }) => {
   const price = getMinPrice(product);
@@ -38,7 +42,7 @@ const HoloCard = ({ product, sealed = false, className = '' }) => {
   return (
     <Link
       to={`/product/${product.id}`}
-      className={`group relative block rounded-3xl p-2 glass-panel transition-all duration-500 hover:-translate-y-1.5 hover:shadow-card-hover dark:bg-white/5 dark:border-white/10 dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] dark:hover:shadow-[0_24px_60px_-12px_rgba(34,211,238,0.28)] ${className}`}
+      className={`group relative block rounded-3xl p-2 glass-panel transition-[transform,box-shadow] duration-500 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1.5 hover:shadow-card-hover dark:bg-white/5 dark:border-white/10 dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] dark:hover:shadow-[0_24px_60px_-12px_rgba(34,211,238,0.28)] ${className}`}
     >
       {/* Ambient aura behind chase-rarity cards */}
       <div
@@ -58,9 +62,12 @@ const HoloCard = ({ product, sealed = false, className = '' }) => {
         scale={1.05}
         foil={isChase}
         spotlight
+        rarity={product.rarity}
+        breakout
+        seed={String(product.id).length + 5}
       >
-        {/* Binary category badge — BOX or CARD — lifted on the Z axis for parallax pop */}
-        <div className="absolute top-3 left-3 z-20 flex flex-col gap-1.5" style={{ transform: 'translateZ(46px)' }}>
+        {/* Binary category badge — deepest parallax layer */}
+        <div className="absolute top-3 left-3 z-20 vip-depth-pop" style={{ transform: 'translateZ(52px)' }}>
           <CategoryBadge category={product.category} rarity={product.rarity} />
         </div>
         {sealed && (
@@ -72,9 +79,10 @@ const HoloCard = ({ product, sealed = false, className = '' }) => {
           </span>
         )}
 
+        {/* Artwork — mid parallax layer, drifts slower than the frame */}
         <div
-          className="sheen-sweep relative h-60 sm:h-64 flex items-center justify-center rounded-xl"
-          style={{ transform: 'translateZ(26px)' }}
+          className="sheen-sweep relative h-60 sm:h-64 flex items-center justify-center rounded-xl vip-depth-mid"
+          style={{ transform: 'translateZ(16px)' }}
         >
           <ProductImage
             src={image}
@@ -89,6 +97,7 @@ const HoloCard = ({ product, sealed = false, className = '' }) => {
         </div>
       </TiltCard>
 
+      {/* Text block — lifted above the tilt scene at its own rate */}
       <div className="px-3 pb-3 pt-3 text-center">
         <h3 className="font-semibold truncate text-ink-900 dark:text-white" title={product.shortName || product.name}>
           {product.shortName || product.name}
