@@ -4,6 +4,7 @@ import {
   Clock, CheckCircle2, XCircle, Truck
 } from 'lucide-react';
 import api from '../../services/api';
+import { formatVND } from '../../utils/format';
 
 const AnalyticsDashboard = () => {
   const [stats, setStats] = useState(null);
@@ -47,7 +48,7 @@ const AnalyticsDashboard = () => {
   const statCards = [
     {
       label: 'Doanh thu',
-      value: `$${Number(stats.totalRevenue).toFixed(2)}`,
+      value: formatVND(stats.totalRevenue),
       icon: DollarSign,
       color: 'bg-green-100 text-green-600'
     },
@@ -144,7 +145,7 @@ const AnalyticsDashboard = () => {
                     className="bg-primary-500 h-6 rounded-full flex items-center justify-end pr-2"
                     style={{ width: `${Math.min(100, (day.revenue / 100) * 2)}%` }}
                   >
-                    <span className="text-xs font-medium text-white">${Number(day.revenue).toFixed(2)}</span>
+                    <span className="text-xs font-medium text-white">{formatVND(day.revenue)}</span>
                   </div>
                 </div>
               </div>
@@ -175,7 +176,7 @@ const AnalyticsDashboard = () => {
                   <tr key={order.id}>
                     <td className="px-4 py-2 font-mono text-xs">{order.orderCode}</td>
                     <td className="px-4 py-2 text-sm text-gray-700">{order.customer || order.user?.email}</td>
-                    <td className="px-4 py-2 text-sm font-medium">${Number(order.grandTotal).toFixed(2)}</td>
+                    <td className="px-4 py-2 text-sm font-medium">{formatVND(order.grandTotal)}</td>
                     <td className="px-4 py-2 text-sm">
                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                         {order.status}

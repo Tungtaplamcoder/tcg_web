@@ -4,6 +4,12 @@ import react from '@vitejs/plugin-react';
 // Use environment variables for backend URLs
 const API_TARGET = process.env.VITE_API_PROXY_TARGET || 'http://localhost:4000';
 const SOCKET_TARGET = process.env.VITE_SOCKET_PROXY_TARGET || 'http://localhost:4000';
+// Hosts được phép truy cập dev server (VD: tunnel dev) — cấu hình qua env,
+// phân tách bằng dấu phẩy. Không hardcode domain nào.
+const ALLOWED_HOSTS = (process.env.VITE_ALLOWED_HOSTS || '')
+  .split(',')
+  .map((h) => h.trim())
+  .filter(Boolean);
 
 export default defineConfig({
   plugins: [react()],
@@ -15,16 +21,18 @@ export default defineConfig({
         changeOrigin: true,
         secure: false
       },
+      '/uploads': {
+        target: API_TARGET,
+        changeOrigin: true,
+        secure: false
+      },
       '/socket.io': {
         target: SOCKET_TARGET,
         ws: true,
         changeOrigin: true
       }
     },
-    allowedHosts: [
-      '2b88-27-76-19-52.ngrok-free.app',
-      '.ngrok-free.app'
-    ]
+    ...(ALLOWED_HOSTS.length > 0 ? { allowedHosts: ALLOWED_HOSTS } : {})
   },
   build: {
     outDir: 'dist',

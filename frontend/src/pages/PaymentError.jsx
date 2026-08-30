@@ -1,9 +1,11 @@
 import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { XCircle, MessageCircle, Home, RotateCcw } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { XCircle, Home, RotateCcw, ShoppingCart } from 'lucide-react';
 
 const PaymentError = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const orderId = searchParams.get('orderId');
 
   return (
     <div className="relative overflow-hidden min-h-[60vh] flex items-center justify-center px-4 py-16">
@@ -17,25 +19,30 @@ const PaymentError = () => {
             <XCircle className="h-9 w-9 text-white" />
           </div>
         </div>
-        <h1 className="mt-6 heading-display text-2xl">Payment Failed</h1>
+        <h1 className="mt-6 heading-display text-2xl">Thanh toán thất bại</h1>
         <p className="mt-2 text-ink-500 dark:text-ink-300 leading-relaxed">
-          There was an error processing your payment. Please try again or contact support.
+          Đã xảy ra lỗi khi xử lý thanh toán của bạn. Vui lòng thử lại hoặc liên hệ hỗ trợ.
         </p>
+        {orderId && (
+          <p className="mt-3 inline-block text-sm text-ink-400 dark:text-ink-300 rounded-full bg-ink-50 dark:bg-white/5 ring-1 ring-ink-100 dark:ring-white/10 px-4 py-1.5">
+            Mã đơn hàng: <span className="font-mono font-semibold text-ink-700 dark:text-ink-100">{orderId}</span>
+          </p>
+        )}
         <div className="mt-8 space-y-3">
-          <Link to="/cart" className="btn-primary w-full">
+          <button onClick={() => navigate('/checkout')} className="btn-primary w-full">
             <RotateCcw className="h-5 w-5" />
-            Return to Cart
-          </Link>
-          <Link to="/chat" className="btn-secondary w-full">
-            <MessageCircle className="h-5 w-5" />
-            Contact Support
-          </Link>
+            Thử lại thanh toán
+          </button>
+          <button onClick={() => navigate('/cart')} className="btn-secondary w-full">
+            <RotateCcw className="h-5 w-5" />
+            Quay lại giỏ hàng
+          </button>
           <button
             onClick={() => navigate('/')}
             className="w-full inline-flex items-center justify-center gap-2 py-3 text-sm font-medium text-ink-400 dark:text-ink-300 hover:text-ink-700 dark:text-ink-100 transition-colors"
           >
             <Home className="h-4 w-4" />
-            Back to Home
+            Về trang chủ
           </button>
         </div>
       </div>

@@ -1,4 +1,20 @@
+const { AppError, PaymentError, ConflictError } = require('../utils/errors');
 const orderService = require('../services/order.service');
+
+// Chuyển lỗi Prisma thành AppError có message rõ ràng thay vì để lỗi 500 mơ hồ
+const mapDatabaseError = (error) => {
+  if (error?.code === 'P2002') {
+    return new ConflictError('Dữ liệu bị trùng lặp (unique constraint). Vui lòng thử lại.');
+  }
+  if (error?.code === 'P2025') {
+    return new AppError('Bản ghi không tồn tại hoặc đã bị thay đổi. Vui lòng làm mới và thử lại.', 409, 'CONFLICT');
+  }
+  return new AppError(
+    `Lỗi hệ thống khi xử lý đơn hàng: ${error?.message || 'Unknown database error'}`,
+    500,
+    'CHECKOUT_DB_ERROR'
+  );
+};
 
 const checkout = async (req, res, next) => {
   try {
@@ -9,7 +25,14 @@ const checkout = async (req, res, next) => {
       message: 'Order created successfully'
     });
   } catch (error) {
-    next(error);
+    // Lỗi thanh toán/SePay (PaymentError) và nghiệp vụ -> trả message gốc cho client
+    if (error instanceof PaymentError || error instanceof ConflictError || error instanceof AppError) {
+      console.error('Checkout failed:', error.code, error.message);
+      return next(error);
+    }
+    // Lỗi Prisma/SQL không định dạng -> map để tránh 500 không rõ nguyên nhân
+    console.error('Checkout unexpected error:', error);
+    return next(mapDatabaseError(error));
   }
 };
 

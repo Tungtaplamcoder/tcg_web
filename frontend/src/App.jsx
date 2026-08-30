@@ -39,6 +39,7 @@ import UserManagement from './pages/admin/UserManagement.jsx';
 import PaymentLogAudit from './pages/admin/PaymentLogAudit.jsx';
 import SePayConfig from './pages/admin/SePayConfig.jsx';
 import VirtualBoxes from './pages/admin/VirtualBoxes.jsx';
+import AdminChat from './pages/admin/Chat.jsx';
 
 function App() {
   return (
@@ -94,6 +95,7 @@ function App() {
               <Route path="users" element={<UserManagement />} />
               <Route path="payment-logs" element={<PaymentLogAudit />} />
               <Route path="sepay-config" element={<SePayConfig />} />
+              <Route path="chat" element={<AdminChat />} />
             </Route>
           </Route>
 

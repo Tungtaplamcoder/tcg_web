@@ -4,12 +4,46 @@ const prisma = require('../config/prisma');
 const env = require('../config/env');
 const { AppError, PaymentError } = require('../utils/errors');
 
-// Khởi tạo SePay client
-const sepayClient = new SePayPgClient({
-  env: env.sepayEnv || 'sandbox',
-  merchant_id: env.sepayMerchantId,
-  secret_key: env.sepayMerchantSecretKey
-});
+// Khởi tạo SePay client một cách an toàn — nếu cấu hình thiếu/dư thì vẫn không crash app
+let sepayClient = null;
+try {
+  sepayClient = new SePayPgClient({
+    env: env.sepayEnv || 'sandbox',
+    merchant_id: env.sepayMerchantId,
+    secret_key: env.sepayMerchantSecretKey
+  });
+} catch (error) {
+  console.error('SePay SDK init failed:', error.message);
+}
+
+/**
+ * URL Webhook/IPN mà SePay sẽ gọi về.
+ * Ưu tiên: AppSetting DB (admin override) > SEPAY_WEBHOOK_URL > APP_BASE_URL + path > FRONTEND_URL + path.
+ * Không hardcode domain (ngrok...) — mọi domain đặt qua biến môi trường hoặc admin panel.
+ */
+const getWebhookUrl = () => {
+  const path = env.sepayWebhookPath || '/api/v1/webhooks/sepay';
+
+  if (env.sepayWebhookUrl) return env.sepayWebhookUrl;
+  if (env.appBaseUrl) return `${env.appBaseUrl.replace(/\/+$/, '')}${path}`;
+
+  // Fallback: suy ra từ FRONTEND_URL nếu API và frontend cùng domain
+  if (env.frontendUrl) return `${env.frontendUrl.replace(/\/+$/, '')}${path}`;
+
+  // Không cấu hình domain nào -> trả về relative path để client/SePay tự gắn domain
+  return path;
+};
+
+// Bản async: đọc override từ AppSetting DB (admin panel) trước khi rơi về env.
+const resolveWebhookUrl = async () => {
+  try {
+    const settingsService = require('./settings.service');
+    return await settingsService.resolveWebhookUrl();
+  } catch (err) {
+    console.error('resolveWebhookUrl fallback to env:', err.message);
+    return getWebhookUrl();
+  }
+};
 
 const generateOrderCode = () => {
   const date = new Date();
@@ -21,9 +55,40 @@ const generateOrderCode = () => {
 };
 
 /**
- * Tạo checkout session
+ * Base URL của frontend, đọc ĐỘNG từ process.env.FRONTEND_URL tại thời điểm gọi
+ * ( ví dụ http://localhost:5173 hoặc http://localhost:3000 ). Không dùng bare
+ * http://localhost vì sẽ redirect sai port của Vite dev server / frontend container.
+ * Fallback cuối: http://localhost:3000.
+ */
+const getFrontendBaseUrl = () => {
+  const raw = process.env.FRONTEND_URL || env.frontendUrl || 'http://localhost:3000';
+  return String(raw).replace(/\/+$/, '');
+};
+
+/**
+ * Xây các URL điều hướng sau thanh toán (return/success/cancel) cho SePay:
+ *   ${FRONTEND_URL}/payment/success?orderId=...
+ *   ${FRONTEND_URL}/payment/error?orderId=...
+ *   ${FRONTEND_URL}/payment/cancel?orderId=...
+ */
+const buildPaymentUrls = (orderId) => {
+  const base = getFrontendBaseUrl();
+  return {
+    successUrl: `${base}/payment/success?orderId=${orderId}`,
+    errorUrl: `${base}/payment/error?orderId=${orderId}`,
+    cancelUrl: `${base}/payment/cancel?orderId=${orderId}`
+  };
+};
+
+/**
+ * Tạo checkout session. Ném PaymentError (mã 400, có message rõ ràng) thay vì
+ * để lỗi SDK bắn lên thành 500 Internal Server Error.
  */
 const createCheckoutSession = (orderCode, amountVND, description, urls) => {
+  if (!sepayClient) {
+    throw new PaymentError('SePay chưa được cấu hình (thiếu SEPAY_MERCHANT_ID / SEPAY_MERCHANT_SECRET_KEY). Vui lòng kiểm tra cấu hình thanh toán.');
+  }
+
   try {
     const checkoutUrl = sepayClient.checkout.initCheckoutUrl();
     const formFields = sepayClient.checkout.initOneTimePaymentFields({
@@ -40,7 +105,7 @@ const createCheckoutSession = (orderCode, amountVND, description, urls) => {
     return { checkoutUrl, formFields };
   } catch (error) {
     console.error('SePay SDK error:', error);
-    throw new PaymentError('Failed to create SePay checkout session');
+    throw new PaymentError(`Không tạo được phiên thanh toán SePay: ${error.message}`);
   }
 };
 
@@ -57,6 +122,17 @@ const verifyWebhookSignature = (rawBody, signature) => {
   const b = Buffer.from(signature, 'hex');
   if (a.length !== b.length) return false;
   return crypto.timingSafeEqual(a, b);
+};
+
+/**
+ * Ghi payment log an toàn: không để lỗi DB làm hỏng toàn bộ luồng webhook.
+ */
+const logPayment = async (data) => {
+  try {
+    await prisma.paymentLog.create({ data });
+  } catch (err) {
+    console.error('Failed to write payment log:', err.message);
+  }
 };
 
 /**
@@ -81,15 +157,13 @@ const processWebhook = async (payload, rawBody, signature, headers) => {
   const isValid = true;
 
   if (!isValid) {
-    await prisma.paymentLog.create({
-      data: {
-        rawPayload: payload,
-        status: 'SIGNATURE_MISMATCH',
-        errorMessage: 'Invalid webhook signature',
-        amount: null,
-        content: null,
-        sepayTransactionId: null
-      }
+    await logPayment({
+      rawPayload: payload,
+      status: 'SIGNATURE_MISMATCH',
+      errorMessage: 'Invalid webhook signature',
+      amount: null,
+      content: null,
+      sepayTransactionId: null
     });
     return { success: true, message: 'Signature mismatch logged' };
   }
@@ -109,15 +183,13 @@ const processWebhook = async (payload, rawBody, signature, headers) => {
 
   // Kiểm tra các trường bắt buộc
   if (!sepayTransactionId || !amount || !content) {
-    await prisma.paymentLog.create({
-      data: {
-        rawPayload: payload,
-        status: 'INVALID_PAYLOAD',
-        errorMessage: 'Missing required fields (transaction_id, amount, content)',
-        amount: amount ? parseFloat(amount) : null,
-        content: content || null,
-        sepayTransactionId: sepayTransactionId || null
-      }
+    await logPayment({
+      rawPayload: payload,
+      status: 'INVALID_PAYLOAD',
+      errorMessage: 'Missing required fields (transaction_id, amount, content)',
+      amount: amount ? parseFloat(amount) : null,
+      content: content || null,
+      sepayTransactionId: sepayTransactionId || null
     });
     return { success: true, message: 'Invalid payload logged' };
   }
@@ -125,15 +197,13 @@ const processWebhook = async (payload, rawBody, signature, headers) => {
   // Kiểm tra trạng thái giao dịch chỉ xử lý khi APPROVED
   const transactionStatus = transactionInfo.transaction_status;
   if (transactionStatus && transactionStatus !== 'APPROVED') {
-    await prisma.paymentLog.create({
-      data: {
-        rawPayload: payload,
-        status: 'MISMATCH',
-        errorMessage: `Transaction status is ${transactionStatus}, not APPROVED`,
-        amount: parseFloat(amount),
-        content,
-        sepayTransactionId
-      }
+    await logPayment({
+      rawPayload: payload,
+      status: 'MISMATCH',
+      errorMessage: `Transaction status is ${transactionStatus}, not APPROVED`,
+      amount: parseFloat(amount),
+      content,
+      sepayTransactionId
     });
     return { success: true, message: 'Transaction not approved, logged' };
   }
@@ -141,17 +211,18 @@ const processWebhook = async (payload, rawBody, signature, headers) => {
   // Idempotency check
   const existingLog = await prisma.paymentLog.findUnique({
     where: { sepayTransactionId }
+  }).catch((err) => {
+    console.error('PaymentLog lookup failed:', err.message);
+    return null;
   });
   if (existingLog) {
-    await prisma.paymentLog.create({
-      data: {
-        rawPayload: payload,
-        status: 'DUPLICATE',
-        errorMessage: 'Duplicate webhook received',
-        amount: parseFloat(amount),
-        content,
-        sepayTransactionId
-      }
+    await logPayment({
+      rawPayload: payload,
+      status: 'DUPLICATE',
+      errorMessage: 'Duplicate webhook received',
+      amount: parseFloat(amount),
+      content,
+      sepayTransactionId
     });
     return { success: true, message: 'Duplicate webhook acknowledged' };
   }
@@ -163,35 +234,49 @@ const processWebhook = async (payload, rawBody, signature, headers) => {
       items: true,
       payments: { where: { status: 'PENDING' }, orderBy: { createdAt: 'desc' } }
     }
+  }).catch((err) => {
+    console.error('Order lookup failed:', err.message);
+    return null;
   });
 
   if (!order) {
-    await prisma.paymentLog.create({
-      data: {
-        rawPayload: payload,
-        status: 'MISMATCH',
-        errorMessage: 'No order found with this invoice number',
-        amount: parseFloat(amount),
-        content,
-        sepayTransactionId
-      }
+    await logPayment({
+      rawPayload: payload,
+      status: 'MISMATCH',
+      errorMessage: 'No order found with this invoice number',
+      amount: parseFloat(amount),
+      content,
+      sepayTransactionId
     });
     return { success: true, message: 'Mismatched transfer logged' };
   }
 
   if (order.status !== 'PENDING') {
-    await prisma.paymentLog.create({
-      data: {
-        rawPayload: payload,
-        status: 'MISMATCH',
-        errorMessage: `Order is in ${order.status} state, not PENDING`,
-        amount: parseFloat(amount),
-        content,
-        sepayTransactionId,
-        orderId: order.id
-      }
+    await logPayment({
+      rawPayload: payload,
+      status: 'MISMATCH',
+      errorMessage: `Order is in ${order.status} state, not PENDING`,
+      amount: parseFloat(amount),
+      content,
+      sepayTransactionId,
+      orderId: order.id
     });
     return { success: true, message: 'Order not pending, logged' };
+  }
+
+  // Kiểm tra số tiền khớp với đơn hàng
+  const paidAmount = parseFloat(amount);
+  if (!Number.isFinite(paidAmount) || Math.abs(paidAmount - Number(order.grandTotal)) > 0.01) {
+    await logPayment({
+      rawPayload: payload,
+      status: 'AMOUNT_MISMATCH',
+      errorMessage: `Paid amount ${amount} does not match order grandTotal ${order.grandTotal}`,
+      amount: paidAmount,
+      content,
+      sepayTransactionId,
+      orderId: order.id
+    });
+    return { success: true, message: 'Amount mismatch logged' };
   }
 
   // Xử lý chính
@@ -227,22 +312,20 @@ const processWebhook = async (payload, rawBody, signature, headers) => {
         });
       }
 
-      // Trừ stock
+      // Trừ tồn kho variant (giá & stock nằm trên ProductVariant, không phải Product)
       for (const item of order.items) {
-        if (item.productId) {
-          const updatedProduct = await tx.$executeRaw`
-            UPDATE "Product"
+        if (item.variantId) {
+          const updatedVariant = await tx.$executeRaw`
+            UPDATE "ProductVariant"
             SET "stockQuantity" = "stockQuantity" - ${item.quantity},
-                "reservedStock" = CASE WHEN "reservedStock" >= ${item.quantity} THEN "reservedStock" - ${item.quantity} ELSE 0 END,
-                "version" = "version" + 1
-            WHERE "id" = ${item.productId}
-                AND "stockQuantity" >= ${item.quantity}
+                "updatedAt" = CURRENT_TIMESTAMP
+            WHERE "id" = ${item.variantId}
+              AND "stockQuantity" >= ${item.quantity}
             `;
-          if (updatedProduct === 0) {
-            throw new PaymentError('Insufficient stock to fulfill order item');
+          if (updatedVariant === 0) {
+            throw new PaymentError(`Insufficient stock for variant ${item.variantId}`);
           }
-        }
-        if (item.cardId) {
+        } else if (item.cardId) {
           const updatedCard = await tx.card.updateMany({
             where: { id: item.cardId, status: 'RESERVED' },
             data: { status: 'SOLD' }
@@ -298,16 +381,14 @@ const processWebhook = async (payload, rawBody, signature, headers) => {
     return { success: true, message: 'Payment processed successfully' };
   } catch (error) {
     const status = error.message?.includes('AMOUNT_MISMATCH') ? 'AMOUNT_MISMATCH' : 'ERROR';
-    await prisma.paymentLog.create({
-      data: {
-        sepayTransactionId: sepayTransactionId || null,
-        orderId: order.id,
-        rawPayload: payload,
-        amount: parseFloat(amount),
-        content,
-        status,
-        errorMessage: error.message
-      }
+    await logPayment({
+      sepayTransactionId: sepayTransactionId || null,
+      orderId: order.id,
+      rawPayload: payload,
+      amount: parseFloat(amount),
+      content,
+      status,
+      errorMessage: error.message
     });
     return { success: true, message: `Payment processing failed: ${error.message}` };
   }
@@ -317,5 +398,9 @@ module.exports = {
   generateOrderCode,
   createCheckoutSession,
   verifyWebhookSignature,
-  processWebhook
+  getWebhookUrl,
+  resolveWebhookUrl,
+  processWebhook,
+  getFrontendBaseUrl,
+  buildPaymentUrls
 };

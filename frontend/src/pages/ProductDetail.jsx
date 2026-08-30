@@ -10,7 +10,7 @@ import api from '../services/api';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useTheme } from '../context/ThemeContext';
-import { formatVND, USD_TO_VND_RATE } from '../utils/format';
+import { formatVND, formatVNDNumber, USD_TO_VND_RATE } from '../utils/format';
 import { playTick, vibrate } from '../utils/sfx';
 import TiltCard from '../components/TiltCard';
 import ProductImage from '../components/ProductImage';
@@ -177,7 +177,6 @@ const ProductDetail = () => {
       images: product.images || [],
       stockQuantity: selectedVariant.stockQuantity
     }, quantity, selectedVariant.id);
-
     playTick();
     vibrate([12]);
     setAdded(true);

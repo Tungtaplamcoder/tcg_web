@@ -15,6 +15,7 @@ import api from '../../services/api';
 const SePayConfig = () => {
   const [config, setConfig] = useState({
     apiUrl: '',
+    webhookUrl: '',
     webhookSecret: '',
     accountNumber: '',
     accountName: ''
@@ -24,6 +25,7 @@ const SePayConfig = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showSecret, setShowSecret] = useState(false);
+  const [configSource, setConfigSource] = useState('env-defaults');
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -31,10 +33,18 @@ const SePayConfig = () => {
       setError('');
       try {
         const response = await api.get('/admin/settings/sepay');
-        setConfig(response.data.data);
+        const data = response.data.data || {};
+        setConfigSource(data.source || 'env-defaults');
+        setConfig({
+          apiUrl: data.apiUrl || '',
+          webhookUrl: data.webhookUrl || '',
+          webhookSecret: data.webhookSecret || '',
+          accountNumber: data.accountNumber || '',
+          accountName: data.accountName || ''
+        });
       } catch (err) {
         console.error('Failed to fetch SePay config:', err);
-        setError('Failed to load SePay configuration.');
+        setError(err.response?.data?.error?.message || 'Failed to load SePay configuration.');
       } finally {
         setLoading(false);
       }
@@ -55,9 +65,11 @@ const SePayConfig = () => {
     try {
       await api.put('/admin/settings/sepay', config);
       setSuccess('SePay configuration updated successfully.');
+      setConfigSource('database');
     } catch (err) {
       console.error('Failed to save SePay config:', err);
-      setError('Failed to save configuration.');
+      const detail = err.response?.data?.error?.details?.map((d) => `${d.field}: ${d.message}`).join('. ');
+      setError(detail || err.response?.data?.error?.message || 'Failed to save configuration.');
     } finally {
       setSaving(false);
     }
@@ -96,6 +108,17 @@ const SePayConfig = () => {
       )}
 
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-card p-6 space-y-5">
+        {configSource === 'env-defaults' && (
+          <div className="p-3 bg-blue-50 text-blue-700 rounded-lg text-sm flex items-start">
+            <Globe className="h-5 w-5 mr-2 mt-0.5 shrink-0" />
+            <span>
+              Đang hiển thị giá trị mặc định từ <code className="px-1 py-0.5 bg-blue-100 rounded text-xs">.env</code>{' '}
+              (SEPAY_API_URL, SEPAY_WEBHOOK_URL/APP_BASE_URL, SEPAY_WEBHOOK_SECRET, SEPAY_ACCOUNT_NUMBER, SEPAY_ACCOUNT_NAME).
+              Nhấn "Save Configuration" để lưu vào database và ghi đè mặc định.
+            </span>
+          </div>
+        )}
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">SePay API URL</label>
           <div className="relative">
@@ -110,6 +133,26 @@ const SePayConfig = () => {
               placeholder="https://my.sepay.vn"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Webhook / IPN URL</label>
+          <div className="relative">
+            <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              name="webhookUrl"
+              value={config.webhookUrl}
+              onChange={handleChange}
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              placeholder="https://your-domain.com/api/v1/webhooks/sepay (hoặc để trống để dùng mặc định từ env)"
+            />
+          </div>
+          <p className="mt-1 text-xs text-gray-500">
+            URL SePay sẽ gọi IPN về. Đặt qua <code className="px-1 bg-gray-100 rounded">SEPAY_WEBHOOK_URL</code> /{' '}
+            <code className="px-1 bg-gray-100 rounded">APP_BASE_URL</code> trong .env, hoặc nhập trực tiếp ở đây.
+            Để trống = dùng mặc định env, fallback path <code className="px-1 bg-gray-100 rounded">/api/v1/webhooks/sepay</code>.
+          </p>
         </div>
 
         <div>

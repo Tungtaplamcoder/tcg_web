@@ -4,6 +4,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const compression = require('compression');
+const path = require('path');
 const { frontendUrl, nodeEnv } = require('./config/env');
 const errorHandler = require('./middlewares/errorHandler');
 
@@ -86,6 +87,9 @@ app.get('/health', (req, res) => {
     message: 'Server is running'
   });
 });
+
+// Serve locally-stored uploaded images (fallback storage)
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
 // Mount routes
 app.use('/api/v1/auth', authRoutes);

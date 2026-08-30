@@ -429,6 +429,18 @@ model ChatMessage {
   @@index([createdAt])
 }
 
+// ==================== APP SETTINGS ====================
+
+// Simple key-value store for admin-editable runtime configuration
+// (e.g. SePay gateway settings that seed from .env defaults).
+model AppSetting {
+  key        String   @id
+  value      String
+  updatedAt  DateTime @updatedAt
+
+  @@index([key])
+}
+
 // ==================== VIRTUAL BOXES ====================
 
 model VirtualBoxPool {

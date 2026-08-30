@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Package, Search, Pencil, Save, X, Loader2, Plus, Trash2, Eye, ImagePlus
+  Package, Search, Pencil, Save, X, Loader2, Plus, Trash2, Eye, ImagePlus, Link2, CheckCircle2, AlertCircle
 } from 'lucide-react';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -20,7 +20,6 @@ const InventoryManager = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [sets, setSets] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [formData, setFormData] = useState({
     name: '',
@@ -36,8 +35,11 @@ const InventoryManager = () => {
   });
   const fileInputRef = useRef(null);
   const backFileInputRef = useRef(null);
+  const [frontImageUrl, setFrontImageUrl] = useState('');
+  const [backImageUrl, setBackImageUrl] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [toast, setToast] = useState(null);
 
   const generateSlug = (name) => name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
@@ -53,18 +55,11 @@ const InventoryManager = () => {
     } catch (err) { console.error(err); setError('Không thể tải sản phẩm.'); } finally { setLoading(false); }
   }, [page, search, categoryFilter]);
 
-  const fetchSets = async () => {
-    try {
-      const response = await api.get('/sets');
-      setSets(response.data.data || []);
-    } catch (err) { console.error('Không thể tải danh mục sản phẩm:', err); }
-  };
-
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
-  useEffect(() => { fetchSets(); }, []);
 
   const handleEdit = (product) => {
     setEditingProduct(product);
+    setFrontImageUrl(''); setBackImageUrl('');
     setFormData({
       name: product.name,
       shortName: product.shortName || '',
@@ -86,6 +81,7 @@ const InventoryManager = () => {
 
   const handleCreate = () => {
     setEditingProduct({});
+    setFrontImageUrl(''); setBackImageUrl('');
     setFormData({
       name: '',
       shortName: '',
@@ -107,14 +103,6 @@ const InventoryManager = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSetToggle = (setId) => {
-    setFormData(prev => {
-      const current = prev.setIds || [];
-      if (current.includes(setId)) return { ...prev, setIds: current.filter(id => id !== setId) };
-      return { ...prev, setIds: [...current, setId] };
-    });
-  };
-
   const handleFrontImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -124,7 +112,11 @@ const InventoryManager = () => {
       const response = await api.post('/admin/upload-image', form, { headers: { 'Content-Type': 'multipart/form-data' } });
       const url = response.data.data.url;
       setFormData(prev => ({ ...prev, images: [url] }));
-    } catch (err) { console.error(err); setError('Không thể upload ảnh mặt trước.'); } finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
+      showToast('Đã upload ảnh mặt trước.');
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.error?.message || 'Không thể upload ảnh mặt trước. Bạn có thể dán link ảnh trực tiếp vào ô "Image URL".');
+    } finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
   };
 
   const handleBackImageUpload = async (e) => {
@@ -136,11 +128,53 @@ const InventoryManager = () => {
       const response = await api.post('/admin/upload-image', form, { headers: { 'Content-Type': 'multipart/form-data' } });
       const url = response.data.data.url;
       setFormData(prev => ({ ...prev, backImage: url }));
-    } catch (err) { console.error(err); setError('Không thể upload ảnh mặt sau.'); } finally { setUploading(false); if (backFileInputRef.current) backFileInputRef.current.value = ''; }
+      showToast('Đã upload ảnh mặt sau.');
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.data?.error?.message || 'Không thể upload ảnh mặt sau. Bạn có thể dán link ảnh trực tiếp vào ô "Image URL".');
+    } finally { setUploading(false); if (backFileInputRef.current) backFileInputRef.current.value = ''; }
   };
 
   const handleRemoveFrontImage = () => setFormData(prev => ({ ...prev, images: [] }));
   const handleRemoveBackImage = () => setFormData(prev => ({ ...prev, backImage: '' }));
+
+  const isValidUrl = (value) => {
+    try {
+      const url = new URL(value);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
+
+  const handleApplyFrontImageUrl = () => {
+    const url = frontImageUrl.trim();
+    if (!url) return;
+    if (!isValidUrl(url)) {
+      setError('Link ảnh mặt trước không hợp lệ (phải bắt đầu bằng http:// hoặc https://).');
+      return;
+    }
+    setError('');
+    setFormData(prev => ({ ...prev, images: [url] }));
+    setFrontImageUrl('');
+  };
+
+  const handleApplyBackImageUrl = () => {
+    const url = backImageUrl.trim();
+    if (!url) return;
+    if (!isValidUrl(url)) {
+      setError('Link ảnh mặt sau không hợp lệ (phải bắt đầu bằng http:// hoặc https://).');
+      return;
+    }
+    setError('');
+    setFormData(prev => ({ ...prev, backImage: url }));
+    setBackImageUrl('');
+  };
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const handleAddVariant = () => {
     setFormData(prev => ({
@@ -187,9 +221,11 @@ const InventoryManager = () => {
       if (editingProduct?.id) await api.patch(`/admin/products/${editingProduct.id}`, payload);
       else await api.post('/admin/products', payload);
       handleCloseModal(); fetchProducts();
+      showToast(editingProduct?.id ? 'Đã cập nhật sản phẩm.' : 'Đã tạo sản phẩm mới.');
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.error?.message || 'Lỗi khi lưu sản phẩm');
+      const detail = err.response?.data?.error?.details?.map((d) => d.message).join('. ');
+      setError(detail || err.response?.data?.error?.message || 'Lỗi khi lưu sản phẩm');
     } finally { setSaving(false); }
   };
 
@@ -248,6 +284,13 @@ const InventoryManager = () => {
           ))}
         </select>
       </div>
+
+      {toast && (
+        <div className={`p-3 rounded-lg flex items-center ${toast.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+          {toast.type === 'success' ? <CheckCircle2 className="h-5 w-5 mr-2" /> : <AlertCircle className="h-5 w-5 mr-2" />}
+          {toast.message}
+        </div>
+      )}
 
       {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg">{error}</div>}
 
@@ -364,35 +407,55 @@ const InventoryManager = () => {
                   <textarea name="description" value={formData.description} onChange={handleInputChange} rows={3} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500" />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Bộ/Series (chọn nhiều)</label>
-                  <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
-                    {sets.map(set => (
-                      <label key={set.id} className="flex items-center space-x-2 p-2 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                        <input type="checkbox" checked={formData.setIds.includes(set.id)} onChange={() => handleSetToggle(set.id)} className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-                        <span className="text-sm">{set.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Ảnh mặt trước</label>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 mb-2">
                       {formData.images.length > 0 ? <img src={formData.images[0]} alt="Front" className="h-20 w-20 object-contain rounded-lg border border-gray-200" /> : <div className="h-20 w-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400">Trống</div>}
-                      <button type="button" onClick={() => fileInputRef.current?.click()} className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">{uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Upload'}</button>
-                      {formData.images.length > 0 && <button type="button" onClick={handleRemoveFrontImage} className="text-red-500 hover:text-red-700"><X className="h-4 w-4" /></button>}
+                      <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="inline-flex items-center gap-1.5 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50">
+                        {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />} Upload
+                      </button>
+                      {formData.images.length > 0 && <button type="button" onClick={handleRemoveFrontImage} className="text-red-500 hover:text-red-700" title="Xóa ảnh"><X className="h-4 w-4" /></button>}
                       <input type="file" ref={fileInputRef} onChange={handleFrontImageUpload} accept="image/*" className="hidden" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <Link2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input
+                          type="url"
+                          value={frontImageUrl}
+                          onChange={(e) => setFrontImageUrl(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleApplyFrontImageUrl(); } }}
+                          placeholder="Image URL — dán link ảnh trực tiếp"
+                          className="w-full pl-8 pr-20 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                      </div>
+                      <button type="button" onClick={handleApplyFrontImageUrl} className="px-3 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 shrink-0">Dùng link</button>
                     </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Ảnh mặt sau</label>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 mb-2">
                       {formData.backImage ? <img src={formData.backImage} alt="Back" className="h-20 w-20 object-contain rounded-lg border border-gray-200" /> : <div className="h-20 w-20 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400">Trống</div>}
-                      <button type="button" onClick={() => backFileInputRef.current?.click()} className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">{uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Upload'}</button>
-                      {formData.backImage && <button type="button" onClick={handleRemoveBackImage} className="text-red-500 hover:text-red-700"><X className="h-4 w-4" /></button>}
+                      <button type="button" onClick={() => backFileInputRef.current?.click()} disabled={uploading} className="inline-flex items-center gap-1.5 px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50">
+                        {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />} Upload
+                      </button>
+                      {formData.backImage && <button type="button" onClick={handleRemoveBackImage} className="text-red-500 hover:text-red-700" title="Xóa ảnh"><X className="h-4 w-4" /></button>}
                       <input type="file" ref={backFileInputRef} onChange={handleBackImageUpload} accept="image/*" className="hidden" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <Link2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input
+                          type="url"
+                          value={backImageUrl}
+                          onChange={(e) => setBackImageUrl(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleApplyBackImageUrl(); } }}
+                          placeholder="Image URL — dán link ảnh trực tiếp"
+                          className="w-full pl-8 pr-20 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                      </div>
+                      <button type="button" onClick={handleApplyBackImageUrl} className="px-3 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 shrink-0">Dùng link</button>
                     </div>
                   </div>
                 </div>

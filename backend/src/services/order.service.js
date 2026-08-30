@@ -26,13 +26,16 @@ const createCheckout = async (userId, checkoutData) => {
   const { items, shippingAddress, paymentMethod } = checkoutData;
   const normalizedPaymentMethod = normalizePaymentMethod(paymentMethod);
 
-  const productItemsMap = new Map();
+  // Gom từng loại item: variant (sản phẩm theo tình trạng) và card (thẻ đơn lẻ)
+  const variantQuantities = new Map(); // variantId -> quantity
+  const fallbackProducts = new Map();   // productId -> quantity (cart cũ không có variantId)
   const cardItems = [];
 
   for (const item of items) {
-    if (item.productId) {
-      const current = productItemsMap.get(item.productId) || 0;
-      productItemsMap.set(item.productId, current + item.quantity);
+    if (item.variantId) {
+      variantQuantities.set(item.variantId, (variantQuantities.get(item.variantId) || 0) + item.quantity);
+    } else if (item.productId) {
+      fallbackProducts.set(item.productId, (fallbackProducts.get(item.productId) || 0) + item.quantity);
     }
     if (item.cardId) {
       cardItems.push({ cardId: item.cardId, quantity: item.quantity });
@@ -45,21 +48,53 @@ const createCheckout = async (userId, checkoutData) => {
   }
 
   return prisma.$transaction(async (tx) => {
-    const productReservations = [];
-    for (const [productId, quantity] of productItemsMap.entries()) {
-      const result = await tx.$queryRaw`
-        UPDATE "Product"
-        SET "reservedStock" = "reservedStock" + ${quantity},
-            "version" = "version" + 1
-        WHERE "id" = ${productId}
-          AND "stockQuantity" - "reservedStock" >= ${quantity}
+    const variantReservations = [];
+
+    for (const [variantId, quantity] of variantQuantities.entries()) {
+      const variant = await tx.$queryRaw`
+        SELECT "id", "productId", "price", "stockQuantity"
+        FROM "ProductVariant"
+        WHERE "id" = ${variantId}
           AND "status" = 'ACTIVE'
-        RETURNING "id", "name", "price", "stockQuantity", "reservedStock"
+          AND "stockQuantity" >= ${quantity}
+        FOR UPDATE
       `;
-      if (!result || result.length === 0) {
-        throw new PaymentError(`Insufficient stock for product ${productId}`);
+
+      if (!variant || variant.length === 0) {
+        throw new PaymentError(`Sản phẩm không còn hàng hoặc không tồn tại (variant ${variantId}). Vui lòng làm mới giỏ hàng.`);
       }
-      productReservations.push({ productId, quantity, product: result[0] });
+
+      await tx.productVariant.update({
+        where: { id: variant[0].id },
+        data: { stockQuantity: { decrement: quantity } }
+      });
+
+      variantReservations.push({ variantId: variant[0].id, quantity, variant: variant[0] });
+    }
+
+    // Fallback cho cart cũ không có variantId: chốt variant đầu tiên còn hàng của product
+    for (const [productId, quantity] of fallbackProducts.entries()) {
+      const variant = await tx.$queryRaw`
+        SELECT "id", "productId", "price", "stockQuantity"
+        FROM "ProductVariant"
+        WHERE "productId" = ${productId}
+          AND "status" = 'ACTIVE'
+          AND "stockQuantity" >= ${quantity}
+        ORDER BY "createdAt" ASC
+        LIMIT 1
+        FOR UPDATE
+      `;
+
+      if (!variant || variant.length === 0) {
+        throw new PaymentError(`Sản phẩm không còn hàng hoặc không tồn tại (product ${productId}). Vui lòng làm mới giỏ hàng.`);
+      }
+
+      await tx.productVariant.update({
+        where: { id: variant[0].id },
+        data: { stockQuantity: { decrement: quantity } }
+      });
+
+      variantReservations.push({ variantId: variant[0].id, quantity, variant: variant[0] });
     }
 
     const cardReservations = [];
@@ -80,12 +115,12 @@ const createCheckout = async (userId, checkoutData) => {
     let totalAmount = 0;
     const orderItemsData = [];
 
-    for (const reservation of productReservations) {
-      const product = reservation.product;
-      const unitPrice = Number(product.price);
+    for (const reservation of variantReservations) {
+      const unitPrice = Number(reservation.variant.price);
       totalAmount += unitPrice * reservation.quantity;
       orderItemsData.push({
-        productId: reservation.productId,
+        productId: reservation.variant.productId,
+        variantId: reservation.variantId,
         quantity: reservation.quantity,
         unitPrice,
         totalPrice: unitPrice * reservation.quantity
@@ -93,14 +128,20 @@ const createCheckout = async (userId, checkoutData) => {
     }
 
     for (const reservation of cardReservations) {
-      const cardProduct = await tx.product.findUnique({
-        where: { id: reservation.card.productId },
-        select: { price: true }
-      });
-      if (!cardProduct) throw new PaymentError(`Product not found for card ${reservation.cardId}`);
-      const unitPrice = Number(cardProduct.price);
+      // Card là thẻ đơn lẻ — giá lấy từ variant NEAR_MINT của product cha
+      const variantRow = await tx.$queryRaw`
+        SELECT "price" FROM "ProductVariant"
+        WHERE "productId" = ${reservation.card.productId} AND "status" = 'ACTIVE'
+        ORDER BY "price" DESC
+        LIMIT 1
+      `;
+      if (!variantRow || variantRow.length === 0) {
+        throw new PaymentError(`No active variant price found for card ${reservation.cardId}`);
+      }
+      const unitPrice = Number(variantRow[0].price);
       totalAmount += unitPrice * reservation.quantity;
       orderItemsData.push({
+        productId: reservation.card.productId,
         cardId: reservation.cardId,
         quantity: reservation.quantity,
         unitPrice,
@@ -135,16 +176,22 @@ const createCheckout = async (userId, checkoutData) => {
       include: { items: true }
     });
 
-    const successUrl = `${env.frontendUrl}/payment/success?orderId=${order.id}`;
-    const errorUrl = `${env.frontendUrl}/payment/error?orderId=${order.id}`;
-    const cancelUrl = `${env.frontendUrl}/payment/cancel?orderId=${order.id}`;
+    const { successUrl, errorUrl, cancelUrl } = sepayService.buildPaymentUrls(order.id);
 
-    const sepaySession = sepayService.createCheckoutSession(
-      orderCode,
-      grandTotal,
-      `Thanh toan don hang ${orderCode}`,
-      { successUrl, errorUrl, cancelUrl }
-    );
+    let sepaySession;
+    try {
+      sepaySession = sepayService.createCheckoutSession(
+        orderCode,
+        grandTotal,
+        `Thanh toan don hang ${orderCode}`,
+        { successUrl, errorUrl, cancelUrl }
+      );
+    } catch (sepayError) {
+      // Lỗi cấu hình/SDK SePay không được phép sụp đổ cả transaction tạo đơn:
+      // đơn vẫn được tạo (PENDING) và client nhận message lỗi rõ ràng để retry.
+      console.error('SePay checkout session failed during checkout:', sepayError.message);
+      throw sepayError;
+    }
 
     const payment = await tx.payment.create({
       data: {
@@ -153,7 +200,7 @@ const createCheckout = async (userId, checkoutData) => {
         amount: grandTotal,
         status: 'PENDING',
         sepayOrderCode: orderCode,
-        paymentUrl: sepaySession.checkoutUrl,
+        paymentUrl: sepaySession?.checkoutUrl || null,
         qrCodeUrl: null
       }
     });
@@ -179,10 +226,11 @@ const createCheckout = async (userId, checkoutData) => {
         expiresAt: order.expiresAt
       },
       payment: {
-        checkoutUrl: sepaySession.checkoutUrl,
-        formFields: sepaySession.formFields,
+        checkoutUrl: sepaySession?.checkoutUrl || null,
+        formFields: sepaySession?.formFields || null,
         paymentUrl: payment.paymentUrl,
         qrCodeUrl: payment.qrCodeUrl,
+        webhookUrl: await sepayService.resolveWebhookUrl(),
         accountNumber: env.sepayAccountNumber,
         accountName: env.sepayAccountName,
         amount: grandTotal,
@@ -324,23 +372,13 @@ const cancelOrder = async (orderId, userId = null, note = 'Order cancelled by us
     const oldStatus = order.status;
 
     for (const item of order.items) {
-      if (item.productId) {
-        if (oldStatus === 'PENDING') {
-          await tx.$executeRaw`
-            UPDATE "Product"
-            SET "reservedStock" = "reservedStock" - ${item.quantity},
-                "version" = "version" + 1
-            WHERE "id" = ${item.productId}
-          `;
-        } else if (oldStatus === 'PACKAGING') {
-          await tx.$executeRaw`
-            UPDATE "Product"
-            SET "stockQuantity" = "stockQuantity" + ${item.quantity},
-                "reservedStock" = "reservedStock" - ${item.quantity},
-                "version" = "version" + 1
-            WHERE "id" = ${item.productId}
-          `;
-        }
+      // Hoàn stock về đúng variant đã đặt (nếu không có variantId thì bỏ qua —
+      // không cộng thẳng vào Product vì bảng Product không có cột stock)
+      if (item.variantId) {
+        await tx.productVariant.update({
+          where: { id: item.variantId },
+          data: { stockQuantity: { increment: item.quantity } }
+        });
       }
       if (item.cardId) {
         if (oldStatus === 'PENDING') {
@@ -415,6 +453,7 @@ const regeneratePayment = async (orderId, userId) => {
   return {
     paymentUrl: payment.paymentUrl,
     qrCodeUrl: payment.qrCodeUrl,
+    webhookUrl: await sepayService.resolveWebhookUrl(),
     accountNumber: env.sepayAccountNumber,
     accountName: env.sepayAccountName,
     amount: payment.amount,

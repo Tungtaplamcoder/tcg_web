@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import { STATUS_MAP } from '../constants/orderStatus';
+import { formatVND } from '../utils/format';
 
 const OrderManagement = () => {
   const [orders, setOrders] = useState([]);
@@ -139,7 +140,7 @@ const OrderManagement = () => {
                     <p className="font-medium">{order.user?.fullName || 'N/A'}</p>
                     <p className="text-xs text-gray-500">{order.user?.email}</p>
                   </td>
-                  <td className="px-4 py-3 text-sm font-semibold">${Number(order.grandTotal).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-sm font-semibold">{formatVND(order.grandTotal)}</td>
                   <td className="px-4 py-3">{getStatusBadge(order.status)}</td>
                   <td className="px-4 py-3 text-sm text-gray-500">{new Date(order.createdAt).toLocaleString()}</td>
                   <td className="px-4 py-3">
@@ -196,7 +197,7 @@ const OrderManagement = () => {
               <div className="space-y-3">
                 <p><strong>Mã đơn:</strong> {selectedOrder.orderCode}</p>
                 <p><strong>Khách hàng:</strong> {selectedOrder.user?.fullName} ({selectedOrder.user?.email})</p>
-                <p><strong>Tổng tiền:</strong> ${Number(selectedOrder.grandTotal).toFixed(2)}</p>
+                <p><strong>Tổng tiền:</strong> {formatVND(selectedOrder.grandTotal)}</p>
                 <p><strong>Trạng thái:</strong> {getStatusBadge(selectedOrder.status)}</p>
                 <p><strong>Địa chỉ:</strong> {selectedOrder.shippingAddress?.fullName}, {selectedOrder.shippingAddress?.addressLine1}, {selectedOrder.shippingAddress?.city}</p>
                 <p><strong>SĐT:</strong> {selectedOrder.shippingAddress?.phone}</p>
@@ -208,7 +209,7 @@ const OrderManagement = () => {
                     {selectedOrder.items?.map((item, idx) => (
                       <li key={idx} className="flex justify-between text-sm">
                         <span>{item.product?.name || item.card?.sku || 'Sản phẩm'} x {item.quantity}</span>
-                        <span>${Number(item.totalPrice).toFixed(2)}</span>
+                        <span>{formatVND(item.totalPrice)}</span>
                       </li>
                     ))}
                   </ul>

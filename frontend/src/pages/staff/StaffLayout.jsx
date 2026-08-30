@@ -13,7 +13,7 @@ const PAGE_TITLES = {
   '/staff/inventory': 'Inventory',
   '/staff/sets': 'Sản phẩm',
   '/staff/posts': 'Posts',
-  '/staff/chat': 'Support Inbox'
+  '/staff/chat': 'Chat CSKH'
 };
 
 const StaffLayout = () => {
@@ -27,7 +27,6 @@ const StaffLayout = () => {
   const isAdmin = user?.role === 'ADMIN';
   const canManageInventory = isAdmin || user?.canManageInventory;
   const canManagePosts = isAdmin || user?.canManagePosts;
-  const canAccessChat = isAdmin || user?.canAccessChat;
 
   const navItems = [
     { to: '/staff', label: 'Overview', icon: LayoutDashboard, end: true, visible: true },
@@ -35,7 +34,7 @@ const StaffLayout = () => {
     { to: '/staff/inventory', label: 'Inventory', icon: Package, visible: canManageInventory },
     { to: '/staff/sets', label: 'Sản phẩm', icon: Tags, visible: canManageInventory },
     { to: '/staff/posts', label: 'Posts', icon: FileText, visible: canManagePosts },
-    { to: '/staff/chat', label: 'Support Inbox', icon: MessageSquare, visible: canAccessChat },
+    { to: '/staff/chat', label: 'Chat CSKH', icon: MessageSquare, visible: true },
   ].filter(item => item.visible);
 
   return (

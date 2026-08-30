@@ -68,6 +68,8 @@ const listUserRooms = async (userId) => {
   });
 };
 
+const isStaffUser = (user) => Boolean(user && ['ADMIN', 'STAFF', 'MODERATOR'].includes(user.role));
+
 const getRoomById = async (roomId, userId) => {
   const room = await prisma.chatRoom.findUnique({
     where: { id: roomId },
@@ -83,7 +85,6 @@ const getRoomById = async (roomId, userId) => {
 
   if (!room) throw new NotFoundError('Chat room not found');
 
-  const isAdmin = false; // user role check done in controller
   return room;
 };
 
@@ -95,9 +96,10 @@ const listRoomMessages = async (roomId, userId, query) => {
   });
   if (!room) throw new NotFoundError('Chat room not found');
 
-  const isAdmin = false; // handled by caller
+  const requester = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  const isStaff = isStaffUser(requester);
   const isParticipant = room.participants.some(p => p.userId === userId);
-  if (!isAdmin && !isParticipant) throw new AuthorizationError('Not participant of this room');
+  if (!isStaff && !isParticipant) throw new AuthorizationError('Not participant of this room');
 
   const skip = (query.page - 1) * query.limit;
   const take = query.limit;
@@ -137,9 +139,9 @@ const sendMessage = async (roomId, userId, data) => {
 
   const isParticipant = room.participants.some(p => p.userId === userId);
   if (!isParticipant) {
-    // Check if admin
+    // Staff (admin/staff/moderator) may reply inside any support room
     const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user || (user.role !== 'ADMIN' && user.role !== 'MODERATOR')) {
+    if (!isStaffUser(user)) {
       throw new AuthorizationError('Not participant of this room');
     }
   }
@@ -186,8 +188,8 @@ const closeRoom = async (roomId, userId) => {
   if (!room) throw new NotFoundError('Chat room not found');
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || (user.role !== 'ADMIN' && user.role !== 'MODERATOR')) {
-    throw new AuthorizationError('Only admin or moderator can close room');
+  if (!isStaffUser(user)) {
+    throw new AuthorizationError('Only admin or staff can close room');
   }
 
   const updated = await prisma.chatRoom.update({

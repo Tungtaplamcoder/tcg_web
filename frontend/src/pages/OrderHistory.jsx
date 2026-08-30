@@ -6,6 +6,7 @@ import {
 import api from '../services/api';
 import { useAuthStore } from '../store/useAuthStore';
 import { STATUS_MAP, TIMELINE_STEPS } from '../constants/orderStatus';
+import { formatVND } from '../utils/format';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 const OrderHistory = () => {
@@ -153,7 +154,7 @@ const OrderHistory = () => {
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
                       <div className="text-right">
-                        <p className="font-display font-bold text-gradient-brand">${Number(order.grandTotal).toFixed(2)}</p>
+                        <p className="font-display font-bold text-gradient-brand">{formatVND(order.grandTotal)}</p>
                         <div className="mt-1">{getStatusBadge(order.status)}</div>
                       </div>
                       <ChevronDown
@@ -214,7 +215,7 @@ const OrderHistory = () => {
                             <span className="text-ink-700 dark:text-ink-100 truncate">
                               {item.product?.name || item.card?.sku || 'Sản phẩm'} <span className="text-ink-400 dark:text-ink-300">x {item.quantity}</span>
                             </span>
-                            <span className="font-semibold text-ink-900 dark:text-white flex-shrink-0">${Number(item.totalPrice).toFixed(2)}</span>
+                            <span className="font-semibold text-ink-900 dark:text-white flex-shrink-0">{formatVND(item.totalPrice)}</span>
                           </div>
                         ))}
                       </div>

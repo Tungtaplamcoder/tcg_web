@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const prisma = require('../config/prisma');
 const { NotFoundError, ConflictError, AppError } = require('../utils/errors');
 const imageService = require('../services/image.service');
+const settingsService = require('../services/settings.service');
 const { PRODUCT_CATEGORIES, resolveProductCategoryKey } = require('../constants/productCategories');
 
 const slugify = (text) => text.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -365,7 +366,7 @@ const updateCard = async (req, res, next) => {
 const uploadImage = async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'No image file provided' } });
-    const imageUrl = await imageService.uploadToImgbb(req.file.buffer, req.file.originalname);
+    const imageUrl = await imageService.uploadImage(req.file.buffer, req.file.originalname);
     res.status(200).json({ success: true, data: { url: imageUrl }, message: 'Image uploaded successfully' });
   } catch (error) { next(error); }
 };
@@ -513,21 +514,8 @@ const updateOrderStatus = async (req, res, next) => {
         if (order.payments.length > 0) {
           await tx.payment.update({ where: { id: order.payments[0].id }, data: { status: 'COMPLETED', paidAt: now } });
         }
-        // Giảm stock theo variant
-        for (const item of order.items) {
-          if (item.variantId) {
-            await tx.productVariant.update({
-              where: { id: item.variantId },
-              data: { stockQuantity: { decrement: item.quantity } }
-            });
-          } else if (item.productId) {
-            // fallback: giảm variant đầu tiên hoặc product stock cũ (nếu có)
-            const fallbackVariant = await tx.productVariant.findFirst({ where: { productId: item.productId } });
-            if (fallbackVariant) {
-              await tx.productVariant.update({ where: { id: fallbackVariant.id }, data: { stockQuantity: { decrement: item.quantity } } });
-            }
-          }
-        }
+        // Stock đã được trừ ngay khi tạo đơn (reserve variant), KHÔNG trừ lần nữa ở đây
+        // để tránh giảm tồn kho kép.
         await tx.orderStatusHistory.create({ data: { orderId, oldStatus, newStatus, note: note || `Thanh toán xác nhận bởi ${adminUserId}`, changedByUserId: adminUserId } });
       });
     } else if (newStatus === 'SHIPPING' && oldStatus === 'PACKAGING') {
@@ -542,9 +530,14 @@ const updateOrderStatus = async (req, res, next) => {
       });
     } else if (newStatus === 'CANCELLED' && ['PENDING', 'PACKAGING'].includes(oldStatus)) {
       await prisma.$transaction(async (tx) => {
+        // Hoàn stock về variant đã đặt; hoàn status card về AVAILABLE
         for (const item of order.items) {
           if (item.variantId) {
             await tx.productVariant.update({ where: { id: item.variantId }, data: { stockQuantity: { increment: item.quantity } } });
+          }
+          if (item.cardId) {
+            const cardStatus = oldStatus === 'PENDING' ? 'RESERVED' : 'SOLD';
+            await tx.card.updateMany({ where: { id: item.cardId, status: cardStatus }, data: { status: 'AVAILABLE' } });
           }
         }
         await tx.order.update({ where: { id: orderId }, data: { status: 'CANCELLED', cancelledAt: new Date(), version: { increment: 1 } } });
@@ -602,12 +595,7 @@ const reconcilePayment = async (req, res, next) => {
         const now = new Date();
         await tx.order.update({ where: { id: order.id }, data: { status: 'PACKAGING', paymentStatus: 'COMPLETED', paidAt: now, version: { increment: 1 } } });
         if (log.paymentId) await tx.payment.update({ where: { id: log.paymentId }, data: { status: 'COMPLETED', paidAt: now } });
-        const orderItems = await tx.orderItem.findMany({ where: { orderId: order.id } });
-        for (const item of orderItems) {
-          if (item.variantId) {
-            await tx.productVariant.update({ where: { id: item.variantId }, data: { stockQuantity: { decrement: item.quantity } } });
-          }
-        }
+        // Stock đã được reserve ngay khi tạo đơn — không trừ thêm khi confirm thanh toán
         await tx.orderStatusHistory.create({ data: { orderId: order.id, oldStatus: 'PENDING', newStatus: 'PACKAGING', note: note || `Manual reconciliation by admin ${adminUserId}` } });
         await tx.paymentLog.update({ where: { id: paymentLogId }, data: { status: 'COMPLETED', processedAt: now, errorMessage: null } });
       });
@@ -686,6 +674,92 @@ const getChatRoomMessages = async (req, res, next) => {
 
 // ==================== VIRTUAL BOX MANAGEMENT ====================
 
+// Pool entries submitted by the admin UI. Two accepted shapes:
+//  1. { productId | cardId, rarity, weight }  — direct references
+//  2. { name, imageUrl, rarity }               — free-form card definitions,
+//     resolved to Product rows (created on demand with the given image).
+const RARITY_TO_ENUM = {
+  common: 'COMMON',
+  rare: 'RARE',
+  epic: 'EPIC',
+  legendary: 'LEGENDARY'
+};
+
+const normalizeRarity = (rarity) => {
+  const key = String(rarity || '').trim().toLowerCase();
+  return RARITY_TO_ENUM[key] || 'COMMON';
+};
+
+const ensurePoolProduct = async (entry) => {
+  const name = String(entry.name || '').trim();
+  if (!name) throw new AppError('Pool card name is required', 400, 'VALIDATION_ERROR');
+  const rarity = normalizeRarity(entry.rarity);
+  const slug = slugify(name);
+
+  const existing = await prisma.product.findUnique({ where: { slug } });
+  if (existing) return existing;
+
+  const created = await prisma.product.create({
+    data: {
+      name,
+      slug,
+      shortName: name.length > 100 ? name.slice(0, 100) : name,
+      rarity,
+      status: 'ACTIVE',
+      images: entry.imageUrl ? [String(entry.imageUrl).trim()] : []
+    }
+  });
+  return created;
+};
+
+// Build the canonical pool payload: direct refs are validated, free-form
+// entries are resolved/created as Products. Returns entries suitable for
+// VirtualBoxPool writes AND flat poolItems used by the gacha opener.
+const resolvePoolEntries = async (pool) => {
+  if (!pool || pool.length === 0) return [];
+
+  const resolved = [];
+  for (const entry of pool) {
+    if (entry.productId || entry.cardId) {
+      resolved.push({
+        productId: entry.productId || null,
+        cardId: entry.cardId || null,
+        rarity: entry.rarity || null,
+        weight: Number(entry.weight) || 1
+      });
+    } else {
+      const product = await ensurePoolProduct(entry);
+      resolved.push({
+        productId: product.id,
+        cardId: null,
+        rarity: normalizeRarity(entry.rarity),
+        weight: Number(entry.weight) || 1
+      });
+    }
+  }
+
+  await assertVirtualBoxReferences(resolved);
+  return resolved;
+};
+
+// Mirror the pool into VirtualBoxPoolItem so the storefront gacha opener
+// (which reads poolItems) stays in sync with the admin-managed pool.
+const syncPoolItems = async (tx, boxId, resolvedPool) => {
+  await tx.virtualBoxPoolItem.deleteMany({ where: { boxId } });
+  const seenProductIds = new Set();
+  const items = [];
+  for (const entry of resolvedPool) {
+    if (!entry.productId || seenProductIds.has(entry.productId)) continue;
+    seenProductIds.add(entry.productId);
+    items.push({
+      boxId,
+      productId: entry.productId,
+      rarity: entry.rarity || 'COMMON'
+    });
+  }
+  if (items.length > 0) await tx.virtualBoxPoolItem.createMany({ data: items });
+};
+
 const assertVirtualBoxReferences = async (pool) => {
   if (!pool || pool.length === 0) return;
   const productIds = [...new Set(pool.filter((entry) => entry.productId).map((entry) => entry.productId))];
@@ -717,8 +791,13 @@ const virtualBoxInclude = {
   pool: {
     orderBy: { weight: 'desc' },
     include: {
-      product: { select: { id: true, name: true, shortName: true, rarity: true } },
+      product: { select: { id: true, name: true, shortName: true, rarity: true, images: true } },
       card: { select: { id: true, sku: true, condition: true, status: true } }
+    }
+  },
+  poolItems: {
+    include: {
+      product: { select: { id: true, name: true, shortName: true, rarity: true, images: true } }
     }
   }
 };
@@ -738,12 +817,17 @@ const listVirtualBoxes = async (req, res, next) => {
     const [items, totalItems] = await Promise.all([
       prisma.virtualBox.findMany({
         where, skip, take, orderBy: { createdAt: 'desc' },
-        include: { ...virtualBoxInclude, _count: { select: { pool: true, openings: true } } }
+        include: { ...virtualBoxInclude, _count: { select: { pool: true, openings: true, poolItems: true } } }
       }),
       prisma.virtualBox.count({ where })
     ]);
 
-    res.status(200).json({ success: true, data: { items, meta: { page: Number(page), limit: take, totalItems, totalPages: Math.ceil(totalItems / take) } }, message: 'Virtual boxes retrieved' });
+    const mapped = items.map((box) => ({
+      ...box,
+      cardPoolCount: box._count?.poolItems || box._count?.pool || 0
+    }));
+
+    res.status(200).json({ success: true, data: { items: mapped, meta: { page: Number(page), limit: take, totalItems, totalPages: Math.ceil(totalItems / take) } }, message: 'Virtual boxes retrieved' });
   } catch (error) { next(error); }
 };
 
@@ -754,24 +838,33 @@ const createVirtualBox = async (req, res, next) => {
     const existing = await prisma.virtualBox.findUnique({ where: { slug: finalSlug } });
     if (existing) throw new ConflictError('Virtual box slug already exists');
 
-    await assertVirtualBoxReferences(pool);
+    const resolvedPool = await resolvePoolEntries(pool);
+    const poolProductIds = [...new Set(resolvedPool.filter((entry) => entry.productId).map((entry) => entry.productId))];
 
-    const box = await prisma.virtualBox.create({
-      data: {
-        name,
-        slug: finalSlug,
-        description: description || null,
-        imageUrl: imageUrl || null,
-        gradient: gradient || null,
-        price: Number(price),
-        status: status || 'DRAFT',
-        ...(dropRates && dropRates.length > 0 && { dropRates: { create: dropRates.map((d) => ({ rarity: d.rarity, rate: Number(d.rate) })) } }),
-        ...(pool && pool.length > 0 && { pool: { create: mapVirtualBoxPoolPayload(pool) } })
-      },
-      include: virtualBoxInclude
+    const box = await prisma.$transaction(async (tx) => {
+      const created = await tx.virtualBox.create({
+        data: {
+          name,
+          slug: finalSlug,
+          description: description || null,
+          imageUrl: imageUrl || null,
+          gradient: gradient || null,
+          price: price !== undefined ? Number(price) : 0,
+          status: status || 'DRAFT',
+          ...(dropRates && dropRates.length > 0 && { dropRates: { create: dropRates.map((d) => ({ rarity: d.rarity, rate: Number(d.rate) })) } }),
+          ...(resolvedPool.length > 0 && { pool: { create: mapVirtualBoxPoolPayload(resolvedPool) } })
+        },
+        include: virtualBoxInclude
+      });
+      await syncPoolItems(tx, created.id, resolvedPool);
+      return tx.virtualBox.findUnique({ where: { id: created.id }, include: { ...virtualBoxInclude, _count: { select: { pool: true, openings: true, poolItems: true } } } });
     });
 
-    res.status(201).json({ success: true, data: box, message: 'Virtual box created' });
+    res.status(201).json({
+      success: true,
+      data: { ...box, cardPoolCount: poolProductIds.length || box.pool.length },
+      message: 'Virtual box created'
+    });
   } catch (error) { next(error); }
 };
 
@@ -790,11 +883,12 @@ const updateVirtualBox = async (req, res, next) => {
       if (existing && existing.id !== id) throw new ConflictError('Virtual box slug already exists');
     }
 
-    if (pool) await assertVirtualBoxReferences(pool);
+    const resolvedPool = pool !== undefined ? await resolvePoolEntries(pool) : null;
+    const poolProductIds = resolvedPool ? [...new Set(resolvedPool.filter((entry) => entry.productId).map((entry) => entry.productId))] : [];
 
-    await prisma.$transaction(async (tx) => {
+    const updated = await prisma.$transaction(async (tx) => {
       if (dropRates) await tx.virtualBoxDropRate.deleteMany({ where: { boxId: id } });
-      if (pool) await tx.virtualBoxPool.deleteMany({ where: { boxId: id } });
+      if (pool !== undefined) await tx.virtualBoxPool.deleteMany({ where: { boxId: id } });
       await tx.virtualBox.update({
         where: { id },
         data: {
@@ -806,13 +900,18 @@ const updateVirtualBox = async (req, res, next) => {
           ...(price !== undefined && { price: Number(price) }),
           ...(status !== undefined && { status }),
           ...(dropRates && dropRates.length > 0 && { dropRates: { create: dropRates.map((d) => ({ rarity: d.rarity, rate: Number(d.rate) })) } }),
-          ...(pool && pool.length > 0 && { pool: { create: mapVirtualBoxPoolPayload(pool) } })
+          ...(resolvedPool && resolvedPool.length > 0 && { pool: { create: mapVirtualBoxPoolPayload(resolvedPool) } })
         }
       });
+      if (resolvedPool) await syncPoolItems(tx, id, resolvedPool);
+      return tx.virtualBox.findUnique({ where: { id }, include: { ...virtualBoxInclude, _count: { select: { pool: true, openings: true, poolItems: true } } } });
     });
 
-    const updated = await prisma.virtualBox.findUnique({ where: { id }, include: virtualBoxInclude });
-    res.status(200).json({ success: true, data: updated, message: 'Virtual box updated' });
+    res.status(200).json({
+      success: true,
+      data: { ...updated, cardPoolCount: poolProductIds.length || updated.pool.length },
+      message: 'Virtual box updated'
+    });
   } catch (error) { next(error); }
 };
 
@@ -837,6 +936,22 @@ const deleteVirtualBox = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+// ==================== SETTINGS ====================
+
+const getSepaySettings = async (req, res, next) => {
+  try {
+    const settings = await settingsService.getSepaySettings();
+    res.status(200).json({ success: true, data: settings, message: 'SePay settings retrieved' });
+  } catch (error) { next(error); }
+};
+
+const updateSepaySettings = async (req, res, next) => {
+  try {
+    const settings = await settingsService.updateSepaySettings(req.body);
+    res.status(200).json({ success: true, data: settings, message: 'SePay settings updated' });
+  } catch (error) { next(error); }
+};
+
 // ==================== EXPORT ====================
 
 module.exports = {
@@ -849,5 +964,6 @@ module.exports = {
   listPaymentLogs, reconcilePayment,
   getDashboardStats,
   listChatRooms, getChatRoomMessages,
-  listVirtualBoxes, createVirtualBox, updateVirtualBox, deleteVirtualBox
+  listVirtualBoxes, createVirtualBox, updateVirtualBox, deleteVirtualBox,
+  getSepaySettings, updateSepaySettings
 };

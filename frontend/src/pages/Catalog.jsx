@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
-  Search, SlidersHorizontal, Package, ChevronLeft, ChevronRight, Sparkles, X, Check
+  Search, SlidersHorizontal, Package, ChevronLeft, ChevronRight, Sparkles, X
 } from 'lucide-react';
 import api from '../services/api';
 import { formatVND } from '../utils/format';
@@ -11,17 +11,14 @@ const PRICE_MIN = 0;
 const PRICE_MAX = 20000000;
 const PRICE_STEP = 100000;
 
-const RARITY_OPTIONS = ['Common', 'Uncommon', 'Rare', 'Holo Rare', 'Ultra Rare', 'Illustration Rare', 'Secret Rare', 'Rainbow Rare'];
+const CATEGORY_OPTIONS = [
+  { value: 'box', label: 'Box' },
+  { value: 'card', label: 'Card' }
+];
 
-const RARITY_DOTS = {
-  Common: 'from-slate-400 to-slate-500',
-  Uncommon: 'from-emerald-400 to-teal-500',
-  Rare: 'from-indigo-400 via-violet-500 to-fuchsia-400',
-  'Holo Rare': 'from-sky-400 via-blue-500 to-violet-400',
-  'Ultra Rare': 'from-violet-500 via-fuchsia-500 to-pink-400',
-  'Illustration Rare': 'from-sky-400 via-indigo-500 to-fuchsia-400',
-  'Secret Rare': 'from-fuchsia-500 via-violet-500 to-cyan-400',
-  'Rainbow Rare': 'from-rose-400 via-fuchsia-500 to-amber-300'
+const normalizeCategory = (value) => {
+  const key = String(value || '').trim().toLowerCase();
+  return key === 'box' || key === 'card' ? key : '';
 };
 
 /* Dual-thumb price range slider with animated iridescent fill */
@@ -79,12 +76,10 @@ const Catalog = () => {
   const [meta, setMeta] = useState({ page: 1, limit: 20, totalItems: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [sets, setSets] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
 
   const [search, setSearch] = useState(searchParams.get('search') || '');
-  const [setFilter, setSetFilter] = useState(searchParams.get('set') || '');
-  const [rarityFilter, setRarityFilter] = useState(searchParams.get('rarity') || '');
+  const [categoryFilter, setCategoryFilter] = useState(normalizeCategory(searchParams.get('category')));
   const [minPrice, setMinPrice] = useState(searchParams.get('minPrice') || '');
   const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') || '');
   const [inStock, setInStock] = useState(searchParams.get('inStock') === 'true');
@@ -92,20 +87,12 @@ const Catalog = () => {
   const page = parseInt(searchParams.get('page') || '1', 10);
   const debounceRef = useRef(null);
 
-  const fetchSets = useCallback(async () => {
-    try {
-      const response = await api.get('/sets');
-      setSets(response.data.data || []);
-    } catch (err) { console.error('Failed to load sets:', err); }
-  }, []);
-
   const fetchProducts = useCallback(async () => {
     setLoading(true); setError('');
     try {
       const params = { page, limit: 20 };
       if (search) params.search = search;
-      if (setFilter) params.set = setFilter;
-      if (rarityFilter) params.rarity = rarityFilter;
+      if (categoryFilter) params.category = categoryFilter;
       if (minPrice) params.minPrice = minPrice;
       if (maxPrice) params.maxPrice = maxPrice;
       if (inStock) params.inStock = 'true';
@@ -115,9 +102,7 @@ const Catalog = () => {
       setMeta(response.data.data.meta || { page: 1, limit: 20, totalItems: 0, totalPages: 1 });
     } catch (err) { console.error(err); setError('Failed to load products.'); }
     finally { setLoading(false); }
-  }, [page, search, setFilter, rarityFilter, minPrice, maxPrice, inStock]);
-
-  useEffect(() => { fetchSets(); }, [fetchSets]);
+  }, [page, search, categoryFilter, minPrice, maxPrice, inStock]);
 
   /* Debounced fetch so dragging the slider doesn't spam the API */
   useEffect(() => {
@@ -141,15 +126,18 @@ const Catalog = () => {
   };
 
   const clearFilters = () => {
-    setSearch(''); setSetFilter(''); setRarityFilter(''); setMinPrice(''); setMaxPrice(''); setInStock(false);
+    setSearch(''); setCategoryFilter(''); setMinPrice(''); setMaxPrice(''); setInStock(false);
     setSearchParams({});
   };
 
-  const hasActiveFilters = search || setFilter || rarityFilter || minPrice || maxPrice || inStock;
+  const hasActiveFilters = search || categoryFilter || minPrice || maxPrice || inStock;
   const activeChips = [
     search && { key: 's', label: `“${search}”`, clear: () => setSearch('') },
-    setFilter && { key: 'set', label: sets.find(s => s.slug === setFilter)?.name || setFilter, clear: () => setSetFilter('') },
-    rarityFilter && { key: 'r', label: rarityFilter, clear: () => setRarityFilter('') },
+    categoryFilter && {
+      key: 'cat',
+      label: `Category: ${CATEGORY_OPTIONS.find((c) => c.value === categoryFilter)?.label || categoryFilter}`,
+      clear: () => setCategoryFilter('')
+    },
     (minPrice || maxPrice) && { key: 'p', label: `${minPrice ? formatVND(Number(minPrice)) : '0'} – ${maxPrice ? formatVND(Number(maxPrice)) : 'Max'}`, clear: () => { setMinPrice(''); setMaxPrice(''); } },
     inStock && { key: 'stock', label: 'In stock', clear: () => setInStock(false) }
   ].filter(Boolean);
@@ -167,35 +155,13 @@ const Catalog = () => {
 
       <div className="space-y-6">
         <div>
-          <label className="label-premium">Set / Series</label>
-          <select value={setFilter} onChange={(e) => setSetFilter(e.target.value)} className="input-premium">
+          <label className="label-premium">Category</label>
+          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="input-premium">
             <option value="">All</option>
-            {sets.map((set) => <option key={set.id} value={set.slug}>{set.name}</option>)}
+            {CATEGORY_OPTIONS.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
           </select>
-        </div>
-
-        <div>
-          <label className="label-premium">Rarity</label>
-          <div className="flex flex-wrap gap-2">
-            {RARITY_OPTIONS.map((r) => {
-              const active = rarityFilter.toLowerCase() === r.toLowerCase();
-              return (
-                <button
-                  key={r}
-                  onClick={() => setRarityFilter(active ? '' : r)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 ${
-                    active
-                      ? 'bg-gradient-to-r from-primary-600 to-fuchsia-600 text-white shadow-sm'
-                      : 'bg-ink-100/70 dark:bg-white/5 text-muted hover:bg-primary-50 dark:hover:bg-white/10 hover:text-primary-700 dark:hover:text-white'
-                  }`}
-                >
-                  <span className={`h-2 w-2 shrink-0 rounded-full bg-gradient-to-r ${RARITY_DOTS[r]} ${active ? 'ring-1 ring-white/60' : ''}`} />
-                  {active && <Check className="h-3 w-3" />}
-                  {r}
-                </button>
-              );
-            })}
-          </div>
         </div>
 
         <div>
@@ -215,113 +181,115 @@ const Catalog = () => {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 app-bg">
-      {/* ===================== HEADER ===================== */}
-      <div className="relative overflow-hidden rounded-[2rem] glass-panel p-8 sm:p-10 mb-8">
-        <div className="pointer-events-none absolute -top-20 -right-12 h-56 w-56 rounded-full bg-aura-violet/25 blur-[90px] dark:bg-aura-magenta/25" />
-        <div className="pointer-events-none absolute -bottom-24 left-1/4 h-48 w-48 rounded-full bg-aura-cyan/15 blur-[80px]" />
-        <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="w-full min-h-screen bg-gradient-to-b from-rose-50/40 via-purple-50/20 to-white dark:from-[#0d0714] dark:to-[#09040e]">
+      <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        {/* ===================== HEADER ===================== */}
+        <div className="relative overflow-hidden rounded-[2rem] glass-panel p-8 sm:p-10 mb-8">
+          <div className="pointer-events-none absolute -top-20 -right-12 h-56 w-56 rounded-full bg-aura-violet/25 blur-[90px] dark:bg-aura-magenta/25" />
+          <div className="pointer-events-none absolute -bottom-24 left-1/4 h-48 w-48 rounded-full bg-aura-cyan/15 blur-[80px]" />
+          <div className="relative flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-extrabold flex items-center font-display text-strong tracking-tight">
+                <Sparkles className="h-8 w-8 mr-3 text-fuchsia-500 dark:text-aura-cyan" />
+                Card Collection
+              </h1>
+              <p className="mt-2 text-muted">{loading ? 'Loading…' : `${meta.totalItems} products`}</p>
+            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="lg:hidden btn-secondary !py-2.5 shrink-0"
+            >
+              <SlidersHorizontal className="h-4 w-4 mr-2" />
+              {showFilters ? 'Hide filters' : 'Show filters'}
+            </button>
+          </div>
+          {/* foil accent line */}
+          <div aria-hidden="true" className="absolute bottom-0 left-8 right-8 h-px bg-iridescent opacity-60" />
+        </div>
+
+        {/* ===================== SEARCH ===================== */}
+        <form onSubmit={handleSearch} className="mb-5">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-ink-400 dark:text-ink-300" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search products…"
+                className="input-premium pl-11 pr-4 py-3"
+              />
+            </div>
+            <button type="submit" className="btn-primary">Search</button>
+          </div>
+        </form>
+
+        {/* ===================== ACTIVE FACET CHIPS ===================== */}
+        {activeChips.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 mb-5 animate-tcg-reveal">
+            {activeChips.map((c) => <FacetChip key={c.key} label={c.label} onRemove={c.clear} />)}
+          </div>
+        )}
+
+        <div className="grid lg:grid-cols-[300px_1fr] gap-6 items-start">
+          {/* ===================== FILTER RAIL ===================== */}
+          <aside className={`lg:sticky lg:top-24 ${showFilters ? 'block' : 'hidden'} lg:block`}>
+            {FilterRail}
+          </aside>
+
+          {/* ===================== GRID ===================== */}
           <div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold flex items-center font-display text-strong tracking-tight">
-              <Sparkles className="h-8 w-8 mr-3 text-fuchsia-500 dark:text-aura-cyan" />
-              Card Collection
-            </h1>
-            <p className="mt-2 text-muted">{loading ? 'Loading…' : `${meta.totalItems} products`}</p>
-          </div>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="lg:hidden btn-secondary !py-2.5 shrink-0"
-          >
-            <SlidersHorizontal className="h-4 w-4 mr-2" />
-            {showFilters ? 'Hide filters' : 'Show filters'}
-          </button>
-        </div>
-        {/* foil accent line */}
-        <div aria-hidden="true" className="absolute bottom-0 left-8 right-8 h-px bg-iridescent opacity-60" />
-      </div>
+            {error && <div className="p-4 bg-rose-50 text-rose-600 rounded-2xl mb-2">{error}</div>}
 
-      {/* ===================== SEARCH ===================== */}
-      <form onSubmit={handleSearch} className="mb-5">
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-ink-400 dark:text-ink-300" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search products…"
-              className="input-premium pl-11 pr-4 py-3"
-            />
-          </div>
-          <button type="submit" className="btn-primary">Search</button>
-        </div>
-      </form>
-
-      {/* ===================== ACTIVE FACET CHIPS ===================== */}
-      {activeChips.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 mb-5 animate-tcg-reveal">
-          {activeChips.map((c) => <FacetChip key={c.key} label={c.label} onRemove={c.clear} />)}
-        </div>
-      )}
-
-      <div className="grid lg:grid-cols-[300px_1fr] gap-6 items-start">
-        {/* ===================== FILTER RAIL ===================== */}
-        <aside className={`lg:sticky lg:top-24 ${showFilters ? 'block' : 'hidden'} lg:block`}>
-          {FilterRail}
-        </aside>
-
-        {/* ===================== GRID ===================== */}
-        <div>
-          {error && <div className="p-4 bg-rose-50 text-rose-600 rounded-2xl mb-2">{error}</div>}
-
-          {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {[...Array(8)].map((_, idx) => (
-                <div key={idx} className="surface rounded-3xl p-2 animate-pulse">
-                  <div className="h-64 bg-ink-100 dark:bg-white/5 rounded-2xl mb-3" />
-                  <div className="h-4 bg-ink-100 dark:bg-white/5 rounded w-3/4 mb-2 mx-2" />
-                  <div className="h-4 bg-ink-100 dark:bg-white/5 rounded w-1/2 mb-3 mx-2" />
-                </div>
-              ))}
-            </div>
-          ) : products.length === 0 ? (
-            <div className="text-center py-20 text-muted">
-              <div className="h-20 w-20 mx-auto rounded-full bg-ink-100 dark:bg-white/5 flex items-center justify-center">
-                <Package className="h-10 w-10 text-ink-300" />
-              </div>
-              <p className="mt-5 text-lg font-medium text-strong">No products found.</p>
-              <p className="mt-1 text-sm text-muted">Try adjusting the filters or search keywords.</p>
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 [transition:all_0.4s_ease]">
-                {products.map((product, i) => (
-                  <div key={product.id} className="animate-tcg-reveal" style={{ animationDelay: `${Math.min(i * 0.04, 0.4)}s` }}>
-                    <HoloCard product={product} />
+            {loading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {[...Array(8)].map((_, idx) => (
+                  <div key={idx} className="surface rounded-3xl p-2 animate-pulse">
+                    <div className="h-64 bg-ink-100 dark:bg-white/5 rounded-2xl mb-3" />
+                    <div className="h-4 bg-ink-100 dark:bg-white/5 rounded w-3/4 mb-2 mx-2" />
+                    <div className="h-4 bg-ink-100 dark:bg-white/5 rounded w-1/2 mb-3 mx-2" />
                   </div>
                 ))}
               </div>
-              {meta.totalPages > 1 && (
-                <div className="mt-10 flex justify-center items-center gap-3">
-                  <button
-                    onClick={() => handlePageChange(page - 1)}
-                    disabled={page <= 1}
-                    className="inline-flex items-center p-2.5 rounded-xl surface text-strong disabled:opacity-40 hover:ring-iridescent transition-all"
-                  >
-                    <ChevronLeft className="h-5 w-5" />
-                  </button>
-                  <span className="text-sm font-medium text-muted">Page {meta.page} / {meta.totalPages}</span>
-                  <button
-                    onClick={() => handlePageChange(page + 1)}
-                    disabled={page >= meta.totalPages}
-                    className="inline-flex items-center p-2.5 rounded-xl surface text-strong disabled:opacity-40 hover:ring-iridescent transition-all"
-                  >
-                    <ChevronRight className="h-5 w-5" />
-                  </button>
+            ) : products.length === 0 ? (
+              <div className="text-center py-20 text-muted">
+                <div className="h-20 w-20 mx-auto rounded-full bg-ink-100 dark:bg-white/5 flex items-center justify-center">
+                  <Package className="h-10 w-10 text-ink-300" />
                 </div>
-              )}
-            </>
-          )}
+                <p className="mt-5 text-lg font-medium text-strong">No products found.</p>
+                <p className="mt-1 text-sm text-muted">Try adjusting the filters or search keywords.</p>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 [transition:all_0.4s_ease]">
+                  {products.map((product, i) => (
+                    <div key={product.id} className="animate-tcg-reveal" style={{ animationDelay: `${Math.min(i * 0.04, 0.4)}s` }}>
+                      <HoloCard product={product} />
+                    </div>
+                  ))}
+                </div>
+                {meta.totalPages > 1 && (
+                  <div className="mt-10 flex justify-center items-center gap-3">
+                    <button
+                      onClick={() => handlePageChange(page - 1)}
+                      disabled={page <= 1}
+                      className="inline-flex items-center p-2.5 rounded-xl surface text-strong disabled:opacity-40 hover:ring-iridescent transition-all"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <span className="text-sm font-medium text-muted">Page {meta.page} / {meta.totalPages}</span>
+                    <button
+                      onClick={() => handlePageChange(page + 1)}
+                      disabled={page >= meta.totalPages}
+                      className="inline-flex items-center p-2.5 rounded-xl surface text-strong disabled:opacity-40 hover:ring-iridescent transition-all"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -19,9 +19,6 @@ const updateUserPermissionsSchema = z.object({
 
 const changeUserPasswordSchema = z.object({
   newPassword: z.string().min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Must contain uppercase')
-    .regex(/[a-z]/, 'Must contain lowercase')
-    .regex(/[0-9]/, 'Must contain number')
 });
 
 // ==================== PRODUCT SCHEMAS ====================
@@ -175,10 +172,12 @@ const virtualBoxDropRateSchema = z.object({
 const virtualBoxPoolEntrySchema = z.object({
   productId: z.string().uuid().optional(),
   cardId: z.string().uuid().optional(),
+  name: z.string().min(1).max(200).optional(),
+  imageUrl: z.string().url().optional().nullable(),
   rarity: z.string().min(1).max(50).optional(),
   weight: z.coerce.number().int().min(1).default(1)
-}).refine((entry) => Boolean(entry.productId || entry.cardId), {
-  message: 'Each pool entry requires a productId or a cardId'
+}).refine((entry) => Boolean(entry.productId || entry.cardId || entry.name), {
+  message: 'Each pool entry requires a productId, a cardId or a card name'
 });
 
 const dropRatesValid = (data) => {
@@ -198,7 +197,8 @@ const baseVirtualBoxSchema = z.object({
   description: z.string().max(2000).optional().nullable(),
   imageUrl: z.string().url().optional().nullable(),
   gradient: z.string().max(200).optional().nullable(),
-  price: z.coerce.number().min(0),
+  // Price is no longer edited in the admin modal; defaults to 0 (free entry)
+  price: z.coerce.number().min(0).optional().default(0),
   status: z.enum(['ACTIVE', 'DRAFT', 'ARCHIVED']).optional(),
   dropRates: z.array(virtualBoxDropRateSchema).min(1).max(20).optional(),
   pool: z.array(virtualBoxPoolEntrySchema).max(500).optional()
@@ -213,6 +213,19 @@ const listVirtualBoxesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   status: z.enum(['ACTIVE', 'DRAFT', 'ARCHIVED']).optional(),
   search: z.string().optional()
+});
+
+// ==================== SEPAY SETTINGS SCHEMA ====================
+
+const sepaySettingsSchema = z.object({
+  apiUrl: z.string().url('API URL must be a valid URL'),
+  webhookUrl: z.string().optional().refine(
+    (v) => !v || v.trim() === '' || /^(https?:\/\/|\/)/.test(v.trim()),
+    'Webhook URL must be an absolute http(s) URL or a relative path starting with /'
+  ),
+  webhookSecret: z.string().min(1, 'Webhook secret is required'),
+  accountNumber: z.string().min(1, 'Account number is required'),
+  accountName: z.string().min(1, 'Account name is required')
 });
 
 // ==================== EXPORTS ====================
@@ -242,5 +255,6 @@ module.exports = {
   gachaRarityEnum,
   createVirtualBoxSchema,
   updateVirtualBoxSchema,
-  listVirtualBoxesQuerySchema
+  listVirtualBoxesQuerySchema,
+  sepaySettingsSchema
 };

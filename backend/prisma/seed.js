@@ -21,15 +21,20 @@ async function main() {
   await prisma.chatMessage.deleteMany({});
   await prisma.chatParticipant.deleteMany({});
   await prisma.chatRoom.deleteMany({});
+  await prisma.post.deleteMany({}); // Posts reference User.authorId with Restrict
   await prisma.card.deleteMany({});
   await prisma.userCard.deleteMany({});
   await prisma.virtualBoxOpening.deleteMany({});
+  await prisma.virtualBoxPoolItem.deleteMany({});
+  await prisma.virtualBoxDropRate.deleteMany({});
+  await prisma.virtualBoxPool.deleteMany({});
   await prisma.virtualBox.deleteMany({});
   await prisma.product.deleteMany({});
   await prisma.set.deleteMany({});
   await prisma.category.deleteMany({});
   await prisma.refreshToken.deleteMany({});
   await prisma.passwordResetToken.deleteMany({});
+  await prisma.appSetting.deleteMany({});
   await prisma.user.deleteMany({});
 
   console.log('Creating users...');

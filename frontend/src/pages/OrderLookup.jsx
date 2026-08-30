@@ -3,6 +3,7 @@ import { Search, Package, AlertCircle, ShieldCheck, MapPin } from 'lucide-react'
 import api from '../services/api';
 import { STATUS_MAP, TIMELINE_STEPS } from '../constants/orderStatus';
 import { detectIdentifier, IDENTIFIER_LABELS } from '../utils/orderId';
+import { formatVND } from '../utils/format';
 
 /* ── detection chip shown live inside the search field ─────────────────── */
 const DETECTION_STYLE = {
@@ -134,7 +135,7 @@ const OrderResult = ({ order }) => {
         <div className="rounded-xl bg-ink-50/70 ring-1 ring-ink-100 dark:ring-white/10 p-3.5">
           <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">Tổng tiền</p>
           <p className="font-display font-bold text-gradient-brand mt-1">
-            ${Number(order.grandTotal).toFixed(2)}
+            {formatVND(order.grandTotal)}
           </p>
         </div>
         <div className="rounded-xl bg-ink-50/70 ring-1 ring-ink-100 dark:ring-white/10 p-3.5">
@@ -167,7 +168,7 @@ const OrderResult = ({ order }) => {
                   <span className="text-ink-400 dark:text-ink-300">x {item.quantity}</span>
                 </span>
                 <span className="font-semibold text-ink-900 dark:text-white flex-shrink-0">
-                  ${Number(item.totalPrice).toFixed(2)}
+                  {formatVND(item.totalPrice)}
                 </span>
               </li>
             ))}

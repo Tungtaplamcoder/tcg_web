@@ -15,6 +15,7 @@ import {
   X
 } from 'lucide-react';
 import api from '../../services/api';
+import { formatVND } from '../../utils/format';
 
 const PaymentLogAudit = () => {
   const [logs, setLogs] = useState([]);
@@ -165,7 +166,7 @@ const PaymentLogAudit = () => {
                 <tr key={log.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-sm font-mono">{log.sepayTransactionId || '-'}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{log.content || '-'}</td>
-                  <td className="px-4 py-3 text-sm font-medium">${log.amount ? Number(log.amount).toFixed(2) : '-'}</td>
+                  <td className="px-4 py-3 text-sm font-medium">{log.amount ? formatVND(log.amount) : '-'}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClasses(log.status)}`}>
                       {getStatusIcon(log.status)}
@@ -239,7 +240,7 @@ const PaymentLogAudit = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Amount</span>
-                  <span className="font-medium">${selectedLog.amount ? Number(selectedLog.amount).toFixed(2) : '-'}</span>
+                  <span className="font-medium">{selectedLog.amount ? formatVND(selectedLog.amount) : '-'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Status</span>

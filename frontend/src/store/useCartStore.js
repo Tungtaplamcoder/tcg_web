@@ -1,14 +1,28 @@
 import { create } from 'zustand';
 
 const CART_STORAGE_KEY = 'tcg_cart';
+const CART_VERSION = 2;
 
 const getStoredCart = () => {
   try {
     const stored = localStorage.getItem(CART_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    if (!stored) return [];
+    const items = JSON.parse(stored);
+    if (!Array.isArray(items)) return [];
+    // Migration: cart cũ thiếu variantId (dựa vào productId) vẫn hoạt động nhờ
+    // fallback bên backend, nhưng đánh dấu để ProductDetail có thể nâng cấp.
+    return items.map((item) => ({
+      ...item,
+      variantId: item.variantId || null
+    }));
   } catch {
     return [];
   }
+};
+
+const persist = (items) => {
+  localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+  localStorage.setItem('tcg_cart_version', String(CART_VERSION));
 };
 
 export const useCartStore = create((set, get) => ({
@@ -20,15 +34,14 @@ export const useCartStore = create((set, get) => ({
   recalculateTotals: () => {
     const items = get().items;
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-    // totalPrice will be calculated based on product price if available; otherwise we need product data.
-    // We'll just store items, and totalPrice can be updated by components via setItemPrice.
-    set({ totalItems });
+    const totalPrice = items.reduce((sum, item) => sum + Number(item.price || 0) * item.quantity, 0);
+    set({ totalItems, totalPrice });
   },
 
-  addItem: (product, quantity = 1, cardId = null) => {
+  addItem: (product, quantity = 1, variantId = null) => {
     const items = [...get().items];
     const existingIndex = items.findIndex(
-      (item) => item.productId === product.id && item.cardId === cardId
+      (item) => item.productId === product.id && item.variantId === variantId
     );
 
     if (existingIndex >= 0) {
@@ -36,7 +49,7 @@ export const useCartStore = create((set, get) => ({
     } else {
       items.push({
         productId: product.id,
-        cardId,
+        variantId,
         name: product.name,
         price: product.price,
         image: product.images?.[0] || '',
@@ -45,28 +58,28 @@ export const useCartStore = create((set, get) => ({
       });
     }
 
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    persist(items);
     set({ items });
     get().recalculateTotals();
   },
 
-  removeItem: (productId, cardId = null) => {
+  removeItem: (productId, variantId = null) => {
     const items = get().items.filter(
-      (item) => !(item.productId === productId && item.cardId === cardId)
+      (item) => !(item.productId === productId && item.variantId === variantId)
     );
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    persist(items);
     set({ items });
     get().recalculateTotals();
   },
 
-  updateQuantity: (productId, quantity, cardId = null) => {
+  updateQuantity: (productId, quantity, variantId = null) => {
     const items = get().items.map((item) => {
-      if (item.productId === productId && item.cardId === cardId) {
+      if (item.productId === productId && (item.variantId || null) === variantId) {
         return { ...item, quantity: Math.max(1, Math.min(quantity, item.maxStock || 10)) };
       }
       return item;
     });
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    persist(items);
     set({ items });
     get().recalculateTotals();
   },
@@ -77,14 +90,14 @@ export const useCartStore = create((set, get) => ({
   },
 
   // This method can be called by product detail page to update price for accurate totals
-  setItemPrice: (productId, price, cardId = null) => {
+  setItemPrice: (productId, price, variantId = null) => {
     const items = get().items.map((item) => {
-      if (item.productId === productId && item.cardId === cardId) {
+      if (item.productId === productId && (item.variantId || null) === variantId) {
         return { ...item, price };
       }
       return item;
     });
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    persist(items);
     set({ items });
     get().recalculateTotals();
   }

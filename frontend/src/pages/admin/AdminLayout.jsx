@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Users, Settings, LogOut, Menu, X, Shield,
-  BarChart3, ScrollText, Package, ClipboardList, FileText, Boxes
+  BarChart3, ScrollText, Package, ClipboardList, FileText, Boxes, Headset
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import ThemeToggle from '../../components/ThemeToggle';
@@ -15,7 +15,8 @@ const PAGE_TITLES = {
   '/admin/posts': 'Posts',
   '/admin/users': 'User Management',
   '/admin/payment-logs': 'Payment Logs',
-  '/admin/sepay-config': 'SePay Configuration'
+  '/admin/sepay-config': 'SePay Configuration',
+  '/admin/chat': 'Chat CSKH'
 };
 
 const AdminLayout = () => {
@@ -35,6 +36,7 @@ const AdminLayout = () => {
     { to: '/admin/users', label: 'User Management', icon: Users },
     { to: '/admin/payment-logs', label: 'Payment Logs', icon: ScrollText },
     { to: '/admin/sepay-config', label: 'SePay Configuration', icon: Settings },
+    { to: '/admin/chat', label: 'Chat CSKH', icon: Headset },
   ];
 
   return (

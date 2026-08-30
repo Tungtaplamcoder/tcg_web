@@ -60,7 +60,7 @@ COPY --from=deps /app/prisma ./prisma
 
 COPY --from=builder /app/src ./src
 
-RUN mkdir -p /app/uploads /app/logs && \
+RUN mkdir -p /app/uploads /app/logs /app/public/uploads && \
     chown -R nodejs:nodejs /app
 
 USER nodejs

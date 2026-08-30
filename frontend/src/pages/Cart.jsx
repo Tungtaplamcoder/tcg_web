@@ -3,14 +3,15 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Trash2, Minus, Plus, ShoppingBag, ArrowRight, Sparkles } from 'lucide-react';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { formatVND } from '../utils/format';
 
 const Cart = () => {
   const { items, totalItems, updateQuantity, removeItem, clearCart } = useCartStore();
   const { isAuthenticated } = useAuthStore();
   const navigate = useNavigate();
 
-  const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shippingFee = items.length > 0 ? 2.00 : 0;
+  const totalPrice = items.reduce((sum, item) => sum + Number(item.price || 0) * item.quantity, 0);
+  const shippingFee = items.length > 0 ? 20000 : 0; // VND
   const grandTotal = totalPrice + shippingFee;
 
   const handleCheckout = () => {
@@ -77,10 +78,10 @@ const Cart = () => {
               {/* Details */}
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-ink-900 dark:text-white truncate">{item.name}</h3>
-                <p className="text-sm text-ink-400 dark:text-ink-300 mt-0.5">${Number(item.price).toFixed(2)} each</p>
+                <p className="text-sm text-ink-400 dark:text-ink-300 mt-0.5">{formatVND(item.price)} / sản phẩm</p>
                 <div className="mt-3 inline-flex items-center rounded-lg border border-ink-200 dark:border-white/15 bg-white overflow-hidden">
                   <button
-                    onClick={() => updateQuantity(item.productId, item.quantity - 1, item.cardId)}
+                    onClick={() => updateQuantity(item.productId, item.quantity - 1, item.variantId || null)}
                     className="p-1.5 text-ink-500 dark:text-ink-300 hover:text-primary-700 hover:bg-primary-50 transition-colors"
                     aria-label="Decrease quantity"
                   >
@@ -88,7 +89,7 @@ const Cart = () => {
                   </button>
                   <span className="px-3.5 text-sm font-bold text-ink-900 dark:text-white">{item.quantity}</span>
                   <button
-                    onClick={() => updateQuantity(item.productId, item.quantity + 1, item.cardId)}
+                    onClick={() => updateQuantity(item.productId, item.quantity + 1, item.variantId || null)}
                     className="p-1.5 text-ink-500 dark:text-ink-300 hover:text-primary-700 hover:bg-primary-50 transition-colors"
                     aria-label="Increase quantity"
                   >
@@ -99,9 +100,9 @@ const Cart = () => {
 
               {/* Price and Remove */}
               <div className="text-right flex flex-col items-end gap-2.5 flex-shrink-0">
-                <p className="font-bold text-gradient-brand">${(item.price * item.quantity).toFixed(2)}</p>
+                <p className="font-bold text-gradient-brand">{formatVND(item.price * item.quantity)}</p>
                 <button
-                  onClick={() => removeItem(item.productId, item.cardId)}
+                  onClick={() => removeItem(item.productId, item.variantId || null)}
                   className="p-1.5 rounded-lg text-ink-300 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                   aria-label="Remove item"
                 >
@@ -125,17 +126,17 @@ const Cart = () => {
             <h2 className="heading-display text-lg">Order Summary</h2>
             <div className="mt-5 space-y-3 text-sm">
               <div className="flex justify-between text-ink-600 dark:text-ink-200">
-                <span>Items ({totalItems})</span>
-                <span className="font-semibold text-ink-800 dark:text-white">${totalPrice.toFixed(2)}</span>
+                <span>Sản phẩm ({totalItems})</span>
+                <span className="font-semibold text-ink-800 dark:text-white">{formatVND(totalPrice)}</span>
               </div>
               <div className="flex justify-between text-ink-600 dark:text-ink-200">
-                <span>Shipping Fee</span>
-                <span className="font-semibold text-ink-800 dark:text-white">${shippingFee.toFixed(2)}</span>
+                <span>Phí vận chuyển</span>
+                <span className="font-semibold text-ink-800 dark:text-white">{formatVND(shippingFee)}</span>
               </div>
               <div className="h-px bg-gradient-to-r from-transparent via-ink-200 to-transparent my-4" />
               <div className="flex justify-between items-baseline">
-                <span className="font-semibold text-ink-900 dark:text-white">Total</span>
-                <span className="text-2xl font-display font-bold text-gradient-brand">${grandTotal.toFixed(2)}</span>
+                <span className="font-semibold text-ink-900 dark:text-white">Tổng cộng</span>
+                <span className="text-2xl font-display font-bold text-gradient-brand">{formatVND(grandTotal)}</span>
               </div>
             </div>
             <button onClick={handleCheckout} className="btn-primary w-full mt-6">

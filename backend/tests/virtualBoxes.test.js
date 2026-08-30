@@ -15,9 +15,13 @@ const createPrismaStub = () => {
   const calls = [];
   const state = {
     boxes: [],
-    products: [{ id: '11111111-1111-1111-1111-111111111111' }, { id: '22222222-2222-2222-2222-222222222222' }],
+    products: [
+      { id: '11111111-1111-1111-1111-111111111111' },
+      { id: '22222222-2222-2222-2222-222222222222' }
+    ],
     cards: [{ id: '33333333-3333-3333-3333-333333333333' }],
-    userRole: 'ADMIN'
+    userRole: 'ADMIN',
+    appSettings: {}
   };
 
   const record = (name, args) => calls.push({ name, args });
@@ -30,7 +34,14 @@ const createPrismaStub = () => {
     const { dropRates, pool, ...scalar } = data;
     Object.assign(box, scalar);
     if (dropRates && dropRates.create) box.dropRates = dropRates.create.map((entry) => ({ id: nextId('dr'), boxId: box.id, ...entry }));
-    if (pool && pool.create) box.pool = pool.create.map((entry) => ({ id: nextId('pool'), boxId: box.id, createdAt: new Date(), ...entry }));
+    if (pool && pool.create) {
+      box.pool = pool.create.map((entry) => ({ id: nextId('pool'), boxId: box.id, createdAt: new Date(), ...entry }));
+      // Mirror into poolItems like the real controller does
+      const seen = new Set();
+      box.poolItems = box.pool
+        .filter((entry) => entry.productId && !seen.has(entry.productId) && seen.add(entry.productId))
+        .map((entry) => ({ id: nextId('poolItem'), boxId: box.id, productId: entry.productId, rarity: entry.rarity || 'COMMON' }));
+    }
     box.updatedAt = new Date();
     return box;
   };
@@ -39,14 +50,33 @@ const createPrismaStub = () => {
     ...box,
     dropRates: box.dropRates || [],
     pool: box.pool || [],
+    poolItems: box.poolItems || [],
     openings: box.openings || [],
-    _count: { pool: (box.pool || []).length, openings: (box.openings || []).length }
+    _count: { pool: (box.pool || []).length, openings: (box.openings || []).length, poolItems: (box.poolItems || []).length }
   });
 
   const stub = {
     __calls: calls,
     __state: state,
-    $transaction: async (fn) => fn(stub),
+    $transaction: async (operations) => {
+      if (typeof operations === 'function') return operations(stub);
+      return Promise.all(operations);
+    },
+    appSetting: {
+      findMany: async ({ where = {} }) => {
+        record('appSetting.findMany', where);
+        const prefix = where.key?.startsWith || 'sepay:';
+        return Object.entries(state.appSettings)
+          .filter(([key]) => key.startsWith(prefix))
+          .map(([key, value]) => ({ key, value, updatedAt: new Date() }));
+      },
+      upsert: async ({ where, update, create }) => {
+        record('appSetting.upsert', { where, update, create });
+        if (state.appSettings[where.key]) state.appSettings[where.key] = update.value;
+        else state.appSettings[create.key] = create.value;
+        return { key: where.key, value: (update || create).value, updatedAt: new Date() };
+      }
+    },
     user: {
       findUnique: async ({ where }) => {
         record('user.findUnique', where);
@@ -59,9 +89,19 @@ const createPrismaStub = () => {
       }
     },
     product: {
+      findUnique: async ({ where }) => {
+        record('product.findUnique', where);
+        return state.products.find((p) => p.id === where.id) || null;
+      },
       findMany: async ({ where }) => {
         record('product.findMany', where);
         return state.products.filter((p) => where?.id?.in?.includes(p.id)).map((p) => ({ id: p.id }));
+      },
+      create: async ({ data }) => {
+        record('product.create', data);
+        const created = { id: nextId('product'), ...data };
+        state.products.push(created);
+        return created;
       }
     },
     card: {
@@ -106,6 +146,7 @@ const createPrismaStub = () => {
           status: data.status || 'DRAFT',
           dropRates: [],
           pool: [],
+          poolItems: [],
           openings: [],
           createdAt: new Date(),
           updatedAt: new Date()
@@ -142,6 +183,20 @@ const createPrismaStub = () => {
         const box = findBox({ id: where.boxId });
         if (box) box.pool = [];
         return { count: 0 };
+      }
+    },
+    virtualBoxPoolItem: {
+      deleteMany: async ({ where }) => {
+        record('virtualBoxPoolItem.deleteMany', where);
+        const box = findBox({ id: where.boxId });
+        if (box) box.poolItems = [];
+        return { count: 0 };
+      },
+      createMany: async ({ data }) => {
+        record('virtualBoxPoolItem.createMany', data);
+        const box = findBox({ id: data[0].boxId });
+        if (box) box.poolItems = data.map((item) => ({ id: nextId('poolItem'), ...item }));
+        return { count: data.length };
       }
     }
   };
@@ -247,9 +302,22 @@ test('createVirtualBoxSchema requires drop rates to total 100%', () => {
   assert.ok(result.error.errors.some((issue) => issue.path.join('.') === 'dropRates'));
 });
 
-test('createVirtualBoxSchema rejects pool entries without productId or cardId', () => {
+test('createVirtualBoxSchema rejects pool entries without productId, cardId or name', () => {
   const result = createVirtualBoxSchema.safeParse({ ...VALID_BOX, pool: [{ rarity: 'COMMON', weight: 2 }] });
   assert.equal(result.success, false);
+});
+
+test('createVirtualBoxSchema accepts free-form pool entries with name and imageUrl', () => {
+  const result = createVirtualBoxSchema.safeParse({
+    ...VALID_BOX,
+    pool: [
+      { name: 'Charizard VMAX', imageUrl: 'https://cdn.example.com/charizard.png', rarity: 'Legendary', weight: 1 },
+      { name: 'Pikachu', rarity: 'Common' }
+    ]
+  });
+  assert.equal(result.success, true);
+  assert.equal(result.data.pool[0].weight, 1);
+  assert.equal(result.data.pool[1].name, 'Pikachu');
 });
 
 test('updateVirtualBoxSchema allows partial payloads but still validates drop rates', () => {
@@ -285,6 +353,15 @@ test('POST /virtual-boxes rejects invalid input with validation details', async 
   const fields = payload.error.details.map((detail) => detail.field);
   assert.ok(fields.includes('name'));
   assert.ok(fields.includes('price'));
+});
+
+test('POST /virtual-boxes accepts a payload without price (defaults to 0)', () => {
+  const result = createVirtualBoxSchema.safeParse({
+    name: 'Free Pool Box',
+    dropRates: [{ rarity: 'COMMON', rate: 100 }]
+  });
+  assert.equal(result.success, true);
+  assert.equal(result.data.price, 0);
 });
 
 test('POST /virtual-boxes rejects drop rates that do not total 100%', async () => {
@@ -431,4 +508,101 @@ test('non-admin roles cannot manage virtual boxes', async () => {
   const create = await request('POST', '/api/v1/admin/virtual-boxes', { body: VALID_BOX });
   assert.equal(create.status, 403);
   prismaStub.__state.userRole = 'ADMIN';
+});
+
+// ==================== CARD POOL MANAGER (name-based pool) ====================
+
+test('POST /virtual-boxes creates products for free-form pool entries and mirrors them into poolItems', async () => {
+  const { status, payload } = await request('POST', '/api/v1/admin/virtual-boxes', {
+    body: {
+      name: 'Card Pool Manager Box',
+      price: 19.99,
+      dropRates: [
+        { rarity: 'COMMON', rate: 70 },
+        { rarity: 'LEGENDARY', rate: 30 }
+      ],
+      pool: [
+        { name: 'Charizard VMAX', imageUrl: 'https://cdn.example.com/charizard.png', rarity: 'Legendary' },
+        { name: 'Pikachu', rarity: 'Common' }
+      ]
+    }
+  });
+  assert.equal(status, 201);
+  assert.equal(payload.success, true);
+  // Products created on demand for each free-form entry
+  const productCreates = prismaStub.__calls.filter((call) => call.name === 'product.create');
+  assert.equal(productCreates.length, 2);
+  assert.equal(productCreates[0].args.name, 'Charizard VMAX');
+  assert.ok(String(productCreates[0].args.slug).includes('charizard'));
+  // Pool mirrored into poolItems for the gacha opener
+  const box = prismaStub.__state.boxes.find((b) => b.name === 'Card Pool Manager Box');
+  assert.ok(box);
+  assert.equal(box.pool.length, 2);
+  assert.equal(box.poolItems.length, 2);
+  assert.equal(box.poolItems[0].rarity, 'LEGENDARY');
+  // cardPoolCount reported back equals distinct products in pool
+  assert.equal(payload.data.cardPoolCount, 2);
+});
+
+test('PUT /virtual-boxes replaces the pool and re-syncs poolItems', async () => {
+  const box = prismaStub.__state.boxes.find((b) => b.name === 'Card Pool Manager Box');
+  const { status, payload } = await request('PUT', `/api/v1/admin/virtual-boxes/${box.id}`, {
+    body: {
+      pool: [{ name: 'Mewtwo', rarity: 'Epic' }]
+    }
+  });
+  assert.equal(status, 200);
+  assert.equal(payload.success, true);
+  assert.equal(payload.data.pool.length, 1);
+  assert.equal(payload.data.poolItems.length, 1);
+  assert.equal(payload.data.poolItems[0].rarity, 'EPIC');
+  assert.equal(payload.data.cardPoolCount, 1);
+});
+
+// ==================== SEPAY SETTINGS ====================
+
+test('GET /settings/sepay returns env defaults when no DB record exists', async () => {
+  const { status, payload } = await request('GET', '/api/v1/admin/settings/sepay');
+  assert.equal(status, 200);
+  assert.equal(payload.success, true);
+  assert.equal(payload.data.source, 'env-defaults');
+  assert.equal(typeof payload.data.apiUrl, 'string');
+  assert.ok(payload.data.apiUrl.length > 0);
+});
+
+test('PUT /settings/sepay saves overrides to the database and reports source=database', async () => {
+  const { status, payload } = await request('PUT', '/api/v1/admin/settings/sepay', {
+    body: {
+      apiUrl: 'https://sepay.example.com',
+      webhookSecret: 'whsec_test_123',
+      accountNumber: '123456789',
+      accountName: 'TCG SHOP'
+    }
+  });
+  assert.equal(status, 200);
+  assert.equal(payload.success, true);
+  assert.equal(payload.data.source, 'database');
+  assert.equal(payload.data.apiUrl, 'https://sepay.example.com');
+  assert.equal(payload.data.accountNumber, '123456789');
+
+  const stored = prismaStub.__state.appSettings['sepay:accountName'];
+  assert.equal(stored, 'TCG SHOP');
+
+  const reloaded = await request('GET', '/api/v1/admin/settings/sepay');
+  assert.equal(reloaded.payload.data.source, 'database');
+  assert.equal(reloaded.payload.data.accountName, 'TCG SHOP');
+});
+
+test('PUT /settings/sepay rejects invalid payloads with validation details', async () => {
+  const { status, payload } = await request('PUT', '/api/v1/admin/settings/sepay', {
+    body: { apiUrl: 'not-a-url', webhookSecret: '', accountNumber: '', accountName: '' }
+  });
+  assert.equal(status, 400);
+  assert.equal(payload.error.code, 'VALIDATION_ERROR');
+});
+
+test('changeUserPasswordSchema only enforces the 8-character minimum', () => {
+  const { changeUserPasswordSchema } = require('../src/schemas/admin.schema');
+  assert.equal(changeUserPasswordSchema.safeParse({ newPassword: 'simplepass' }).success, true);
+  assert.equal(changeUserPasswordSchema.safeParse({ newPassword: 'short' }).success, false);
 });

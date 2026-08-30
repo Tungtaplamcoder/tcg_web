@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
+import { formatVND } from '../../utils/format';
 
 const StaffOverview = () => {
   const { user } = useAuthStore();
@@ -152,7 +153,7 @@ const StaffOverview = () => {
                   <tr key={order.id}>
                     <td className="px-4 py-2 font-mono text-xs">{order.orderCode}</td>
                     <td className="px-4 py-2 text-sm">{order.user?.fullName || order.user?.email}</td>
-                    <td className="px-4 py-2 text-sm font-medium">${Number(order.grandTotal).toFixed(2)}</td>
+                    <td className="px-4 py-2 text-sm font-medium">{formatVND(order.grandTotal)}</td>
                     <td className="px-4 py-2 text-sm text-gray-500">
                       {new Date(order.createdAt).toLocaleString()}
                     </td>

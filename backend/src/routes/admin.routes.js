@@ -13,7 +13,8 @@ const {
   createPostSchema, updatePostSchema, listPostsQuerySchema,
   updateOrderStatusSchema, listOrdersQuerySchema, reconcilePaymentSchema, listPaymentLogsQuerySchema,
   listUsersQuerySchema,
-  createVirtualBoxSchema, updateVirtualBoxSchema, listVirtualBoxesQuerySchema
+  createVirtualBoxSchema, updateVirtualBoxSchema, listVirtualBoxesQuerySchema,
+  sepaySettingsSchema
 } = require('../schemas/admin.schema');
 
 const upload = multer({
@@ -81,5 +82,9 @@ router.post('/payments/reconcile', apiLimiter, authorize('ADMIN'), validate(reco
 
 // ==================== DASHBOARD ====================
 router.get('/dashboard/stats', apiLimiter, authorize(...managementRoles), adminController.getDashboardStats);
+
+// ==================== SETTINGS (ADMIN ONLY) ====================
+router.get('/settings/sepay', apiLimiter, authorize('ADMIN'), adminController.getSepaySettings);
+router.put('/settings/sepay', apiLimiter, authorize('ADMIN'), validate(sepaySettingsSchema), adminController.updateSepaySettings);
 
 module.exports = router;

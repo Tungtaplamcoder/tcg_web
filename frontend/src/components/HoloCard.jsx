@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ShieldCheck, Sparkles } from 'lucide-react';
 import TiltCard from './TiltCard';
 import ProductImage from './ProductImage';
-import RarityBadge, { resolveRarity } from './RarityBadge';
+import CategoryBadge from './CategoryBadge';
 import { formatVND } from '../utils/format';
 
 const getMinPrice = (product) => {
@@ -21,21 +21,24 @@ const getStock = (product) => {
 
 /**
  * HoloCard — premium product card. The artwork sits on a TiltCard with
- * mouse-reactive rainbow foil + specular glare; chase rarities get an
- * ambient aura glow, and sealed boxes carry a holographic security seal.
+ * mouse-reactive rainbow foil + specular glare; boxes carry a holographic
+ * security seal and a foil BOX/CARD category badge.
  */
 const HoloCard = ({ product, sealed = false, className = '' }) => {
   const price = getMinPrice(product);
   const stock = getStock(product);
   const inStock = stock > 0;
   const image = product.images && product.images.length > 0 ? product.images[0] : null;
-  const rarityMeta = resolveRarity(product.rarity);
-  const isChase = !!(rarityMeta && rarityMeta.foil);
+  const rarityKey = String(product.rarity || '').toLowerCase();
+  const isChase = rarityKey.includes('secret') || rarityKey.includes('rainbow') ||
+    rarityKey.includes('illustration') || rarityKey.includes('hyper') ||
+    rarityKey.includes('ultra') || rarityKey.includes('special') ||
+    rarityKey.includes('holo');
 
   return (
     <Link
       to={`/product/${product.id}`}
-      className={`group relative block rounded-3xl p-2 glass-panel transition-all duration-500 hover:-translate-y-1.5 hover:shadow-card-hover dark:hover:shadow-[0_24px_60px_-12px_rgba(34,211,238,0.28)] ${className}`}
+      className={`group relative block rounded-3xl p-2 glass-panel transition-all duration-500 hover:-translate-y-1.5 hover:shadow-card-hover dark:bg-white/5 dark:border-white/10 dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] dark:hover:shadow-[0_24px_60px_-12px_rgba(34,211,238,0.28)] ${className}`}
     >
       {/* Ambient aura behind chase-rarity cards */}
       <div
@@ -56,9 +59,9 @@ const HoloCard = ({ product, sealed = false, className = '' }) => {
         foil={isChase}
         spotlight
       >
-        {/* Rarity + security seal — lifted on the Z axis for parallax pop */}
+        {/* Binary category badge — BOX or CARD — lifted on the Z axis for parallax pop */}
         <div className="absolute top-3 left-3 z-20 flex flex-col gap-1.5" style={{ transform: 'translateZ(46px)' }}>
-          <RarityBadge rarity={product.rarity} />
+          <CategoryBadge category={product.category} rarity={product.rarity} />
         </div>
         {sealed && (
           <span
@@ -91,7 +94,7 @@ const HoloCard = ({ product, sealed = false, className = '' }) => {
           {product.shortName || product.name}
         </h3>
         <div className="mt-2 flex items-center justify-center gap-2">
-          <span className="text-lg font-bold bg-gradient-to-r from-fuchsia-600 via-violet-500 to-cyan-500 bg-clip-text text-transparent">
+          <span className="text-lg font-bold bg-gradient-to-r from-fuchsia-600 via-violet-500 to-cyan-500 dark:from-pink-400 dark:via-purple-400 dark:to-fuchsia-400 bg-clip-text text-transparent">
             {price !== null ? formatVND(price) : 'Contact us'}
           </span>
           <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${inStock ? 'text-emerald-700 bg-emerald-50 dark:bg-emerald-400/10 dark:text-emerald-300' : 'text-rose-600 bg-rose-50 dark:bg-rose-400/10 dark:text-rose-300'}`}>

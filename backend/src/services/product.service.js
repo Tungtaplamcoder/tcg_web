@@ -1,5 +1,6 @@
 const prisma = require('../config/prisma');
 const { NotFoundError, AppError } = require('../utils/errors');
+const { PRODUCT_CATEGORIES, resolveProductCategoryKey } = require('../constants/productCategories');
 
 const buildProductWhere = (query) => {
   const where = { status: 'ACTIVE' };
@@ -11,6 +12,12 @@ const buildProductWhere = (query) => {
       { description: { contains: query.search, mode: 'insensitive' } },
       { cardNumber: { contains: query.search, mode: 'insensitive' } }
     ];
+  }
+
+  if (query.category) {
+    const key = resolveProductCategoryKey(query.category);
+    if (!key) throw new AppError('Category filter must be either "Box" or "Card"', 400, 'VALIDATION_ERROR');
+    where.category = { slug: PRODUCT_CATEGORIES[key].slug };
   }
 
   if (query.set) {
@@ -43,6 +50,7 @@ const listProducts = async (query) => {
       orderBy: { createdAt: 'desc' },
       include: {
         sets: { select: { id: true, name: true, slug: true } },
+        category: { select: { id: true, name: true, slug: true } },
         variants: {
           where: { status: 'ACTIVE' },
           select: { id: true, condition: true, variant: true, price: true, stockQuantity: true }

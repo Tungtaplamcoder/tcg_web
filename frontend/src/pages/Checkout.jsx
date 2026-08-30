@@ -4,6 +4,7 @@ import { AlertCircle, Loader2, ExternalLink, MapPin, ChevronDown, ShieldCheck, L
 import api from '../services/api';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { formatVND } from '../utils/format';
 import provincesData from '../province.json';
 import wardsData from '../ward.json';
 
@@ -40,8 +41,8 @@ const Checkout = () => {
     };
   }, []);
 
-  const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shippingFee = items.length > 0 ? 2.0 : 0;
+  const totalPrice = items.reduce((sum, item) => sum + Number(item.price || 0) * item.quantity, 0);
+  const shippingFee = items.length > 0 ? 20000 : 0; // VND
   const grandTotal = totalPrice + shippingFee;
 
   useEffect(() => {
@@ -79,6 +80,8 @@ const Checkout = () => {
   const validate = () => {
     if (!selectedProvince) { setError('Vui lòng chọn Tỉnh/Thành phố.'); return false; }
     if (!selectedWard) { setError('Vui lòng chọn Phường/Xã/Thị trấn.'); return false; }
+    if (!shippingAddress.fullName.trim()) { setError('Vui lòng nhập họ tên người nhận.'); return false; }
+    if (!shippingAddress.phone.trim()) { setError('Vui lòng nhập số điện thoại.'); return false; }
     if (!shippingAddress.addressLine1.trim()) { setError('Vui lòng nhập địa chỉ cụ thể (số nhà, đường...).'); return false; }
     return true;
   };
@@ -93,6 +96,7 @@ const Checkout = () => {
     try {
       const checkoutItems = items.map((item) => ({
         productId: item.productId,
+        variantId: item.variantId || undefined,
         cardId: item.cardId || undefined,
         quantity: item.quantity
       }));
@@ -101,13 +105,18 @@ const Checkout = () => {
       const ward = filteredWards.find(w => w.code === selectedWard);
 
       const addressPayload = {
-        ...shippingAddress,
+        fullName: shippingAddress.fullName.trim(),
+        phone: shippingAddress.phone.trim(),
+        addressLine1: shippingAddress.addressLine1.trim(),
+        addressLine2: shippingAddress.addressLine2.trim(),
+        country: 'Vietnam',
+        zipCode: '',
         provinceCode: selectedProvince,
         wardCode: selectedWard,
         provinceName: province?.name_with_type || province?.name,
         wardName: ward?.name_with_type || ward?.name,
-        city: province?.name || '',
-        state: ward?.name || ''
+        city: province?.name_with_type || province?.name || '',
+        state: ward?.name_with_type || ward?.name || ''
       };
 
       const response = await api.post('/orders/checkout', {
@@ -125,7 +134,13 @@ const Checkout = () => {
       startPolling(data.order.id);
     } catch (err) {
       console.error('Checkout error:', err.response?.status, err.response?.data?.error?.message || err.message);
-      setError(err.response?.data?.error?.message || 'Không thể tạo đơn hàng.');
+      const apiMessage = err.response?.data?.error?.message;
+      const detail = err.response?.data?.error?.details?.map((d) => d.message).join('; ');
+      setError(
+        apiMessage
+          ? (detail ? `${apiMessage} (${detail})` : apiMessage)
+          : 'Không thể tạo đơn hàng. Vui lòng thử lại.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -164,8 +179,11 @@ const Checkout = () => {
     pollingIntervalRef.current = interval;
   };
 
-  if (orderData && orderData.payment?.checkoutUrl && orderData.payment?.formFields) {
-    const { checkoutUrl, formFields, amount, transferContent } = orderData.payment;
+  // Đơn đã tạo thành công — hiển thị bước thanh toán SePay.
+  // Nếu backend/SePay không sinh được checkoutUrl thì fallback sang màn hình
+  // chuyển khoản thủ công (QR/mã đơn) thay vì crash.
+  if (orderData) {
+    const { checkoutUrl, formFields, amount, transferContent } = orderData.payment || {};
 
     return (
       <div className="relative overflow-hidden max-w-2xl mx-auto px-4 py-12 animate-tcg-reveal">
@@ -189,7 +207,7 @@ const Checkout = () => {
             <div className="flex justify-between items-center">
               <span className="text-ink-500 dark:text-ink-300">Số tiền (VND)</span>
               <span className="font-display font-bold text-xl text-gradient-brand">
-                {Number(amount).toLocaleString('vi-VN')} ₫
+                {formatVND(amount ?? orderData.order.grandTotal)}
               </span>
             </div>
             {transferContent && (
@@ -208,19 +226,27 @@ const Checkout = () => {
               </div>
             )}
 
-            <form id="sepay-checkout-form" action={checkoutUrl} method="POST" className="hidden">
-              {Object.entries(formFields).map(([key, value]) => (
-                <input key={key} type="hidden" name={key} value={value} />
-              ))}
-            </form>
+            {checkoutUrl && formFields ? (
+              <>
+                <form id="sepay-checkout-form" action={checkoutUrl} method="POST" className="hidden">
+                  {Object.entries(formFields).map(([key, value]) => (
+                    <input key={key} type="hidden" name={key} value={value} />
+                  ))}
+                </form>
 
-            <button
-              onClick={() => document.getElementById('sepay-checkout-form').submit()}
-              className="btn-primary w-full sm:w-auto"
-            >
-              <ExternalLink className="h-5 w-5" />
-              Thanh toán ngay
-            </button>
+                <button
+                  onClick={() => document.getElementById('sepay-checkout-form').submit()}
+                  className="btn-primary w-full sm:w-auto"
+                >
+                  <ExternalLink className="h-5 w-5" />
+                  Thanh toán ngay
+                </button>
+              </>
+            ) : (
+              <div className="w-full rounded-2xl bg-amber-50 dark:bg-amber-500/10 ring-1 ring-amber-200 dark:ring-amber-500/30 p-4 text-sm text-amber-700 dark:text-amber-300">
+                Không tạo được phiên thanh toán SePay từ hệ thống. Đơn hàng <span className="font-mono font-semibold">{orderData.order.orderCode}</span> đã được ghi nhận — bạn có thể thanh toán bằng chuyển khoản với nội dung ở trên, hoặc thử lại sau.
+              </div>
+            )}
 
             <p className="flex items-center gap-1.5 text-xs text-ink-400 dark:text-ink-300 mt-1">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
@@ -341,13 +367,10 @@ const Checkout = () => {
               />
             </div>
 
-            <input type="hidden" name="country" value={shippingAddress.country} />
-            <input type="hidden" name="zipCode" value={shippingAddress.zipCode} />
-
             {error && (
-              <div className="flex items-center gap-2.5 p-4 rounded-xl bg-rose-50 text-rose-600 ring-1 ring-rose-200 text-sm font-medium animate-tcg-scale-in">
-                <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                {error}
+              <div className="flex items-start gap-2.5 p-4 rounded-xl bg-rose-50 text-rose-600 ring-1 ring-rose-200 text-sm font-medium animate-tcg-scale-in">
+                <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                <span>{error}</span>
               </div>
             )}
 
@@ -378,16 +401,16 @@ const Checkout = () => {
             <div className="mt-5 space-y-3 text-sm">
               <div className="flex justify-between text-ink-600 dark:text-ink-200">
                 <span>Sản phẩm ({totalItems})</span>
-                <span className="font-semibold text-ink-800 dark:text-white">${totalPrice.toFixed(2)}</span>
+                <span className="font-semibold text-ink-800 dark:text-white">{formatVND(totalPrice)}</span>
               </div>
               <div className="flex justify-between text-ink-600 dark:text-ink-200">
                 <span>Phí vận chuyển</span>
-                <span className="font-semibold text-ink-800 dark:text-white">${shippingFee.toFixed(2)}</span>
+                <span className="font-semibold text-ink-800 dark:text-white">{formatVND(shippingFee)}</span>
               </div>
               <div className="h-px bg-gradient-to-r from-transparent via-ink-200 to-transparent my-4" />
               <div className="flex justify-between items-baseline">
                 <span className="font-semibold text-ink-900 dark:text-white">Tổng cộng</span>
-                <span className="text-2xl font-display font-bold text-gradient-brand">${grandTotal.toFixed(2)}</span>
+                <span className="text-2xl font-display font-bold text-gradient-brand">{formatVND(grandTotal)}</span>
               </div>
             </div>
 
@@ -397,7 +420,7 @@ const Checkout = () => {
                 {items.map((item, idx) => (
                   <li key={idx} className="flex justify-between gap-3 text-sm">
                     <span className="text-ink-600 dark:text-ink-200 truncate">{item.name} <span className="text-ink-400 dark:text-ink-300">x {item.quantity}</span></span>
-                    <span className="font-semibold text-ink-800 dark:text-white flex-shrink-0">${(item.price * item.quantity).toFixed(2)}</span>
+                    <span className="font-semibold text-ink-800 dark:text-white flex-shrink-0">{formatVND(item.price * item.quantity)}</span>
                   </li>
                 ))}
               </ul>

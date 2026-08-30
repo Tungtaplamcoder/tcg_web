@@ -6,7 +6,15 @@ const vndFormatter = new Intl.NumberFormat('vi-VN', {
   maximumFractionDigits: 0
 });
 
+// 21.574.990 ₫ — chuẩn Việt Nam (dấu chấm ngăn cách hàng nghìn, hậu tố ₫)
 export const formatVND = (amount) => vndFormatter.format(Number(amount) || 0);
+
+// Bản không hậu tố: 21.574.990 (dùng cho bảng biểu, cột chật hẹp)
+const vndNumberFormatter = new Intl.NumberFormat('vi-VN', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0
+});
+export const formatVNDNumber = (amount) => vndNumberFormatter.format(Number(amount) || 0);
 
 const pointsFormatter = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 0,
@@ -15,11 +23,12 @@ const pointsFormatter = new Intl.NumberFormat('en-US', {
 
 export const formatPoints = (amount) => pointsFormatter.format(Number(amount) || 0);
 
-// Lấy tỷ giá từ localStorage hoặc dùng mặc định 25,400
+// Tỷ giá USD -> VND dùng cho giá thị trường TCGPlayer (nguồn USD).
+// Lấy từ localStorage hoặc dùng mặc định 25.400.
 const savedRate = localStorage.getItem('USD_TO_VND_RATE');
 export let USD_TO_VND_RATE = savedRate ? Number(savedRate) : 25400;
 
-// Tiến trình chạy ngầm (Background Task) kiểm tra & cập nhật tỷ giá tự động 1 tháng/lần
+// Tiến trình chạy ngầm kiểm tra & cập nhật tỷ giá tự động 1 tháng/lần
 (async () => {
   const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
   const lastFetch = localStorage.getItem('USD_TO_VND_LAST_FETCH');

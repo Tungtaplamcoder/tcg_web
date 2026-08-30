@@ -77,8 +77,8 @@ const setupSocket = (httpServer) => {
     // Join personal room
     socket.join(`user:${userId}`);
 
-    // If admin/moderator, join admin rooms
-    if (socket.user.role === 'ADMIN' || socket.user.role === 'MODERATOR') {
+    // If admin/staff/moderator, join admin rooms for CSKH notifications
+    if (['ADMIN', 'STAFF', 'MODERATOR'].includes(socket.user.role)) {
       socket.join('admin:chat');
     }
 
@@ -95,9 +95,9 @@ const setupSocket = (httpServer) => {
         });
         if (!room) return socket.emit('chat:error', { code: 'ROOM_NOT_FOUND', message: 'Room not found' });
 
-        const isAdmin = socket.user.role === 'ADMIN' || socket.user.role === 'MODERATOR';
+        const isStaff = ['ADMIN', 'STAFF', 'MODERATOR'].includes(socket.user.role);
         const isParticipant = room.participants.some(p => p.userId === userId);
-        if (!isAdmin && !isParticipant) {
+        if (!isStaff && !isParticipant) {
           return socket.emit('chat:error', { code: 'UNAUTHORIZED', message: 'Not participant of this room' });
         }
 
@@ -128,9 +128,9 @@ const setupSocket = (httpServer) => {
         });
         if (!room) return socket.emit('chat:error', { code: 'ROOM_NOT_FOUND', message: 'Room not found' });
 
-        const isAdmin = socket.user.role === 'ADMIN' || socket.user.role === 'MODERATOR';
+        const isStaff = ['ADMIN', 'STAFF', 'MODERATOR'].includes(socket.user.role);
         const isParticipant = room.participants.some(p => p.userId === userId);
-        if (!isAdmin && !isParticipant) return socket.emit('chat:error', { code: 'UNAUTHORIZED', message: 'Not participant' });
+        if (!isStaff && !isParticipant) return socket.emit('chat:error', { code: 'UNAUTHORIZED', message: 'Not participant' });
 
         const message = await prisma.chatMessage.create({
           data: {

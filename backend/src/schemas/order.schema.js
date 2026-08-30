@@ -2,6 +2,7 @@ const { z } = require('zod');
 
 const checkoutItemSchema = z.object({
   productId: z.string().uuid().optional(),
+  variantId: z.string().uuid().optional(),
   cardId: z.string().uuid().optional(),
   quantity: z.number().int().min(1).max(10).default(1)
 }).refine((data) => data.productId || data.cardId, {

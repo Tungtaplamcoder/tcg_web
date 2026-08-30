@@ -11,6 +11,7 @@ const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [toast, setToast] = useState(null);
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ totalPages: 1 });
   const [search, setSearch] = useState('');
@@ -19,6 +20,11 @@ const UserManagement = () => {
   const [processingId, setProcessingId] = useState(null);
   const [passwordModal, setPasswordModal] = useState(null); // user object để mở modal đổi mk
   const [newPassword, setNewPassword] = useState('');
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -111,7 +117,7 @@ const UserManagement = () => {
   const handleChangePassword = async () => {
     if (!passwordModal) return;
     if (newPassword.length < 8) {
-      alert('Password must be at least 8 characters.');
+      setError('Password must be at least 8 characters.');
       return;
     }
     setProcessingId(passwordModal.id);
@@ -120,9 +126,11 @@ const UserManagement = () => {
       await api.patch(`/admin/users/${passwordModal.id}/password`, { newPassword });
       setPasswordModal(null);
       setNewPassword('');
+      showToast(`Đã đổi mật khẩu cho ${passwordModal.email}.`);
     } catch (err) {
       console.error('Failed to change password:', err);
-      setError('Failed to change password.');
+      const detail = err.response?.data?.error?.details?.map((d) => d.message).join('. ');
+      setError(detail || err.response?.data?.error?.message || 'Failed to change password.');
     } finally {
       setProcessingId(null);
     }
@@ -185,6 +193,13 @@ const UserManagement = () => {
         <div className="p-3 bg-red-50 text-red-600 rounded-lg flex items-center">
           <AlertCircle className="h-5 w-5 mr-2" />
           {error}
+        </div>
+      )}
+
+      {toast && (
+        <div className="p-3 bg-green-50 text-green-700 rounded-lg flex items-center">
+          <CheckCircle2 className="h-5 w-5 mr-2" />
+          {toast.message}
         </div>
       )}
 
