@@ -87,7 +87,8 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['"Space Grotesk"', 'Inter', 'system-ui', 'sans-serif']
+        display: ['"Space Grotesk"', 'Inter', 'system-ui', 'sans-serif'],
+        script: ['Caveat', 'cursive']
       },
       letterSpacing: {
         tightest: '-0.04em'
@@ -145,6 +146,10 @@ export default {
         'tcg-float': {
           '0%, 100%': { transform: 'translate3d(0, 0, 0) scale(1)' },
           '50%': { transform: 'translate3d(0, -22px, 0) scale(1.06)' }
+        },
+        'tcg-bob': {
+          '0%, 100%': { transform: 'translate3d(0, 0, 0)' },
+          '50%': { transform: 'translate3d(0, -6px, 0)' }
         }
       },
       animation: {
@@ -156,7 +161,8 @@ export default {
         'reveal-up': 'reveal-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both',
         'scale-in': 'scale-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both',
         'fade-in': 'fade-in 0.2s ease-out both',
-        'tcg-float': 'tcg-float 7s ease-in-out infinite'
+        'tcg-float': 'tcg-float 7s ease-in-out infinite',
+        'tcg-bob': 'tcg-bob 3.4s ease-in-out infinite'
       }
     }
   },

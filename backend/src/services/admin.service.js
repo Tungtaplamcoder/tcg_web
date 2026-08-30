@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const { PRODUCT_CATEGORY_ENUM } = require('../constants/productCategories');
 
 // ==================== USER SCHEMAS ====================
 
@@ -29,7 +30,7 @@ const createProductSchema = z.object({
   name: z.string().min(2).max(200),
   slug: z.string().min(2).max(200).optional(),
   description: z.string().optional(),
-  categoryId: z.string().uuid().optional(),
+  category: z.enum(PRODUCT_CATEGORY_ENUM).optional(), // Binary: Box (Sealed Boxes) or Card (Single Cards)
   setId: z.string().uuid().optional(),
   cardNumber: z.string().optional(),
   rarity: z.string().optional(),

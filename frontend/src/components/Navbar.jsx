@@ -46,6 +46,7 @@ const Navbar = () => {
   const navLinks = [
     { to: '/', label: 'Home' },
     { to: '/catalog', label: 'Catalog' },
+    { to: '/virtual-boxes', label: 'Virtual Boxes' },
     { to: '/news', label: 'News' },
     { to: '/order-lookup', label: 'Order Lookup' }
   ];

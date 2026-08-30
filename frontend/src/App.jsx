@@ -20,6 +20,7 @@ import Register from './pages/Register.jsx';
 import OrderHistory from './pages/OrderHistory.jsx';
 import NewsList from './pages/NewsList.jsx';
 import NewsDetail from './pages/NewsDetail.jsx';
+import VirtualBoxesPage from './pages/storefront/VirtualBoxesPage.jsx';
 
 // Staff pages
 import StaffLayout from './pages/staff/StaffLayout.jsx';
@@ -37,6 +38,7 @@ import AnalyticsDashboard from './pages/admin/AnalyticsDashboard.jsx';
 import UserManagement from './pages/admin/UserManagement.jsx';
 import PaymentLogAudit from './pages/admin/PaymentLogAudit.jsx';
 import SePayConfig from './pages/admin/SePayConfig.jsx';
+import VirtualBoxes from './pages/admin/VirtualBoxes.jsx';
 
 function App() {
   return (
@@ -58,6 +60,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/news" element={<NewsList />} />
           <Route path="/news/:id" element={<NewsDetail />} />
+          <Route path="/virtual-boxes" element={<VirtualBoxesPage />} />
 
           {/* Customer routes */}
           <Route element={<ProtectedRoute allowedRoles={['CUSTOMER', 'STAFF', 'ADMIN']} />}>
@@ -84,6 +87,7 @@ function App() {
               <Route index element={<AnalyticsDashboard />} />
               <Route path="orders" element={<OrderManagement />} />
               <Route path="inventory" element={<InventoryManager />} />
+              <Route path="virtual-boxes" element={<VirtualBoxes />} />
               <Route path="categories" element={<CategoryManagement />} />
               <Route path="sets" element={<SetManagement />} />
               <Route path="posts" element={<PostEditor />} />

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Users, Settings, LogOut, Menu, X, Shield,
-  BarChart3, ScrollText, Package, ClipboardList, FileText, Tags
+  BarChart3, ScrollText, Package, ClipboardList, FileText, Boxes
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import ThemeToggle from '../../components/ThemeToggle';
@@ -11,7 +11,7 @@ const PAGE_TITLES = {
   '/admin': 'Dashboard',
   '/admin/orders': 'Orders',
   '/admin/inventory': 'Inventory',
-  '/admin/sets': 'Sản phẩm',
+  '/admin/virtual-boxes': 'Virtual Boxes',
   '/admin/posts': 'Posts',
   '/admin/users': 'User Management',
   '/admin/payment-logs': 'Payment Logs',
@@ -30,7 +30,7 @@ const AdminLayout = () => {
     { to: '/admin', label: 'Dashboard', icon: BarChart3, end: true },
     { to: '/admin/orders', label: 'Orders', icon: ClipboardList },
     { to: '/admin/inventory', label: 'Inventory', icon: Package },
-    { to: '/admin/sets', label: 'Sản phẩm', icon: Tags },
+    { to: '/admin/virtual-boxes', label: 'Virtual Boxes', icon: Boxes },
     { to: '/admin/posts', label: 'Posts', icon: FileText },
     { to: '/admin/users', label: 'User Management', icon: Users },
     { to: '/admin/payment-logs', label: 'Payment Logs', icon: ScrollText },

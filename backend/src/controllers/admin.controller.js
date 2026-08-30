@@ -2,8 +2,25 @@ const bcrypt = require('bcryptjs');
 const prisma = require('../config/prisma');
 const { NotFoundError, ConflictError, AppError } = require('../utils/errors');
 const imageService = require('../services/image.service');
+const { PRODUCT_CATEGORIES, resolveProductCategoryKey } = require('../constants/productCategories');
 
 const slugify = (text) => text.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+// Resolve the binary product category (BOX | CARD) to a Category row id,
+// creating the canonical Box/Card category if it does not exist yet.
+const resolveCategoryId = async (categoryKey) => {
+  const key = resolveProductCategoryKey(categoryKey);
+  if (!key) {
+    throw new AppError('Category must be either "Box" (Sealed Boxes) or "Card" (Single Cards)', 400, 'VALIDATION_ERROR');
+  }
+  const def = PRODUCT_CATEGORIES[key];
+  const category = await prisma.category.upsert({
+    where: { slug: def.slug },
+    update: {},
+    create: { name: def.name, slug: def.slug, description: def.description, isActive: true }
+  });
+  return category.id;
+};
 
 // ==================== USER MANAGEMENT ====================
 
@@ -87,12 +104,27 @@ const changeUserPassword = async (req, res, next) => {
 
 const listProducts = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, search, status, setId } = req.query;
+    const { page = 1, limit = 20, search, status, setId, categoryId, category } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
     const take = Number(limit);
     const where = {};
     if (status) where.status = status;
     if (setId) where.sets = { some: { id: setId } };
+    if (category) {
+      const key = resolveProductCategoryKey(category);
+      if (!key) throw new AppError('Category filter must be either "Box" or "Card"', 400, 'VALIDATION_ERROR');
+      const existing = await prisma.category.findUnique({ where: { slug: PRODUCT_CATEGORIES[key].slug }, select: { id: true } });
+      if (!existing) {
+        return res.status(200).json({
+          success: true,
+          data: { items: [], meta: { page: Number(page), limit: take, totalItems: 0, totalPages: 0 } },
+          message: 'Products retrieved'
+        });
+      }
+      where.categoryId = existing.id;
+    } else if (categoryId) {
+      where.categoryId = categoryId;
+    }
     if (search) where.OR = [
       { name: { contains: search, mode: 'insensitive' } },
       { shortName: { contains: search, mode: 'insensitive' } },
@@ -103,7 +135,7 @@ const listProducts = async (req, res, next) => {
     const [items, totalItems] = await Promise.all([
       prisma.product.findMany({
         where, skip, take, orderBy: { createdAt: 'desc' },
-        include: { sets: true, variants: true }
+        include: { sets: true, variants: true, category: true }
       }),
       prisma.product.count({ where })
     ]);
@@ -119,12 +151,15 @@ const createProduct = async (req, res, next) => {
     const existing = await prisma.product.findUnique({ where: { slug } });
     if (existing) throw new ConflictError('Slug already exists');
 
-    const { variants, setIds, shortName, backImage, tcgplayerId, ...restData } = data;
+    // Resolve the binary category (Box | Card) to its Category row
+    const { variants, setIds, shortName, backImage, tcgplayerId, category, ...restData } = data;
+    const resolvedCategoryId = await resolveCategoryId(category);
 
     const product = await prisma.product.create({
       data: {
         ...restData,
         slug,
+        categoryId: resolvedCategoryId,
         shortName: shortName || null,
         backImage: backImage || null,
         tcgplayerId: tcgplayerId || null,
@@ -140,7 +175,7 @@ const createProduct = async (req, res, next) => {
           }
         })
       },
-      include: { variants: true, sets: true }
+      include: { variants: true, sets: true, category: true }
     });
 
     res.status(201).json({ success: true, data: product, message: 'Product created' });
@@ -162,7 +197,12 @@ const updateProduct = async (req, res, next) => {
       if (existing && existing.id !== id) throw new ConflictError('Slug already exists');
     }
 
-    const { variants, setIds, shortName, backImage, tcgplayerId, ...restData } = data;
+    const { variants, setIds, shortName, backImage, tcgplayerId, category, ...restData } = data;
+
+    // Resolve the binary category (Box | Card) if it is being changed
+    const resolvedCategoryId = (category !== undefined && category !== null)
+      ? await resolveCategoryId(category)
+      : product.categoryId;
 
     // Xử lý variants: xóa cũ, tạo mới (đơn giản và an toàn)
     await prisma.productVariant.deleteMany({ where: { productId: id } });
@@ -170,6 +210,7 @@ const updateProduct = async (req, res, next) => {
     const updateData = {
       ...restData,
       slug,
+      categoryId: resolvedCategoryId,
       shortName: shortName !== undefined ? (shortName || null) : product.shortName,
       backImage: backImage !== undefined ? (backImage || null) : product.backImage,
       tcgplayerId: tcgplayerId !== undefined ? (tcgplayerId || null) : product.tcgplayerId,
@@ -196,7 +237,7 @@ const updateProduct = async (req, res, next) => {
       });
     }
 
-    const updated = await prisma.product.findUnique({ where: { id }, include: { variants: true, sets: true } });
+    const updated = await prisma.product.findUnique({ where: { id }, include: { variants: true, sets: true, category: true } });
     res.status(200).json({ success: true, data: updated, message: 'Product updated' });
   } catch (error) { next(error); }
 };
@@ -210,6 +251,79 @@ const deleteProduct = async (req, res, next) => {
     await prisma.productVariant.deleteMany({ where: { productId: id } });
     await prisma.product.delete({ where: { id } });
     res.status(200).json({ success: true, message: 'Product deleted permanently' });
+  } catch (error) { next(error); }
+};
+
+// ==================== CATEGORY MANAGEMENT ====================
+
+const listAdminCategories = async (req, res, next) => {
+  try {
+    const { activeOnly } = req.query;
+    const where = {};
+    if (activeOnly !== 'false') where.isActive = true;
+    const categories = await prisma.category.findMany({
+      where,
+      orderBy: { name: 'asc' },
+      include: { _count: { select: { products: true } } }
+    });
+    res.status(200).json({ success: true, data: categories, message: 'Categories retrieved' });
+  } catch (error) { next(error); }
+};
+
+const createCategory = async (req, res, next) => {
+  try {
+    const { name, slug, description, imageUrl, isActive } = req.body;
+    const finalSlug = slug || slugify(name);
+    const existing = await prisma.category.findUnique({ where: { slug: finalSlug } });
+    if (existing) throw new ConflictError('Category slug already exists');
+    const category = await prisma.category.create({
+      data: {
+        name,
+        slug: finalSlug,
+        description: description || null,
+        imageUrl: imageUrl || null,
+        isActive: isActive ?? true
+      }
+    });
+    res.status(201).json({ success: true, data: category, message: 'Category created' });
+  } catch (error) { next(error); }
+};
+
+const updateCategory = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name, slug, description, imageUrl, isActive } = req.body;
+    const category = await prisma.category.findUnique({ where: { id } });
+    if (!category) throw new NotFoundError('Category not found');
+
+    const data = {};
+    if (name !== undefined) data.name = name;
+    if (slug !== undefined) data.slug = slug;
+    if (description !== undefined) data.description = description;
+    if (imageUrl !== undefined) data.imageUrl = imageUrl || null;
+    if (isActive !== undefined) data.isActive = isActive;
+
+    const updated = await prisma.category.update({ where: { id }, data });
+    res.status(200).json({ success: true, data: updated, message: 'Category updated' });
+  } catch (error) { next(error); }
+};
+
+const deleteCategory = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const category = await prisma.category.findUnique({
+      where: { id },
+      include: { _count: { select: { products: true } } }
+    });
+    if (!category) throw new NotFoundError('Category not found');
+
+    // Block deletion if the category still contains products (prevents orphaned products)
+    if (category._count.products > 0) {
+      throw new ConflictError('Cannot delete category because it still contains products. Reassign or delete those products first.');
+    }
+
+    await prisma.category.delete({ where: { id } });
+    res.status(200).json({ success: true, message: 'Category deleted' });
   } catch (error) { next(error); }
 };
 
@@ -570,15 +684,170 @@ const getChatRoomMessages = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+// ==================== VIRTUAL BOX MANAGEMENT ====================
+
+const assertVirtualBoxReferences = async (pool) => {
+  if (!pool || pool.length === 0) return;
+  const productIds = [...new Set(pool.filter((entry) => entry.productId).map((entry) => entry.productId))];
+  const cardIds = [...new Set(pool.filter((entry) => entry.cardId).map((entry) => entry.cardId))];
+  const [products, cards] = await Promise.all([
+    productIds.length > 0 ? prisma.product.findMany({ where: { id: { in: productIds } }, select: { id: true } }) : Promise.resolve([]),
+    cardIds.length > 0 ? prisma.card.findMany({ where: { id: { in: cardIds } }, select: { id: true } }) : Promise.resolve([])
+  ]);
+  const existingProducts = new Set(products.map((p) => p.id));
+  const existingCards = new Set(cards.map((c) => c.id));
+  const missing = [
+    ...productIds.filter((id) => !existingProducts.has(id)),
+    ...cardIds.filter((id) => !existingCards.has(id))
+  ];
+  if (missing.length > 0) {
+    throw new AppError(`Unknown product/card references: ${missing.join(', ')}`, 400, 'VALIDATION_ERROR');
+  }
+};
+
+const mapVirtualBoxPoolPayload = (pool) => pool.map((entry) => ({
+  productId: entry.productId || null,
+  cardId: entry.cardId || null,
+  rarity: entry.rarity || null,
+  weight: Number(entry.weight) || 1
+}));
+
+const virtualBoxInclude = {
+  dropRates: { orderBy: { rate: 'desc' } },
+  pool: {
+    orderBy: { weight: 'desc' },
+    include: {
+      product: { select: { id: true, name: true, shortName: true, rarity: true } },
+      card: { select: { id: true, sku: true, condition: true, status: true } }
+    }
+  }
+};
+
+const listVirtualBoxes = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20, status, search } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+    const take = Number(limit);
+    const where = {};
+    if (status) where.status = status;
+    if (search) where.OR = [
+      { name: { contains: search, mode: 'insensitive' } },
+      { slug: { contains: search, mode: 'insensitive' } }
+    ];
+
+    const [items, totalItems] = await Promise.all([
+      prisma.virtualBox.findMany({
+        where, skip, take, orderBy: { createdAt: 'desc' },
+        include: { ...virtualBoxInclude, _count: { select: { pool: true, openings: true } } }
+      }),
+      prisma.virtualBox.count({ where })
+    ]);
+
+    res.status(200).json({ success: true, data: { items, meta: { page: Number(page), limit: take, totalItems, totalPages: Math.ceil(totalItems / take) } }, message: 'Virtual boxes retrieved' });
+  } catch (error) { next(error); }
+};
+
+const createVirtualBox = async (req, res, next) => {
+  try {
+    const { name, slug, description, imageUrl, gradient, price, status, dropRates, pool } = req.body;
+    const finalSlug = slug || slugify(name);
+    const existing = await prisma.virtualBox.findUnique({ where: { slug: finalSlug } });
+    if (existing) throw new ConflictError('Virtual box slug already exists');
+
+    await assertVirtualBoxReferences(pool);
+
+    const box = await prisma.virtualBox.create({
+      data: {
+        name,
+        slug: finalSlug,
+        description: description || null,
+        imageUrl: imageUrl || null,
+        gradient: gradient || null,
+        price: Number(price),
+        status: status || 'DRAFT',
+        ...(dropRates && dropRates.length > 0 && { dropRates: { create: dropRates.map((d) => ({ rarity: d.rarity, rate: Number(d.rate) })) } }),
+        ...(pool && pool.length > 0 && { pool: { create: mapVirtualBoxPoolPayload(pool) } })
+      },
+      include: virtualBoxInclude
+    });
+
+    res.status(201).json({ success: true, data: box, message: 'Virtual box created' });
+  } catch (error) { next(error); }
+};
+
+const updateVirtualBox = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name, slug, description, imageUrl, gradient, price, status, dropRates, pool } = req.body;
+    const box = await prisma.virtualBox.findUnique({ where: { id } });
+    if (!box) throw new NotFoundError('Virtual box not found');
+
+    let finalSlug = box.slug;
+    if (slug) finalSlug = slug;
+    else if (name && name !== box.name) finalSlug = slugify(name);
+    if (finalSlug !== box.slug) {
+      const existing = await prisma.virtualBox.findUnique({ where: { slug: finalSlug } });
+      if (existing && existing.id !== id) throw new ConflictError('Virtual box slug already exists');
+    }
+
+    if (pool) await assertVirtualBoxReferences(pool);
+
+    await prisma.$transaction(async (tx) => {
+      if (dropRates) await tx.virtualBoxDropRate.deleteMany({ where: { boxId: id } });
+      if (pool) await tx.virtualBoxPool.deleteMany({ where: { boxId: id } });
+      await tx.virtualBox.update({
+        where: { id },
+        data: {
+          slug: finalSlug,
+          ...(name !== undefined && { name }),
+          ...(description !== undefined && { description: description || null }),
+          ...(imageUrl !== undefined && { imageUrl: imageUrl || null }),
+          ...(gradient !== undefined && { gradient: gradient || null }),
+          ...(price !== undefined && { price: Number(price) }),
+          ...(status !== undefined && { status }),
+          ...(dropRates && dropRates.length > 0 && { dropRates: { create: dropRates.map((d) => ({ rarity: d.rarity, rate: Number(d.rate) })) } }),
+          ...(pool && pool.length > 0 && { pool: { create: mapVirtualBoxPoolPayload(pool) } })
+        }
+      });
+    });
+
+    const updated = await prisma.virtualBox.findUnique({ where: { id }, include: virtualBoxInclude });
+    res.status(200).json({ success: true, data: updated, message: 'Virtual box updated' });
+  } catch (error) { next(error); }
+};
+
+const deleteVirtualBox = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const permanent = req.query.permanent === 'true';
+    const box = await prisma.virtualBox.findUnique({ where: { id }, include: { _count: { select: { openings: true } } } });
+    if (!box) throw new NotFoundError('Virtual box not found');
+
+    if (permanent) {
+      if (box._count.openings > 0) {
+        throw new ConflictError('Cannot permanently delete a virtual box with opening history. Archive it instead.');
+      }
+      await prisma.virtualBox.delete({ where: { id } });
+      return res.status(200).json({ success: true, message: 'Virtual box deleted permanently' });
+    }
+
+    if (box.status === 'ARCHIVED') throw new ConflictError('Virtual box is already archived');
+    await prisma.virtualBox.update({ where: { id }, data: { status: 'ARCHIVED' } });
+    res.status(200).json({ success: true, message: 'Virtual box archived' });
+  } catch (error) { next(error); }
+};
+
 // ==================== EXPORT ====================
 
 module.exports = {
   listUsers, updateUserRole, updateUserStatus, updateUserPermissions, changeUserPassword,
   listProducts, createProduct, updateProduct, deleteProduct, addCards, updateCard, uploadImage,
   listSets, createSet, updateSet, deleteSet,
+  listCategories: listAdminCategories, createCategory, updateCategory, deleteCategory,
   listPosts, createPost, updatePost, deletePost,
   listOrders, updateOrderStatus,
   listPaymentLogs, reconcilePayment,
   getDashboardStats,
-  listChatRooms, getChatRoomMessages
+  listChatRooms, getChatRoomMessages,
+  listVirtualBoxes, createVirtualBox, updateVirtualBox, deleteVirtualBox
 };

@@ -94,8 +94,59 @@ const listSets = async () => {
   });
 };
 
+const getProductStock = async (id) => {
+  const product = await prisma.product.findUnique({
+    where: { id },
+    include: {
+      variants: { where: { status: 'ACTIVE' }, select: { stockQuantity: true } }
+    }
+  });
+  if (!product) throw new NotFoundError('Product not found');
+  const stockQuantity = product.variants.reduce((sum, v) => sum + (v.stockQuantity || 0), 0);
+  return { productId: id, stockQuantity };
+};
+
+const listCategories = async (activeOnly = false) => {
+  const where = activeOnly ? { isActive: true } : {};
+  return prisma.category.findMany({
+    where,
+    orderBy: { name: 'asc' }
+  });
+};
+
+const listCards = async (query = {}) => {
+  const where = {};
+  if (query.productId) where.productId = query.productId;
+  if (query.status) where.status = query.status;
+  if (query.condition) where.condition = query.condition;
+
+  const page = parseInt(query.page, 10) || 1;
+  const limit = parseInt(query.limit, 10) || 20;
+  const skip = (page - 1) * limit;
+
+  const [items, totalItems] = await Promise.all([
+    prisma.card.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' } }),
+    prisma.card.count({ where })
+  ]);
+
+  return {
+    items,
+    meta: { page, limit, totalItems, totalPages: Math.ceil(totalItems / limit) }
+  };
+};
+
+const getCardById = async (id) => {
+  const card = await prisma.card.findUnique({ where: { id } });
+  if (!card) throw new NotFoundError('Card not found');
+  return card;
+};
+
 module.exports = {
   listProducts,
   getProductById,
-  listSets
+  listSets,
+  getProductStock,
+  listCategories,
+  listCards,
+  getCardById
 };

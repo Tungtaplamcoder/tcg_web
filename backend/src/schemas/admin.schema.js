@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const { PRODUCT_CATEGORY_ENUM } = require('../constants/productCategories');
 
 // ==================== USER SCHEMAS ====================
 
@@ -46,11 +47,17 @@ const productVariantSchema = z.object({
   stockQuantity: z.coerce.number().int().min(0, 'Tồn kho phải là số nguyên >= 0').default(0)
 });
 
+// Every product is strictly binary: Box (Sealed Boxes) or Card (Single Cards)
+const productCategoryEnum = z.enum(PRODUCT_CATEGORY_ENUM, {
+  errorMap: () => ({ message: 'Category must be either "Box" (Sealed Boxes) or "Card" (Single Cards)' })
+});
+
 const createProductSchema = z.object({
   name: z.string().min(2).max(200),
   shortName: z.string().max(100).optional().nullable(), // Cho phép rỗng/null
   slug: z.string().min(2).max(200).optional(),
   description: z.string().optional(),
+  category: productCategoryEnum, // Required: Box or Card only
   setIds: z.array(z.string().uuid()).optional(),
   cardNumber: z.string().optional(),
   rarity: z.string().optional(),
@@ -62,6 +69,17 @@ const createProductSchema = z.object({
 });
 
 const updateProductSchema = createProductSchema.partial();
+
+// ==================== CATEGORY SCHEMAS ====================
+const categorySchema = z.object({
+  name: z.string().min(2).max(100),
+  slug: z.string().min(2).max(100).optional(),
+  description: z.string().optional(),
+  imageUrl: z.string().url().optional().nullable(),
+  isActive: z.boolean().optional()
+});
+
+const updateCategorySchema = categorySchema.partial();
 
 const addCardsSchema = z.object({
   cards: z.array(z.object({
@@ -145,15 +163,70 @@ const listUsersQuerySchema = z.object({
   search: z.string().optional()
 });
 
+// ==================== VIRTUAL BOX SCHEMAS ====================
+
+const gachaRarityEnum = z.enum(['COMMON', 'RARE', 'EPIC', 'LEGENDARY']);
+
+const virtualBoxDropRateSchema = z.object({
+  rarity: gachaRarityEnum,
+  rate: z.coerce.number().min(0).max(100)
+});
+
+const virtualBoxPoolEntrySchema = z.object({
+  productId: z.string().uuid().optional(),
+  cardId: z.string().uuid().optional(),
+  rarity: z.string().min(1).max(50).optional(),
+  weight: z.coerce.number().int().min(1).default(1)
+}).refine((entry) => Boolean(entry.productId || entry.cardId), {
+  message: 'Each pool entry requires a productId or a cardId'
+});
+
+const dropRatesValid = (data) => {
+  if (!data.dropRates || data.dropRates.length === 0) return true;
+  const total = data.dropRates.reduce((sum, item) => sum + Number(item.rate || 0), 0);
+  return Math.abs(total - 100) <= 0.01;
+};
+
+const dropRatesMessage = {
+  message: 'Drop rates must total exactly 100%',
+  path: ['dropRates']
+};
+
+const baseVirtualBoxSchema = z.object({
+  name: z.string().min(2).max(200),
+  slug: z.string().min(2).max(200).optional(),
+  description: z.string().max(2000).optional().nullable(),
+  imageUrl: z.string().url().optional().nullable(),
+  gradient: z.string().max(200).optional().nullable(),
+  price: z.coerce.number().min(0),
+  status: z.enum(['ACTIVE', 'DRAFT', 'ARCHIVED']).optional(),
+  dropRates: z.array(virtualBoxDropRateSchema).min(1).max(20).optional(),
+  pool: z.array(virtualBoxPoolEntrySchema).max(500).optional()
+});
+
+const createVirtualBoxSchema = baseVirtualBoxSchema.refine(dropRatesValid, dropRatesMessage);
+
+const updateVirtualBoxSchema = baseVirtualBoxSchema.partial().refine(dropRatesValid, dropRatesMessage);
+
+const listVirtualBoxesQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  status: z.enum(['ACTIVE', 'DRAFT', 'ARCHIVED']).optional(),
+  search: z.string().optional()
+});
+
 // ==================== EXPORTS ====================
 
 module.exports = {
+  productCategoryEnum,
   updateUserRoleSchema,
   updateUserStatusSchema,
   updateUserPermissionsSchema,
   changeUserPasswordSchema,
   createProductSchema,
   updateProductSchema,
+  categorySchema,
+  updateCategorySchema,
   addCardsSchema,
   updateCardSchema,
   createSetSchema,
@@ -165,5 +238,9 @@ module.exports = {
   listOrdersQuerySchema,
   reconcilePaymentSchema,
   listPaymentLogsQuerySchema,
-  listUsersQuerySchema
+  listUsersQuerySchema,
+  gachaRarityEnum,
+  createVirtualBoxSchema,
+  updateVirtualBoxSchema,
+  listVirtualBoxesQuerySchema
 };

@@ -7,6 +7,7 @@ import api from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { formatVND } from '../../utils/format';
+import { PRODUCT_CATEGORIES, resolveCategoryKey, getProductCategory } from '../../constants/productCategories';
 
 const InventoryManager = () => {
   const { user } = useAuthStore();
@@ -20,7 +21,6 @@ const InventoryManager = () => {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [sets, setSets] = useState([]);
-  const [categories, setCategories] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [formData, setFormData] = useState({
     name: '',
@@ -28,7 +28,7 @@ const InventoryManager = () => {
     description: '',
     cardNumber: '',
     tcgplayerId: '',
-    categoryId: '',
+    category: '',
     setIds: [],
     images: [],
     backImage: '',
@@ -46,12 +46,12 @@ const InventoryManager = () => {
     try {
       const params = { page, limit: 20 };
       if (search) params.search = search;
-      if (categoryFilter) params.categoryId = categoryFilter;
+      if (categoryFilter) params.category = categoryFilter;
       const response = await api.get('/admin/products', { params });
       setProducts(response.data.data.items || []);
       setMeta(response.data.data.meta || { totalPages: 1 });
     } catch (err) { console.error(err); setError('Không thể tải sản phẩm.'); } finally { setLoading(false); }
-  }, [page, search]);
+  }, [page, search, categoryFilter]);
 
   const fetchSets = async () => {
     try {
@@ -60,14 +60,8 @@ const InventoryManager = () => {
     } catch (err) { console.error('Không thể tải danh mục sản phẩm:', err); }
   };
 
-  const fetchCategories = async () => {
-    try {
-      const response = await api.get('/categories?activeOnly=true');
-      setCategories(response.data.data || []);
-    } catch (err) { console.error('Không thể tải danh mục:', err); }
-  };
-
-  useEffect(() => { fetchProducts(); fetchSets(); fetchCategories(); }, [fetchProducts]);
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+  useEffect(() => { fetchSets(); }, []);
 
   const handleEdit = (product) => {
     setEditingProduct(product);
@@ -78,7 +72,7 @@ const InventoryManager = () => {
       cardNumber: product.cardNumber || '',
       tcgplayerId: product.tcgplayerId || '',
       setIds: product.sets?.map(s => s.id) || [],
-      categoryId: product.category?.id || '',
+      category: resolveCategoryKey(product.category) || '',
       images: product.images || [],
       backImage: product.backImage || '',
       variants: product.variants?.map(v => ({
@@ -98,7 +92,7 @@ const InventoryManager = () => {
       description: '',
       cardNumber: '',
       tcgplayerId: '',
-      categoryId: '',
+      category: '',
       setIds: [],
       images: [],
       backImage: '',
@@ -182,7 +176,7 @@ const InventoryManager = () => {
         shortName: formData.shortName || null,
         tcgplayerId: formData.tcgplayerId || null,
         setIds: formData.setIds,
-        categoryId: formData.categoryId || undefined,
+        category: formData.category,
         variants: formData.variants.map(v => ({
           condition: v.condition,
           variant: v.variant,
@@ -245,12 +239,12 @@ const InventoryManager = () => {
         </div>
         <select
           value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
+          onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
           className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           <option value="">Tất cả danh mục</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id}>{cat.name}</option>
+          {PRODUCT_CATEGORIES.map((cat) => (
+            <option key={cat.value} value={cat.value}>{cat.label} — {cat.description}</option>
           ))}
         </select>
       </div>
@@ -278,6 +272,7 @@ const InventoryManager = () => {
               {products.map((product) => {
                 const totalStock = product.variants?.reduce((sum, v) => sum + v.stockQuantity, 0) || 0;
                 const minPrice = product.variants?.length ? Math.min(...product.variants.map(v => Number(v.price))) : 0;
+                const productCategory = getProductCategory(product);
                 return (
                   <tr key={product.id}>
                     <td className="px-4 py-3">
@@ -290,7 +285,15 @@ const InventoryManager = () => {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{product.cardNumber || '-'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{product.category?.name || '-'}</td>
+                    <td className="px-4 py-3">
+                      {productCategory ? (
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${productCategory.badgeClass}`}>
+                          {productCategory.label}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-400">-</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-gray-700">{product.variants?.length ? formatVND(minPrice) : 'Chưa có'}</td>
                     <td className="px-4 py-3"><span className={`font-medium ${totalStock === 0 ? 'text-red-600' : 'text-gray-800'}`}>{totalStock}</span></td>
                     <td className="px-4 py-3">
@@ -339,10 +342,10 @@ const InventoryManager = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Danh mục *</label>
-                  <select name="categoryId" value={formData.categoryId} onChange={handleInputChange} required className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+                  <select name="category" value={formData.category} onChange={handleInputChange} required className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
                     <option value="">-- Chọn danh mục --</option>
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    {PRODUCT_CATEGORIES.map((cat) => (
+                      <option key={cat.value} value={cat.value}>{cat.label} — {cat.description}</option>
                     ))}
                   </select>
                 </div>

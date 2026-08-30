@@ -202,11 +202,32 @@ html.theme-boot *::after {
       disabled:opacity-50 disabled:pointer-events-none;
   }
   .btn-aura {
-    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-ink-950
-      bg-iridescent bg-[length:200%_200%] animate-foil-shimmer
-      shadow-[0_8px_24px_-6px_rgba(34,211,238,0.45)] ring-1 ring-white/40 ring-inset
-      transition-all duration-300 hover:brightness-110 active:scale-[0.98]
+    @apply relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-full px-8 py-3.5 font-semibold text-white
+      bg-gradient-to-r from-cyan-500 via-violet-600 to-fuchsia-600
+      shadow-[0_10px_30px_-8px_rgba(124,58,237,0.55),0_0_24px_-6px_rgba(34,211,238,0.4)]
+      ring-1 ring-white/25 ring-inset
+      transition-all duration-300
+      hover:shadow-[0_14px_36px_-8px_rgba(124,58,237,0.7),0_0_32px_-4px_rgba(34,211,238,0.55)] hover:brightness-110 hover:-translate-y-0.5
+      active:scale-[0.98]
       disabled:opacity-50 disabled:pointer-events-none;
+  }
+  /* soft light sweep across the pill on hover — overflow-hidden keeps it inside */
+  .btn-aura::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -60%;
+    width: 40%;
+    transform: skewX(-20deg);
+    background: linear-gradient(105deg, transparent 0%, rgba(255, 255, 255, 0.45) 50%, transparent 100%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+  }
+  .btn-aura:hover::before {
+    opacity: 1;
+    animation: sheen-traverse 1.1s cubic-bezier(0.22, 1, 0.36, 1) infinite;
   }
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold
@@ -550,6 +571,48 @@ html.theme-boot *::after {
       0 0 40px -8px rgba(217, 70, 239, 0.35);
   }
 
+  /* ── Holographic fallback art for missing/broken product images ── */
+  .img-fallback-holo {
+    position: relative;
+    isolation: isolate;
+    border-radius: inherit;
+    background:
+      radial-gradient(120% 90% at 18% 12%, rgba(255, 255, 255, 0.35), transparent 45%),
+      linear-gradient(150deg, rgba(34, 211, 238, 0.85) 0%, rgba(124, 58, 237, 0.9) 38%, rgba(217, 70, 239, 0.9) 68%, rgba(233, 196, 106, 0.85) 100%);
+    overflow: hidden;
+  }
+  .dark .img-fallback-holo {
+    background:
+      radial-gradient(120% 90% at 18% 12%, rgba(255, 255, 255, 0.14), transparent 45%),
+      linear-gradient(150deg, rgba(14, 116, 144, 0.9) 0%, rgba(91, 33, 182, 0.92) 40%, rgba(134, 25, 143, 0.92) 70%, rgba(146, 114, 42, 0.85) 100%);
+  }
+  /* faint foil texture */
+  .img-fallback-holo::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.35) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.35) 1px, transparent 1px);
+    background-size: 18px 18px;
+    opacity: 0.14;
+    pointer-events: none;
+  }
+  /* slow diagonal foil glimmer */
+  .img-fallback-holo::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(115deg, transparent 32%, rgba(255, 255, 255, 0.4) 46%, rgba(180, 240, 255, 0.3) 52%, rgba(255, 200, 240, 0.28) 58%, transparent 72%);
+    background-size: 220% 100%;
+    animation: img-holo-glimmer 3.4s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes img-holo-glimmer {
+    0%, 100% { background-position: 160% 0; }
+    50% { background-position: -60% 0; }
+  }
+
   /* ── 3D booster-box scene ───────────────────────────────── */
   .box3d-stage {
     perspective: 1400px;
@@ -842,6 +905,87 @@ html.theme-boot *::after {
 }
 .pack-shake { animation: screen-shake 0.6s ease-in-out 1; }
 .pack-shake-hard { animation: screen-shake 0.55s ease-in-out 2; }
+
+/* ── Gacha opening FX (Phase 3B): box shake, DOF tear, foil frames ── */
+/* Soft breathing pulse for reveal auras (opacity-only so it composes with
+   Tailwind translate utilities; also resolves the pre-existing aura-pulse
+   reference used by .aura-glow above) */
+@keyframes aura-pulse {
+  0%, 100% { opacity: 0.65; }
+  50% { opacity: 1; }
+}
+.animate-aura-pulse { animation: aura-pulse 2.4s ease-in-out infinite; }
+
+/* Escalating 3D jitter for the sealed pack while the roll resolves */
+@keyframes gacha-shake {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  12% { transform: translate3d(-2px, 1px, 0) rotate(-1.6deg); }
+  24% { transform: translate3d(2px, -1px, 0) rotate(1.8deg); }
+  36% { transform: translate3d(-3px, 2px, 0) rotate(-2.2deg); }
+  48% { transform: translate3d(3px, -2px, 0) rotate(2.4deg); }
+  60% { transform: translate3d(-3px, 1px, 0) rotate(-2.6deg); }
+  72% { transform: translate3d(3px, -2px, 0) rotate(2.6deg); }
+  86% { transform: translate3d(-1px, 1px, 0) rotate(-1deg); }
+}
+.gacha-shake { animation: gacha-shake 0.42s linear infinite; }
+.gacha-shake-hard { animation: gacha-shake 0.22s linear infinite; }
+
+/* Pulsing charge aura behind the pack while it shakes */
+@keyframes gacha-glow-pulse {
+  0%, 100% { opacity: 0.45; transform: translate(-50%, -50%) scale(0.92); }
+  50% { opacity: 0.95; transform: translate(-50%, -50%) scale(1.14); }
+}
+.gacha-glow-pulse { animation: gacha-glow-pulse 1.1s ease-in-out infinite; }
+
+/* Glowing motes orbiting the pack during the shake phase.
+   --oa start angle, --od orbit radius, --ot orbit duration */
+@keyframes gacha-orbit {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--oa, 0deg)) translateX(var(--od, 110px))
+      rotate(calc(var(--oa, 0deg) * -1)) scale(0.5);
+  }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% {
+    opacity: 0;
+    transform: rotate(calc(var(--oa, 0deg) + 340deg)) translateX(var(--od, 110px))
+      rotate(calc((var(--oa, 0deg) + 340deg) * -1)) scale(1.05);
+  }
+}
+.gacha-orbit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 9999px;
+  pointer-events: none;
+  animation: gacha-orbit var(--ot, 1.6s) linear infinite;
+}
+
+/* Torn pack halves fly apart with a depth-of-field blur ramp (rack focus:
+   the packaging defocuses as the pulled card becomes the focal plane) */
+@keyframes gacha-tear-top {
+  0% { transform: translateY(0) rotate(0deg); filter: blur(0); opacity: 1; }
+  100% { transform: translateY(-165%) rotate(-11deg); filter: blur(3px); opacity: 0; }
+}
+@keyframes gacha-tear-bottom {
+  0% { transform: translateY(0) rotate(0deg); filter: blur(0); opacity: 1; }
+  100% { transform: translateY(170%) rotate(11deg); filter: blur(3px); opacity: 0; }
+}
+
+/* Flowing animated gradient for Epic+ foil card frames */
+@keyframes gacha-frame-flow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+.gacha-frame-flow { background-size: 300% 300%; animation: gacha-frame-flow 2.6s linear infinite; }
+
+/* Rotating metallic conic ring for Legendary frames */
+@keyframes gacha-frame-spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+.gacha-frame-spin { animation: gacha-frame-spin 4.5s linear infinite; }
 @keyframes pack-tear-top {
   to { transform: translateY(-150%) rotate(-9deg); opacity: 0; }
 }

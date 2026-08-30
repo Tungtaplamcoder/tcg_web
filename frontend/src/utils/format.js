@@ -8,6 +8,13 @@ const vndFormatter = new Intl.NumberFormat('vi-VN', {
 
 export const formatVND = (amount) => vndFormatter.format(Number(amount) || 0);
 
+const pointsFormatter = new Intl.NumberFormat('en-US', {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2
+});
+
+export const formatPoints = (amount) => pointsFormatter.format(Number(amount) || 0);
+
 // Lấy tỷ giá từ localStorage hoặc dùng mặc định 25,400
 const savedRate = localStorage.getItem('USD_TO_VND_RATE');
 export let USD_TO_VND_RATE = savedRate ? Number(savedRate) : 25400;

@@ -88,6 +88,25 @@ enum MessageType {
   SYSTEM
 }
 
+enum VirtualBoxStatus {
+  ACTIVE
+  DRAFT
+  ARCHIVED
+}
+
+enum GachaRarity {
+  COMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+enum UserCardSource {
+  GACHA
+  PURCHASE
+  PROMOTION
+}
+
 // ==================== MODELS ====================
 
 model User {
@@ -104,16 +123,19 @@ model User {
   canManageInventory Boolean    @default(false)
   canManagePosts     Boolean    @default(false)
   canAccessChat      Boolean    @default(false)
+  balance            Decimal    @default(0) @db.Decimal(12, 2)
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
-  refreshTokens       RefreshToken[]
-  passwordResetTokens PasswordResetToken[]
-  orders              Order[]
-  chatRooms           ChatRoom[]
-  chatMessages        ChatMessage[]
-  chatParticipants    ChatParticipant[]
-  posts               Post[]
+  refreshTokens        RefreshToken[]
+  passwordResetTokens  PasswordResetToken[]
+  orders               Order[]
+  chatRooms            ChatRoom[]
+  chatMessages         ChatMessage[]
+  chatParticipants     ChatParticipant[]
+  posts                Post[]
+  userCards            UserCard[]
+  virtualBoxOpenings   VirtualBoxOpening[]
 }
 
 model Post {
@@ -201,6 +223,9 @@ model Product {
   variants      ProductVariant[]
   cards         Card[]
   orderItems    OrderItem[]
+  virtualBoxPools VirtualBoxPool[]
+  poolItems     VirtualBoxPoolItem[]
+  userCards     UserCard[]
 
   @@index([categoryId])
   @@index([status])
@@ -239,6 +264,7 @@ model Card {
   updatedAt     DateTime      @updatedAt
 
   orderItems OrderItem[]
+  virtualBoxPools VirtualBoxPool[]
 
   @@index([productId])
   @@index([status])
@@ -400,5 +426,102 @@ model ChatMessage {
 
   @@index([roomId])
   @@index([senderId])
+  @@index([createdAt])
+}
+
+// ==================== VIRTUAL BOXES ====================
+
+model VirtualBoxPool {
+  id        String     @id @default(uuid())
+  boxId     String
+  box       VirtualBox @relation(fields: [boxId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product?   @relation(fields: [productId], references: [id], onDelete: SetNull)
+  cardId    String?
+  card      Card?      @relation(fields: [cardId], references: [id], onDelete: SetNull)
+  rarity    String?
+  weight    Int        @default(1)
+  createdAt DateTime   @default(now())
+
+  @@index([boxId])
+  @@index([productId])
+  @@index([cardId])
+}
+
+model VirtualBox {
+  id          String           @id @default(uuid())
+  name        String
+  slug        String           @unique
+  description String?
+  imageUrl    String?
+  gradient    String?
+  price       Decimal          @db.Decimal(10, 2)
+  status      VirtualBoxStatus @default(DRAFT)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  dropRates VirtualBoxDropRate[]
+  poolItems VirtualBoxPoolItem[]
+  openings  VirtualBoxOpening[]
+  pool      VirtualBoxPool[]
+
+  @@index([status])
+}
+
+model VirtualBoxDropRate {
+  id        String      @id @default(uuid())
+  boxId     String
+  box       VirtualBox  @relation(fields: [boxId], references: [id], onDelete: Cascade)
+  rarity    GachaRarity
+  rate      Float
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([boxId, rarity])
+  @@index([boxId])
+}
+
+model VirtualBoxPoolItem {
+  id        String      @id @default(uuid())
+  boxId     String
+  box       VirtualBox  @relation(fields: [boxId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  rarity    GachaRarity
+  createdAt DateTime    @default(now())
+
+  @@unique([boxId, productId])
+  @@index([boxId, rarity])
+}
+
+model UserCard {
+  id         String         @id @default(uuid())
+  userId     String
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  rarity     GachaRarity
+  source     UserCardSource @default(GACHA)
+  openingId  String?        @unique
+  obtainedAt DateTime       @default(now())
+
+  @@index([userId])
+  @@index([productId])
+  @@index([rarity])
+}
+
+model VirtualBoxOpening {
+  id         String      @id @default(uuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  boxId      String
+  box        VirtualBox  @relation(fields: [boxId], references: [id], onDelete: Cascade)
+  userCardId String?     @unique
+  rarity     GachaRarity
+  pricePaid  Decimal     @db.Decimal(10, 2)
+  createdAt  DateTime    @default(now())
+
+  @@index([userId])
+  @@index([boxId])
   @@index([createdAt])
 }

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ShoppingCart, Star, Shield, Truck, ArrowLeft, Loader2, Minus, Plus, Check, Boxes
+  ShoppingCart, Star, Shield, Truck, ArrowLeft, Loader2, Minus, Plus, Check
 } from 'lucide-react';
 import {
   ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -13,8 +13,8 @@ import { useTheme } from '../context/ThemeContext';
 import { formatVND, USD_TO_VND_RATE } from '../utils/format';
 import { playTick, vibrate } from '../utils/sfx';
 import TiltCard from '../components/TiltCard';
+import ProductImage from '../components/ProductImage';
 import RarityBadge from '../components/RarityBadge';
-import PackReveal from '../components/PackReveal';
 
 const RANGE_LABELS = {
   month: '1 Month Snapshot',
@@ -22,6 +22,26 @@ const RANGE_LABELS = {
   'semi-annual': '6 Month Snapshot',
   annual: '1 Year Snapshot'
 };
+
+const CONDITION_LABELS = {
+  MINT: 'Mint',
+  NEAR_MINT: 'Near Mint',
+  LIGHTLY_PLAYED: 'Lightly Played',
+  MODERATELY_PLAYED: 'Moderately Played',
+  HEAVILY_PLAYED: 'Heavily Played'
+};
+
+const VARIANT_LABELS = {
+  NORMAL: 'Standard',
+  HOLOFOIL: 'Holofoil',
+  REVERSE_HOLOFOIL: 'Reverse Holofoil',
+  '1ST_EDITION': '1st Edition',
+  '1ST_EDITION_HOLOFOIL': '1st Edition Holofoil',
+  UNLIMITED_HOLOFOIL: 'Unlimited Holofoil'
+};
+
+const formatCondition = (c) => CONDITION_LABELS[c] || (c ? c.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase()) : 'Near Mint');
+const formatVariant = (v) => VARIANT_LABELS[v] || (v && v !== '' ? v.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase()) : 'Standard');
 
 const CHART_THEMES = {
   light: {
@@ -46,7 +66,6 @@ const ProductDetail = () => {
   const [priceData, setPriceData] = useState(null);
   const [isLoadingRange, setIsLoadingRange] = useState(false);
   const [added, setAdded] = useState(false);
-  const [revealOpen, setRevealOpen] = useState(false);
   const cacheRef = useRef(new Map());
   const { addItem } = useCartStore();
   const { isAuthenticated } = useAuthStore();
@@ -88,8 +107,8 @@ const ProductDetail = () => {
         const available = data.variants?.find(v => v.stockQuantity > 0) || data.variants?.[0];
         if (available) setSelectedVariantId(available.id);
       } catch (err) {
-        console.error('Không thể tải sản phẩm:', err);
-        setError('Không tìm thấy sản phẩm.');
+        console.error('Failed to load product:', err);
+        setError('Product not found.');
       } finally {
         setLoading(false);
       }
@@ -132,7 +151,7 @@ const ProductDetail = () => {
       cacheRef.current.set(cacheKey, normalizedData);
       setPriceData(normalizedData);
     } catch (err) {
-      console.error('Không thể tải lịch sử giá:', err);
+        console.error('Failed to load price history:', err);
     } finally {
       setIsLoadingRange(false);
     }
@@ -185,9 +204,9 @@ const ProductDetail = () => {
   if (error || !product) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-20 text-center">
-        <p className="text-rose-500 font-medium">{error || 'Không tìm thấy sản phẩm'}</p>
+        <p className="text-rose-500 font-medium">{error || 'Product not found'}</p>
         <button onClick={() => navigate('/catalog')} className="btn-ghost mt-4">
-          <ArrowLeft className="h-4 w-4 mr-2" /> Quay lại danh mục
+          <ArrowLeft className="h-4 w-4 mr-2" /> Back to catalog
         </button>
       </div>
     );
@@ -250,11 +269,11 @@ const ProductDetail = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 app-bg animate-tcg-reveal">
       <button onClick={() => navigate(-1)} className="btn-ghost mb-6 !px-3">
-        <ArrowLeft className="h-4 w-4 mr-1.5" /> Quay lại
+        <ArrowLeft className="h-4 w-4 mr-1.5" /> Back
       </button>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-        {/* Ảnh sản phẩm */}
+        {/* Product image */}
         <div className="lg:sticky lg:top-24 self-start">
           <div className="relative overflow-hidden rounded-3xl glass-panel-strong aura-glow p-8 sm:p-10 flex items-center justify-center" style={{ minHeight: '300px' }}>
             <div className="pointer-events-none absolute -top-16 -right-16 h-56 w-56 rounded-full bg-fuchsia-400/15 blur-[80px] animate-tcg-float" />
@@ -265,22 +284,19 @@ const ProductDetail = () => {
               </div>
             )}
             <TiltCard max={16} scale={1.05} className="relative w-full flex items-center justify-center">
-              {product.images && product.images.length > 0 ? (
-                <img
-                  src={product.images[0]}
-                  alt={product.name}
-                  className="relative max-h-[440px] w-auto object-contain drop-shadow-[0_24px_40px_rgba(15,23,42,0.35)] dark:drop-shadow-[0_24px_50px_rgba(34,211,238,0.25)]"
-                />
-              ) : (
-                <div className="w-full h-96 flex items-center justify-center text-ink-400 dark:text-ink-300">
-                  Không có ảnh
-                </div>
-              )}
+              <ProductImage
+                src={product.images && product.images.length > 0 ? product.images[0] : null}
+                alt={product.name}
+                className="relative max-h-[440px] w-auto object-contain drop-shadow-[0_24px_40px_rgba(15,23,42,0.35)] dark:drop-shadow-[0_24px_50px_rgba(34,211,238,0.25)]"
+                fallbackClassName="h-[380px] w-full rounded-2xl"
+                iconClassName="h-12 w-12 text-white/90"
+                label={product.shortName || product.name || 'No image'}
+              />
             </TiltCard>
           </div>
         </div>
 
-        {/* Chi tiết */}
+        {/* Details */}
         <div>
           {product.rarity && (
             <div className="mb-3">
@@ -296,47 +312,51 @@ const ProductDetail = () => {
             <div className="flex text-amber-400">
               {[...Array(5)].map((_, i) => <Star key={i} className="h-[18px] w-[18px] fill-current" />)}
             </div>
-            <span className="text-sm text-ink-400 dark:text-ink-300">(0 đánh giá)</span>
+            <span className="text-sm text-ink-400 dark:text-ink-300">(0 reviews)</span>
           </div>
 
           <div className="mt-6 inline-flex items-baseline gap-3 rounded-2xl bg-brand-gradient-soft ring-1 ring-primary-200/60 px-5 py-3.5">
             <span className="text-3xl sm:text-4xl font-display font-bold text-gradient-brand">
-              {selectedVariant ? formatVND(selectedVariant.price) : 'Chọn tình trạng'}
+              {selectedVariant ? formatVND(selectedVariant.price) : 'Select condition'}
             </span>
           </div>
 
           {product.variants && product.variants.length > 0 && (
             <div className="mt-6">
-              <label className="label-premium">Tình trạng & Loại thẻ</label>
-              <div className="space-y-2.5">
-                {product.variants.map(v => (
-                  <button
-                    key={v.id}
-                    onClick={() => setSelectedVariantId(v.id)}
-                    disabled={v.stockQuantity === 0}
-                    className={`group w-full flex justify-between items-center p-3.5 rounded-xl border-2 transition-all duration-300 ${
-                      selectedVariantId === v.id
-                        ? 'border-primary-500 bg-primary-50/70 shadow-[0_4px_16px_-6px_rgba(124,58,237,0.3)]'
-                        : 'border-ink-200/80 bg-white hover:border-primary-300 hover:bg-primary-50/30 dark:border-white/10 dark:bg-white/5 dark:hover:border-aura-cyan/50 dark:hover:bg-white/10'
-                    } disabled:opacity-45 disabled:pointer-events-none`}
-                  >
-                    <div className="text-left">
-                      <span className={`font-semibold ${selectedVariantId === v.id ? 'text-primary-800 dark:text-white' : 'text-ink-800 dark:text-white/90'}`}>
-                        {v.condition} - {v.variant}
+              <label className="label-premium">Condition & Card Type</label>
+              <div className="flex flex-wrap gap-2.5">
+                {product.variants.map(v => {
+                  const isSelected = selectedVariantId === v.id;
+                  const inStock = v.stockQuantity > 0;
+                  return (
+                    <button
+                      key={v.id}
+                      onClick={() => setSelectedVariantId(v.id)}
+                      disabled={!inStock}
+                      className={`group inline-flex items-center gap-2.5 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 ${
+                        isSelected
+                          ? 'text-white bg-gradient-to-r from-primary-600 to-fuchsia-600 shadow-[0_6px_20px_-6px_rgba(124,58,237,0.55)] ring-1 ring-white/25'
+                          : 'glass-panel text-strong ring-1 ring-transparent hover:ring-primary-400/50 hover:-translate-y-0.5'
+                      } disabled:opacity-45 disabled:pointer-events-none`}
+                    >
+                      {formatCondition(v.condition)} <span className={isSelected ? 'text-white/70' : 'text-faint'}>•</span> {formatVariant(v.variant)}
+                      <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${
+                        inStock
+                          ? 'bg-emerald-400/15 text-emerald-600 dark:text-emerald-300'
+                          : 'bg-rose-400/15 text-rose-500'
+                      } ${isSelected ? 'bg-white/20 text-white' : ''}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${inStock ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                        {inStock ? `${v.stockQuantity} available` : 'Sold out'}
                       </span>
-                      <span className="text-xs text-ink-400 dark:text-ink-300 block mt-0.5">Còn {v.stockQuantity}</span>
-                    </div>
-                      <span className={`font-bold ${selectedVariantId === v.id ? 'text-primary-700 dark:text-white' : 'text-ink-800 dark:text-white/90'}`}>
-                      {formatVND(v.price)}
-                    </span>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
 
-          <div className="mt-7 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            <div className="inline-flex items-center self-start rounded-xl border border-subtle surface overflow-hidden">
+          <div className="mt-7 flex items-stretch gap-3">
+            <div className="inline-flex items-center self-stretch rounded-xl border border-subtle surface overflow-hidden shrink-0">
               <button
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
                 className="p-3 text-ink-500 dark:text-ink-300 hover:text-primary-700 hover:bg-primary-50 transition-colors"
@@ -356,15 +376,9 @@ const ProductDetail = () => {
             <button
               onClick={handleAddToCart}
               disabled={!selectedVariantId || !selectedVariant?.stockQuantity || added}
-              className={`btn-primary flex-1 !py-3.5 text-base ${added ? '!from-emerald-500 !to-teal-500' : ''}`}
+              className={`btn-primary flex-1 w-full !py-3.5 text-base ${added ? '!from-emerald-500 !to-teal-500' : ''}`}
             >
-              {added ? (<><Check className="h-5 w-5" /> Đã thêm!</> ) : (<><ShoppingCart className="h-5 w-5" /> Thêm vào giỏ</>)}
-            </button>
-            <button
-              onClick={() => setRevealOpen(true)}
-              className="btn-secondary flex-1 !py-3.5 text-base"
-            >
-              <Boxes className="h-5 w-5" /> Mở thử pack
+              {added ? (<><Check className="h-5 w-5" /> Added!</> ) : (<><ShoppingCart className="h-5 w-5" /> Add to cart</>)}
             </button>
           </div>
 
@@ -375,31 +389,31 @@ const ProductDetail = () => {
           )}
 
           <div className="mt-5 space-y-2 text-sm">
-            {product.artist && <p className="text-ink-600 dark:text-ink-200"><strong className="text-ink-800 dark:text-white">Họa sĩ:</strong> {product.artist}</p>}
+            {product.artist && <p className="text-ink-600 dark:text-ink-200"><strong className="text-ink-800 dark:text-white">Artist:</strong> {product.artist}</p>}
           </div>
 
           <div className="mt-7 grid grid-cols-2 gap-3">
             <div className="flex items-center gap-2.5 rounded-xl bg-emerald-50/80 dark:bg-emerald-400/10 ring-1 ring-emerald-100 dark:ring-emerald-400/20 px-4 py-3 text-sm font-medium text-emerald-800 dark:text-emerald-300">
-              <Shield className="h-[18px] w-[18px] text-emerald-600" /> Hàng chính hãng
+              <Shield className="h-[18px] w-[18px] text-emerald-600" /> 100% Authentic
             </div>
             <div className="flex items-center gap-2.5 rounded-xl bg-primary-50/80 dark:bg-primary-400/10 ring-1 ring-primary-100 dark:ring-primary-400/20 px-4 py-3 text-sm font-medium text-primary-800 dark:text-primary-200">
-              <Truck className="h-[18px] w-[18px] text-primary-600" /> Vận chuyển nhanh
+              <Truck className="h-[18px] w-[18px] text-primary-600" /> Fast shipping
             </div>
           </div>
         </div>
       </div>
 
-      {/* ==================== BIẾN ĐỘNG GIÁ THỊ TRƯỜNG ==================== */}
+      {/* ==================== MARKET PRICE TRENDS ==================== */}
       {product.tcgplayerId && (
         <div className="relative mt-12 overflow-hidden rounded-3xl glass-panel p-6 sm:p-8">
           <div className="pointer-events-none absolute -top-24 right-1/4 h-64 w-64 rounded-full bg-fuchsia-400/10 blur-[90px]" />
           <div className="mb-6">
             <p className="section-eyebrow">Market Insights</p>
-            <h2 className="heading-display text-2xl mt-1">Biến động giá thị trường</h2>
+            <h2 className="heading-display text-2xl mt-1">Market price trends</h2>
           </div>
 
           {priceData === null && !isLoadingRange ? (
-            <p className="text-ink-400 dark:text-ink-300">Không có dữ liệu lịch sử giá.</p>
+            <p className="text-ink-400 dark:text-ink-300">No price history data.</p>
           ) : (
             <div className="relative">
               {isLoadingRange && (
@@ -409,7 +423,7 @@ const ProductDetail = () => {
               )}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Cột trái: Chart */}
+                {/* Left column: Chart */}
                 <div className="rounded-2xl surface-2 p-4 sm:p-5">
                   {chartDataMapped.length > 0 && (
                     <div style={{ width: '100%', height: 320 }}>
@@ -474,7 +488,7 @@ const ProductDetail = () => {
                     </div>
                   )}
 
-                  {/* Tabs chuyển mốc thời gian */}
+                  {/* Time range tabs */}
                   <div className="flex justify-center mt-5 gap-1.5 rounded-full bg-ink-50 dark:bg-white/5 ring-1 ring-ink-100 dark:ring-white/10 p-1.5 w-fit mx-auto">
                     {[
                       { key: 'month', label: '1M' },
@@ -496,23 +510,23 @@ const ProductDetail = () => {
                     ))}
                   </div>
 
-                  {/* Chú thích */}
+                  {/* Legend */}
                   <div className="mt-4 flex items-center justify-center flex-wrap gap-x-6 gap-y-2 text-xs text-ink-500 dark:text-ink-300">
                     <div className="flex items-center">
                       <span className="w-3 h-3 rounded-sm bg-[#ede9fe] dark:bg-primary-500/30 ring-1 ring-primary-200 dark:ring-primary-400/30 mr-1.5"></span>
-                      Tổng số sản phẩm đã bán (Items Sold)
+                      Items Sold
                     </div>
                     <div className="flex items-center">
                       <span className="w-3 h-3 rounded-full bg-gradient-to-r from-primary-600 to-fuchsia-500 mr-1.5"></span>
-                      Giá thị trường (Market Price)
+                      Market Price
                     </div>
                   </div>
                 </div>
 
-                {/* Cột phải: Thông số */}
+                {/* Right column: Stats */}
                 <div className="space-y-4">
                   <div className="rounded-2xl bg-gradient-to-br from-primary-50/80 to-fuchsia-50/60 ring-1 ring-primary-200/50 p-5 dark:from-white/5 dark:to-aura-violet/10 dark:ring-white/10">
-                    <h3 className="font-display font-bold text-ink-900 dark:text-white">Thông số giá & Thị trường</h3>
+                    <h3 className="font-display font-bold text-ink-900 dark:text-white">Price & Market Stats</h3>
                     <div className="mt-4 space-y-3">
                       <div className="flex justify-between items-baseline">
                         <span className="text-sm text-ink-500 dark:text-ink-300">Market Price</span>
@@ -583,7 +597,6 @@ const ProductDetail = () => {
         </div>
       )}
 
-      <PackReveal open={revealOpen} onClose={() => setRevealOpen(false)} product={product} />
     </div>
   );
 };

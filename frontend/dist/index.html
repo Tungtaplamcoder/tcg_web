@@ -3,15 +3,32 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TCG Store</title>
+    <meta name="description" content="TCG Store — Premium Pokémon TCG singles, sealed booster boxes and rare collectibles. Authenticated, graded and shipped with care." />
+    <title>TCG Store — Premium Pokémon TCG & Booster Boxes</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%237c3aed'/%3E%3Cpath d='M50 8 a42 42 0 0 1 0 84 z' fill='%23d946ef'/%3E%3Crect x='8' y='44' width='84' height='12' rx='6' fill='white'/%3E%3Ccircle cx='50' cy='50' r='14' fill='white'/%3E%3Ccircle cx='50' cy='50' r='7' fill='%237c3aed'/%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Caveat:wght@600;700&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="/assets/index-CFmTLeb7.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CW-CoBNJ.css">
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('tcg-theme');
+          var dark = stored ? stored === 'dark'
+            : window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var root = document.documentElement;
+          root.classList.toggle('dark', dark);
+          root.style.colorScheme = dark ? 'dark' : 'light';
+          root.classList.add('theme-boot');
+        } catch (e) { /* no-op */ }
+      })();
+    </script>
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f5fb" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0a0a0f" />
+    <script type="module" crossorigin src="/assets/index-C8OmwxbZ.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-C5mU9_TB.css">
   </head>
   <body>
     <div id="root"></div>

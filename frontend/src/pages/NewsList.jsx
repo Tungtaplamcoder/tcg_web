@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Newspaper, AlertCircle, ArrowRight, Calendar, User } from 'lucide-react';
 import api from '../services/api';
@@ -9,6 +9,34 @@ const NewsList = () => {
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ totalPages: 1 });
+  const [activeIndex, setActiveIndex] = useState(0);
+  const articleRefs = useRef([]);
+
+  useEffect(() => {
+    if (articles.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveIndex(Number(entry.target.dataset.index));
+          }
+        });
+      },
+      {
+        root: null,
+        rootMargin: '-45% 0px -45% 0px',
+        threshold: 0
+      }
+    );
+
+    articleRefs.current.forEach((el) => el && observer.observe(el));
+
+    // First article is focused by default
+    setActiveIndex(0);
+
+    return () => observer.disconnect();
+  }, [articles]);
 
   const fetchNews = async () => {
     setLoading(true);
@@ -74,6 +102,8 @@ const NewsList = () => {
           {articles.map((article, i) => (
             <Link
               key={article.id}
+              ref={(el) => (articleRefs.current[i] = el)}
+              data-index={i}
               to={`/news/${article.id}`}
               className="group block card-premium p-6 sm:p-7 animate-tcg-reveal"
               style={{ animationDelay: `${Math.min(i, 6) * 0.05}s` }}
@@ -108,7 +138,11 @@ const NewsList = () => {
                   <img
                     src={article.thumbnailUrl}
                     alt={article.title}
-                    className="w-full h-48 object-cover transition-transform duration-700 group-hover:scale-[1.03]"
+                    className={
+                      i === activeIndex
+                        ? 'w-full h-auto max-h-[450px] object-cover transition-all duration-500 ease-in-out'
+                        : 'w-full h-28 object-cover opacity-80 transition-all duration-500 ease-in-out'
+                    }
                   />
                 </div>
               )}

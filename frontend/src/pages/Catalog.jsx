@@ -113,7 +113,7 @@ const Catalog = () => {
       const response = await api.get('/products', { params });
       setProducts(response.data.data.items || []);
       setMeta(response.data.data.meta || { page: 1, limit: 20, totalItems: 0, totalPages: 1 });
-    } catch (err) { console.error(err); setError('Không thể tải sản phẩm.'); }
+    } catch (err) { console.error(err); setError('Failed to load products.'); }
     finally { setLoading(false); }
   }, [page, search, setFilter, rarityFilter, minPrice, maxPrice, inStock]);
 
@@ -157,25 +157,25 @@ const Catalog = () => {
   const FilterRail = (
     <div className="p-6 glass-panel rounded-3xl">
       <div className="flex items-center justify-between mb-5">
-        <h2 className="font-display font-bold text-lg text-strong">Bộ lọc</h2>
+        <h2 className="font-display font-bold text-lg text-strong">Filters</h2>
         {hasActiveFilters && (
           <button onClick={clearFilters} className="inline-flex items-center text-sm text-rose-500 hover:text-rose-600 font-medium">
-            <X className="h-4 w-4 mr-1" /> Xóa
+            <X className="h-4 w-4 mr-1" /> Clear
           </button>
         )}
       </div>
 
       <div className="space-y-6">
         <div>
-          <label className="label-premium">Bộ / Series</label>
+          <label className="label-premium">Set / Series</label>
           <select value={setFilter} onChange={(e) => setSetFilter(e.target.value)} className="input-premium">
-            <option value="">Tất cả</option>
+            <option value="">All</option>
             {sets.map((set) => <option key={set.id} value={set.slug}>{set.name}</option>)}
           </select>
         </div>
 
         <div>
-          <label className="label-premium">Độ hiếm (Rarity)</label>
+          <label className="label-premium">Rarity</label>
           <div className="flex flex-wrap gap-2">
             {RARITY_OPTIONS.map((r) => {
               const active = rarityFilter.toLowerCase() === r.toLowerCase();
@@ -199,7 +199,7 @@ const Catalog = () => {
         </div>
 
         <div>
-          <label className="label-premium">Khoảng giá</label>
+          <label className="label-premium">Price range</label>
           <RangeSlider min={minPrice} max={maxPrice} onChange={(lo, hi) => { setMinPrice(String(lo)); setMaxPrice(String(hi)); }} />
         </div>
 
@@ -207,7 +207,7 @@ const Catalog = () => {
           <span className={`relative h-5 w-9 rounded-full transition-colors duration-300 ${inStock ? 'bg-gradient-to-r from-primary-600 to-fuchsia-600' : 'bg-ink-200 dark:bg-white/10'}`}>
             <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all duration-300 ${inStock ? 'left-4' : 'left-0.5'}`} />
           </span>
-          Chỉ hiện sản phẩm còn hàng
+          Show in-stock items only
           <input type="checkbox" checked={inStock} onChange={(e) => setInStock(e.target.checked)} className="sr-only" />
         </label>
       </div>
@@ -224,16 +224,16 @@ const Catalog = () => {
           <div>
             <h1 className="text-3xl sm:text-4xl font-extrabold flex items-center font-display text-strong tracking-tight">
               <Sparkles className="h-8 w-8 mr-3 text-fuchsia-500 dark:text-aura-cyan" />
-              Bộ sưu tập Cards
+              Card Collection
             </h1>
-            <p className="mt-2 text-muted">{loading ? 'Đang tải…' : `${meta.totalItems} sản phẩm`}</p>
+            <p className="mt-2 text-muted">{loading ? 'Loading…' : `${meta.totalItems} products`}</p>
           </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
             className="lg:hidden btn-secondary !py-2.5 shrink-0"
           >
             <SlidersHorizontal className="h-4 w-4 mr-2" />
-            {showFilters ? 'Ẩn bộ lọc' : 'Hiện bộ lọc'}
+            {showFilters ? 'Hide filters' : 'Show filters'}
           </button>
         </div>
         {/* foil accent line */}
@@ -249,11 +249,11 @@ const Catalog = () => {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tìm kiếm sản phẩm…"
+              placeholder="Search products…"
               className="input-premium pl-11 pr-4 py-3"
             />
           </div>
-          <button type="submit" className="btn-primary">Tìm</button>
+          <button type="submit" className="btn-primary">Search</button>
         </div>
       </form>
 
@@ -289,8 +289,8 @@ const Catalog = () => {
               <div className="h-20 w-20 mx-auto rounded-full bg-ink-100 dark:bg-white/5 flex items-center justify-center">
                 <Package className="h-10 w-10 text-ink-300" />
               </div>
-              <p className="mt-5 text-lg font-medium text-strong">Không tìm thấy sản phẩm nào.</p>
-              <p className="mt-1 text-sm text-muted">Thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm.</p>
+              <p className="mt-5 text-lg font-medium text-strong">No products found.</p>
+              <p className="mt-1 text-sm text-muted">Try adjusting the filters or search keywords.</p>
             </div>
           ) : (
             <>
@@ -310,7 +310,7 @@ const Catalog = () => {
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </button>
-                  <span className="text-sm font-medium text-muted">Trang {meta.page} / {meta.totalPages}</span>
+                  <span className="text-sm font-medium text-muted">Page {meta.page} / {meta.totalPages}</span>
                   <button
                     onClick={() => handlePageChange(page + 1)}
                     disabled={page >= meta.totalPages}

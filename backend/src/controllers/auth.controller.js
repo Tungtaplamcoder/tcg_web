@@ -22,6 +22,13 @@ const login = async (req, res, next) => {
       message: 'Login successful'
     });
   } catch (error) {
+    // Surface the failure reason server-side for debugging
+    console.error('[LOGIN] failed:', {
+      email: req.body?.email,
+      message: error?.message,
+      statusCode: error?.statusCode,
+      ip: req.ip
+    });
     next(error);
   }
 };

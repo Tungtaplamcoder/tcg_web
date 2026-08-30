@@ -8,10 +8,12 @@ const { apiLimiter } = require('../middlewares/rateLimiters');
 const {
   updateUserRoleSchema, updateUserStatusSchema, updateUserPermissionsSchema, changeUserPasswordSchema,
   createProductSchema, updateProductSchema,
+  categorySchema, updateCategorySchema,
   createSetSchema, updateSetSchema,
   createPostSchema, updatePostSchema, listPostsQuerySchema,
   updateOrderStatusSchema, listOrdersQuerySchema, reconcilePaymentSchema, listPaymentLogsQuerySchema,
-  listUsersQuerySchema
+  listUsersQuerySchema,
+  createVirtualBoxSchema, updateVirtualBoxSchema, listVirtualBoxesQuerySchema
 } = require('../schemas/admin.schema');
 
 const upload = multer({
@@ -40,12 +42,24 @@ router.post('/sets', apiLimiter, authorize(...managementRoles), validate(createS
 router.patch('/sets/:id', apiLimiter, authorize(...managementRoles), validate(updateSetSchema), adminController.updateSet);
 router.delete('/sets/:id', apiLimiter, authorize('ADMIN'), adminController.deleteSet);
 
+// ==================== VIRTUAL BOX MANAGEMENT ====================
+router.get('/virtual-boxes', apiLimiter, authorize(...managementRoles), validate(listVirtualBoxesQuerySchema, 'query'), adminController.listVirtualBoxes);
+router.post('/virtual-boxes', apiLimiter, authorize(...managementRoles), validate(createVirtualBoxSchema), adminController.createVirtualBox);
+router.put('/virtual-boxes/:id', apiLimiter, authorize(...managementRoles), validate(updateVirtualBoxSchema), adminController.updateVirtualBox);
+router.delete('/virtual-boxes/:id', apiLimiter, authorize('ADMIN'), adminController.deleteVirtualBox);
+
 // ==================== PRODUCT MANAGEMENT ====================
 router.get('/products', apiLimiter, authorize(...managementRoles), requirePermission('inventory'), adminController.listProducts);
 router.post('/products', apiLimiter, authorize(...managementRoles), requirePermission('inventory'), validate(createProductSchema), adminController.createProduct);
 router.patch('/products/:id', apiLimiter, authorize(...managementRoles), requirePermission('inventory'), validate(updateProductSchema), adminController.updateProduct);
 router.delete('/products/:id', apiLimiter, authorize(...managementRoles), requirePermission('inventory'), adminController.deleteProduct);
 router.post('/upload-image', apiLimiter, authorize(...managementRoles), requirePermission('inventory'), upload.single('image'), adminController.uploadImage);
+
+// ==================== CATEGORY MANAGEMENT ====================
+router.get('/categories', apiLimiter, authorize(...managementRoles), adminController.listCategories);
+router.post('/categories', apiLimiter, authorize(...managementRoles), validate(categorySchema), adminController.createCategory);
+router.patch('/categories/:id', apiLimiter, authorize(...managementRoles), validate(updateCategorySchema), adminController.updateCategory);
+router.delete('/categories/:id', apiLimiter, authorize('ADMIN'), adminController.deleteCategory);
 
 // ==================== POST MANAGEMENT ====================
 router.get('/posts', apiLimiter, authorize(...managementRoles), requirePermission('posts'), validate(listPostsQuerySchema, 'query'), adminController.listPosts);

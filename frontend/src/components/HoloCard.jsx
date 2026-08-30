@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Package, ShieldCheck } from 'lucide-react';
+import { ShieldCheck, Sparkles } from 'lucide-react';
 import TiltCard from './TiltCard';
+import ProductImage from './ProductImage';
 import RarityBadge, { resolveRarity } from './RarityBadge';
 import { formatVND } from '../utils/format';
 
@@ -72,18 +73,16 @@ const HoloCard = ({ product, sealed = false, className = '' }) => {
           className="sheen-sweep relative h-60 sm:h-64 flex items-center justify-center rounded-xl"
           style={{ transform: 'translateZ(26px)' }}
         >
-          {image ? (
-            <img
-              src={image}
-              alt={product.shortName || product.name}
-              loading="lazy"
-              className="max-h-full w-auto object-contain drop-shadow-[0_18px_30px_rgba(15,23,42,0.25)] transition-transform duration-500 group-hover:drop-shadow-[0_22px_40px_rgba(217,70,239,0.5)] dark:drop-shadow-[0_18px_35px_rgba(0,0,0,0.6)]"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-ink-300 dark:text-ink-600">
-              <Package className="h-12 w-12" />
-            </div>
-          )}
+          <ProductImage
+            src={image}
+            alt={product.shortName || product.name}
+            loading="lazy"
+            icon={Sparkles}
+            iconClassName="h-10 w-10 text-white/90"
+            label={product.shortName || product.name || 'No image'}
+            className="max-h-full w-auto object-contain drop-shadow-[0_18px_30px_rgba(15,23,42,0.25)] group-hover:drop-shadow-[0_22px_40px_rgba(217,70,239,0.5)] dark:drop-shadow-[0_18px_35px_rgba(0,0,0,0.6)]"
+            skeletonClassName="rounded-xl"
+          />
         </div>
       </TiltCard>
 
@@ -93,11 +92,11 @@ const HoloCard = ({ product, sealed = false, className = '' }) => {
         </h3>
         <div className="mt-2 flex items-center justify-center gap-2">
           <span className="text-lg font-bold bg-gradient-to-r from-fuchsia-600 via-violet-500 to-cyan-500 bg-clip-text text-transparent">
-            {price !== null ? formatVND(price) : 'Liên hệ'}
+            {price !== null ? formatVND(price) : 'Contact us'}
           </span>
           <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${inStock ? 'text-emerald-700 bg-emerald-50 dark:bg-emerald-400/10 dark:text-emerald-300' : 'text-rose-600 bg-rose-50 dark:bg-rose-400/10 dark:text-rose-300'}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${inStock ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-            {inStock ? `Còn ${stock}` : 'Hết hàng'}
+            {inStock ? `${stock} in stock` : 'Out of stock'}
           </span>
         </div>
       </div>

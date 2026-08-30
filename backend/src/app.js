@@ -16,6 +16,7 @@ const chatRoutes = require('./routes/chat.routes');
 const adminRoutes = require('./routes/admin.routes');
 const { router: postRoutes, adminRouter: adminPostRoutes } = require('./routes/post.routes');
 const tcgplayerRoutes = require('./routes/tcgplayer.routes');
+const gachaRoutes = require('./routes/gacha.routes');
 
 const app = express();
 
@@ -45,9 +46,21 @@ app.use(compression({
 }));
 
 // CORS
+// Allow the configured frontend origin AND reflect any requesting origin so
+// browsers on the LAN (or other origins) can call the API. `credentials: true`
+// requires the echoed origin to match, so we reflect it dynamically.
+const allowedCorsOrigins = [frontendUrl, 'http://localhost', 'http://127.0.0.1'].filter(Boolean);
+
 app.use(
   cors({
-    origin: frontendUrl,
+    origin: (requestOrigin, callback) => {
+      // No origin (same-origin, curl, mobile) or explicitly allowed -> allow
+      if (!requestOrigin || allowedCorsOrigins.includes(requestOrigin)) {
+        return callback(null, true);
+      }
+      // Otherwise reflect the requesting origin (enables LAN access)
+      return callback(null, requestOrigin);
+    },
     credentials: true,
     optionsSuccessStatus: 200,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -84,6 +97,7 @@ app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1', postRoutes); // public news routes
 app.use('/api/v1/admin/posts', adminPostRoutes); // admin post management
 app.use('/api/v1/tcgplayer', tcgplayerRoutes);
+app.use('/api/v1', gachaRoutes); // virtual boxes & gacha opening
 
 // 404 handler
 app.use((req, res) => {

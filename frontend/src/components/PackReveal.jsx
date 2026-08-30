@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Sparkles, MousePointerClick } from 'lucide-react';
 import TiltCard from './TiltCard';
+import ProductImage from './ProductImage';
 import RarityBadge, { resolveRarity } from './RarityBadge';
 import { playTear, playReveal, vibrate } from '../utils/sfx';
 
@@ -223,7 +224,7 @@ const PackReveal = ({ open, onClose, product }) => {
               </div>
               <span className="inline-flex items-center gap-2 rounded-full bg-white/10 ring-1 ring-white/25 backdrop-blur px-4 py-2 text-sm font-semibold text-white/90 animate-tcg-pulse-ring">
                 <MousePointerClick className="h-4 w-4 text-aura-gold" />
-                Nhấn để mở pack
+                Click to open the pack
               </span>
             </div>
           </button>
@@ -248,15 +249,14 @@ const PackReveal = ({ open, onClose, product }) => {
               <div className={`pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 rounded-full bg-gradient-to-br ${glow} blur-3xl opacity-70`} />
               <TiltCard max={20} scale={1.06} foil spotlight className="relative w-56 sm:w-64 rounded-3xl">
                 <div className="relative aspect-[3/4] rounded-3xl overflow-hidden bg-gradient-to-br from-white/85 to-primary-50/50 dark:from-white/5 dark:to-aura-violet/10 ring-1 ring-white/40 dark:ring-white/10 flex items-center justify-center p-3 backdrop-blur-sm">
-                  {image ? (
-                    <img
-                      src={image}
-                      alt={product?.name}
-                      className="max-h-full w-auto object-contain drop-shadow-[0_20px_40px_rgba(217,70,239,0.5)]"
-                    />
-                  ) : (
-                    <span className="text-strong font-semibold text-center px-2">{product?.shortName || product?.name || 'Chưa có ảnh'}</span>
-                  )}
+                  <ProductImage
+                    src={image}
+                    alt={product?.name}
+                    className="max-h-full w-auto object-contain drop-shadow-[0_20px_40px_rgba(217,70,239,0.5)]"
+                    fallbackClassName="h-full w-full rounded-2xl"
+                    iconClassName="h-10 w-10 text-white/90"
+                    label={product?.shortName || product?.name || 'No image'}
+                  />
                 </div>
               </TiltCard>
             </div>
@@ -264,11 +264,11 @@ const PackReveal = ({ open, onClose, product }) => {
             <div className={`mt-6 text-center ${phase === 'revealed' ? 'animate-tcg-reveal' : 'opacity-0'}`}>
               <RarityBadge rarity={product?.rarity} size="lg" />
               <p className="mt-3 text-white font-display text-2xl font-bold drop-shadow">
-                {isChase ? 'CHÚC MỪNG! PULL HIẾM!' : 'Chúc mừng!'}
+                {isChase ? 'CONGRATS! CHASE PULL!' : 'Congrats!'}
               </p>
               <p className="text-white/75 text-sm mt-0.5">{product?.shortName || product?.name}</p>
               <button onClick={onClose} className="btn-secondary mt-5 !py-2.5 !px-6 text-sm !text-white !border-white/25 !bg-white/10">
-                Đóng
+                Close
               </button>
             </div>
           </div>
