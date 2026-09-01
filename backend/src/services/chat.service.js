@@ -1,6 +1,8 @@
 const prisma = require('../config/prisma');
 const { NotFoundError, AuthorizationError, AppError } = require('../utils/errors');
 
+const CHAT_ROOM_STATUSES = ['OPEN', 'CLOSED'];
+
 const createRoom = async (userId, data) => {
   // Check if user already has a room for this order
   if (data.orderId) {
@@ -46,6 +48,26 @@ const createRoom = async (userId, data) => {
   }
 
   return room;
+};
+
+// Reuse the user's active general support room, creating one lazily only when
+// the first message is actually sent. Rooms are NOT persisted merely because
+// the customer opened the CSKH widget.
+const getOrCreateGeneralSupportRoom = async (userId) => {
+  const existing = await prisma.chatRoom.findFirst({
+    where: {
+      userId,
+      orderId: null,
+      subject: 'General Support',
+      status: 'OPEN'
+    },
+    orderBy: { updatedAt: 'desc' },
+    include: { participants: true }
+  });
+
+  if (existing) return existing;
+
+  return createRoom(userId, { subject: 'General Support' });
 };
 
 const listUserRooms = async (userId) => {
@@ -130,7 +152,15 @@ const listRoomMessages = async (roomId, userId, query) => {
   };
 };
 
-const sendMessage = async (roomId, userId, data) => {
+const sendMessage = async (userId, data) => {
+  // Lazy room creation: the storefront widget sends the first message without a
+  // room yet; the general support room is only persisted at that moment.
+  let roomId = data.roomId;
+  if (!roomId) {
+    const room = await getOrCreateGeneralSupportRoom(userId);
+    roomId = room.id;
+  }
+
   const room = await prisma.chatRoom.findUnique({
     where: { id: roomId },
     include: { participants: true }
@@ -183,20 +213,40 @@ const sendMessage = async (roomId, userId, data) => {
   return message;
 };
 
-const closeRoom = async (roomId, userId) => {
+const updateRoomStatus = async (roomId, userId, status) => {
+  if (!CHAT_ROOM_STATUSES.includes(status)) {
+    throw new AppError(`Status must be one of: ${CHAT_ROOM_STATUSES.join(', ')}`, 400, 'VALIDATION_ERROR');
+  }
+
   const room = await prisma.chatRoom.findUnique({ where: { id: roomId } });
   if (!room) throw new NotFoundError('Chat room not found');
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!isStaffUser(user)) {
-    throw new AuthorizationError('Only admin or staff can close room');
+    throw new AuthorizationError('Only admin or staff can update room status');
   }
 
   const updated = await prisma.chatRoom.update({
     where: { id: roomId },
-    data: { status: 'CLOSED' }
+    data: { status },
+    include: {
+      user: { select: { id: true, email: true, fullName: true } },
+      _count: { select: { messages: true } }
+    }
   });
+
+  // Broadcast status change to everyone watching this room
+  const io = global.io;
+  if (io) {
+    io.to(`chat:${roomId}`).emit('chat:status_updated', { roomId, status });
+    io.to('admin:chat').emit('chat:status_updated', { roomId, status });
+  }
+
   return updated;
+};
+
+const closeRoom = async (roomId, userId) => {
+  return updateRoomStatus(roomId, userId, 'CLOSED');
 };
 
 module.exports = {
@@ -205,5 +255,6 @@ module.exports = {
   getRoomById,
   listRoomMessages,
   sendMessage,
+  updateRoomStatus,
   closeRoom
 };

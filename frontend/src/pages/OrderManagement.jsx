@@ -1,22 +1,38 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
-  Search, Loader2, AlertCircle, ChevronLeft, ChevronRight, Eye, XCircle, Loader
+  Search, Loader2, AlertCircle, ChevronLeft, ChevronRight, Eye, XCircle, Loader, Truck
 } from 'lucide-react';
 import api from '../services/api';
 import { STATUS_MAP } from '../constants/orderStatus';
 import { formatVND } from '../utils/format';
 
 const OrderManagement = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const statusFromQuery = searchParams.get('status') || '';
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ totalPages: 1 });
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(statusFromQuery);
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
+
+  // Tracking-number prompt state (Bắt đầu vận chuyển flow)
+  const [shippingPromptOpen, setShippingPromptOpen] = useState(false);
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [trackingError, setTrackingError] = useState('');
+  const [submittingTracking, setSubmittingTracking] = useState(false);
+
+  const handleStatusFilterChange = (value) => {
+    setStatusFilter(value);
+    setPage(1);
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set('status', value); else next.delete('status');
+    setSearchParams(next, { replace: true });
+  };
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -40,11 +56,11 @@ const OrderManagement = () => {
     fetchOrders();
   }, [fetchOrders]);
 
-  const handleStatusChange = async (orderId, newStatus) => {
+  const handleStatusChange = async (orderId, newStatus, extraPayload = {}) => {
     setUpdatingId(orderId);
     setError('');
     try {
-      await api.patch(`/admin/orders/${orderId}/status`, { status: newStatus, note: 'Cập nhật từ trang quản lý' });
+      await api.patch(`/admin/orders/${orderId}/status`, { status: newStatus, note: 'Cập nhật từ trang quản lý', ...extraPayload });
       fetchOrders();
       setSelectedOrder(null);
     } catch (err) {
@@ -52,6 +68,45 @@ const OrderManagement = () => {
       setError(err.response?.data?.error?.message || 'Failed to update order status.');
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  // Mở prompt yêu cầu nhập Mã vận đơn trước khi chuyển sang SHIPPING
+  const openShippingPrompt = () => {
+    setTrackingNumber('');
+    setTrackingError('');
+    setShippingPromptOpen(true);
+  };
+
+  const closeShippingPrompt = () => {
+    if (submittingTracking) return;
+    setShippingPromptOpen(false);
+    setTrackingNumber('');
+    setTrackingError('');
+  };
+
+  const confirmStartShipping = async () => {
+    const trimmed = trackingNumber.trim();
+    if (!trimmed) {
+      setTrackingError('Mã vận đơn không được để trống.');
+      return;
+    }
+    setTrackingError('');
+    setSubmittingTracking(true);
+    try {
+      await api.patch(`/admin/orders/${selectedOrder.id}/status`, {
+        status: 'SHIPPING',
+        trackingNumber: trimmed
+      });
+      setShippingPromptOpen(false);
+      setTrackingNumber('');
+      fetchOrders();
+      setSelectedOrder(null);
+    } catch (err) {
+      console.error('Failed to start shipping:', err);
+      setTrackingError(err.response?.data?.error?.message || 'Không thể bắt đầu vận chuyển. Vui lòng thử lại.');
+    } finally {
+      setSubmittingTracking(false);
     }
   };
 
@@ -93,7 +148,7 @@ const OrderManagement = () => {
         </div>
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => handleStatusFilterChange(e.target.value)}
           className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           <option value="">Tất cả trạng thái</option>
@@ -201,6 +256,12 @@ const OrderManagement = () => {
                 <p><strong>Trạng thái:</strong> {getStatusBadge(selectedOrder.status)}</p>
                 <p><strong>Địa chỉ:</strong> {selectedOrder.shippingAddress?.fullName}, {selectedOrder.shippingAddress?.addressLine1}, {selectedOrder.shippingAddress?.city}</p>
                 <p><strong>SĐT:</strong> {selectedOrder.shippingAddress?.phone}</p>
+                {selectedOrder.trackingNumber && (
+                  <p className="flex items-center gap-1.5">
+                    <Truck className="h-4 w-4 text-indigo-600 flex-shrink-0" />
+                    <span><strong>Mã vận đơn:</strong> <span className="font-mono">{selectedOrder.trackingNumber}</span></span>
+                  </p>
+                )}
 
                 {/* Items */}
                 <div className="mt-4">
@@ -238,7 +299,7 @@ const OrderManagement = () => {
                   {selectedOrder.status === 'PACKAGING' && (
                     <>
                       <button
-                        onClick={() => handleStatusChange(selectedOrder.id, 'SHIPPING')}
+                        onClick={openShippingPrompt}
                         disabled={updatingId === selectedOrder.id}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                       >
@@ -265,6 +326,70 @@ const OrderManagement = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tracking Number Prompt Modal (Bắt đầu vận chuyển) */}
+      {shippingPromptOpen && selectedOrder && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <form
+              onSubmit={(e) => { e.preventDefault(); confirmStartShipping(); }}
+              className="p-6"
+            >
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Truck className="h-5 w-5 text-blue-600" />
+                  Bắt đầu vận chuyển
+                </h3>
+                <button type="button" onClick={closeShippingPrompt} className="text-gray-500 hover:text-gray-700">
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+              <p className="text-sm text-gray-500 mb-4">
+                Nhập mã vận đơn cho đơn <span className="font-mono font-semibold text-gray-700">{selectedOrder.orderCode}</span> để bắt đầu giao hàng.
+              </p>
+
+              <label htmlFor="tracking-number-input" className="block text-sm font-medium text-gray-700 mb-1">
+                Mã vận đơn <span className="text-red-600">*</span>
+              </label>
+              <input
+                id="tracking-number-input"
+                type="text"
+                autoFocus
+                value={trackingNumber}
+                onChange={(e) => { setTrackingNumber(e.target.value); setTrackingError(''); }}
+                placeholder="VD: VN123456789"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono ${trackingError ? 'border-red-400' : 'border-gray-300'}`}
+                disabled={submittingTracking}
+              />
+              {trackingError && (
+                <p className="mt-2 text-sm text-red-600 flex items-center gap-1.5">
+                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                  {trackingError}
+                </p>
+              )}
+
+              <div className="mt-6 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeShippingPrompt}
+                  disabled={submittingTracking}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingTracking}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {submittingTracking && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {submittingTracking ? 'Đang xử lý...' : 'Xác nhận vận chuyển'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

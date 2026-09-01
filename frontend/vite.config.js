@@ -13,6 +13,10 @@ const ALLOWED_HOSTS = (process.env.VITE_ALLOWED_HOSTS || '')
 
 export default defineConfig({
   plugins: [react()],
+  // Expose both Next-style NEXT_PUBLIC_* and native VITE_* variables to the
+  // client bundle (see src/config/env.js). No domains are hardcoded — every
+  // base URL is resolved from environment variables at build time.
+  envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
   server: {
     port: parseInt(process.env.VITE_PORT) || 3000,
     proxy: {

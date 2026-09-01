@@ -1,17 +1,93 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, Package, Home } from 'lucide-react';
+import { CheckCircle2, Package, Home, Loader2, RefreshCw } from 'lucide-react';
 import { useCartStore } from '../store/useCartStore';
+import api from '../services/api';
+import { formatVND } from '../utils/format';
 
+const STATUS_LABELS = {
+  PENDING: 'Awaiting payment confirmation',
+  PACKAGING: 'Payment confirmed — preparing your order',
+  SHIPPING: 'Paid — on its way to you',
+  DELIVERED: 'Delivered',
+  CANCELLED: 'Cancelled'
+};
+
+/**
+ * PaymentSuccess — landing page for SePay's return redirect
+ * (`${NEXT_PUBLIC_APP_URL}/payment/success?orderId=...`).
+ *
+ * Renders the success screen IMMEDIATELY (SePay already confirmed the
+ * payment server-side via the webhook/IPN — this page is just the browser
+ * redirect target), then opportunistically verifies the order status via
+ * the API. Verification is best-effort with bounded retries:
+ * a slow/missing API response NEVER blocks or times out the page.
+ */
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { clearCart } = useCartStore();
   const orderId = searchParams.get('orderId');
 
+  const [order, setOrder] = useState(null);
+  const [verifyState, setVerifyState] = useState('idle'); // idle | loading | confirmed | unavailable
+  const attemptsRef = useRef(0);
+  const timerRef = useRef(null);
+
   useEffect(() => {
     clearCart();
   }, [clearCart]);
+
+  // Best-effort status verification — bounded to 6 attempts with a 3s
+  // backoff, then gives up gracefully (page already shows success).
+  // While the order is still PENDING, also calls POST /orders/:id/sync-payment
+  // so the backend re-verifies against SePay (fallback when the webhook is late).
+  useEffect(() => {
+    if (!orderId) return undefined;
+
+    let cancelled = false;
+
+    const verify = async () => {
+      attemptsRef.current += 1;
+      try {
+        const response = await api.get(`/orders/${encodeURIComponent(orderId)}/payment-status`);
+        if (!cancelled) {
+          setOrder(response.data?.data || null);
+          setVerifyState('confirmed');
+        }
+      } catch (err) {
+        // 404/401/timeout after payment redirect is common (token just
+        // refreshed, order lookup by id) — retry a few times, then stop.
+        if (cancelled) return;
+        if (attemptsRef.current < 4) {
+          timerRef.current = setTimeout(verify, 3000);
+        } else {
+          setVerifyState('unavailable');
+        }
+      }
+    };
+
+    const syncAndVerify = async () => {
+      try {
+        // Fallback reconciliation — ask backend to re-check SePay directly
+        await api.post(`/orders/${encodeURIComponent(orderId)}/sync-payment`);
+      } catch {
+        // best-effort: sync may fail for guest tokens — ignore
+      }
+      if (!cancelled) verify();
+    };
+
+    setVerifyState('loading');
+    syncAndVerify();
+
+    return () => {
+      cancelled = true;
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [orderId]);
+
+  const statusKey = order?.status ? String(order.status).toUpperCase() : null;
+  const isPaid = statusKey && statusKey !== 'PENDING' && statusKey !== 'CANCELLED';
 
   return (
     <div className="relative overflow-hidden min-h-[60vh] flex items-center justify-center px-4 py-16">
@@ -34,6 +110,34 @@ const PaymentSuccess = () => {
             Order ID: <span className="font-mono font-semibold text-ink-700 dark:text-ink-100">{orderId}</span>
           </p>
         )}
+
+        {/* Best-effort verification strip — never blocks the success screen */}
+        <div className="mt-4 min-h-[1.5rem] text-sm">
+          {verifyState === 'loading' && (
+            <span className="inline-flex items-center gap-1.5 text-ink-400 dark:text-ink-300">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Verifying payment…
+            </span>
+          )}
+          {verifyState === 'confirmed' && order && (
+            <span className={`inline-flex items-center gap-1.5 ${isPaid ? 'text-emerald-600 dark:text-emerald-400' : 'text-ink-500 dark:text-ink-300'}`}>
+              {isPaid ? <CheckCircle2 className="h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
+              {STATUS_LABELS[statusKey] || 'Order received'}
+            </span>
+          )}
+          {verifyState === 'unavailable' && (
+            <span className="text-ink-400 dark:text-ink-300">
+              We could not reach the server to double-check this order, but your payment reference is saved above.
+            </span>
+          )}
+        </div>
+
+        {order?.grandTotal != null && (
+          <p className="mt-1 text-sm font-semibold text-ink-700 dark:text-ink-100">
+            Total: {formatVND(Number(order.grandTotal))}
+          </p>
+        )}
+
         <div className="mt-8 space-y-3">
           <button onClick={() => navigate('/orders')} className="btn-primary w-full">
             <Package className="h-5 w-5" />

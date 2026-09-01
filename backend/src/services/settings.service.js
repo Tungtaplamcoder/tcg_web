@@ -9,13 +9,13 @@ const { AppError } = require('../utils/errors');
 
 const SEPAY_SETTING_KEYS = ['apiUrl', 'webhookUrl', 'webhookSecret', 'accountNumber', 'accountName'];
 
-// Giá trị mặc định suy ra từ env (SEPAY_WEBHOOK_URL > APP_BASE_URL > FRONTEND_URL)
+// Giá trị mặc định suy ra từ env (SEPAY_WEBHOOK_URL > NEXT_PUBLIC_API_URL/APP_BASE_URL > NEXT_PUBLIC_APP_URL/FRONTEND_URL)
 const envWebhookUrl = () =>
   process.env.SEPAY_WEBHOOK_URL ||
-  (process.env.APP_BASE_URL
-    ? `${process.env.APP_BASE_URL.replace(/\/+$/, '')}/api/v1/webhooks/sepay`
-    : (process.env.FRONTEND_URL
-      ? `${process.env.FRONTEND_URL.replace(/\/+$/, '')}/api/v1/webhooks/sepay`
+  (process.env.NEXT_PUBLIC_API_URL || process.env.APP_BASE_URL
+    ? `${(process.env.NEXT_PUBLIC_API_URL || process.env.APP_BASE_URL).replace(/\/+$/, '')}/api/v1/webhooks/sepay`
+    : (process.env.NEXT_PUBLIC_APP_URL || process.env.FRONTEND_URL
+      ? `${(process.env.NEXT_PUBLIC_APP_URL || process.env.FRONTEND_URL).replace(/\/+$/, '')}/api/v1/webhooks/sepay`
       : '/api/v1/webhooks/sepay'));
 
 const SEPAY_ENV_DEFAULTS = {
@@ -53,7 +53,9 @@ const getSepaySettings = async () => {
 
 // URL webhook/IPN hiệu dụng: DB override > env fallback.
 // Dùng cho các luồng async (checkout, regenerate, config endpoint).
-const resolveWebhookUrl = async () => {
+// `req` optional — forwarded cho caller để suy ra URL từ Host header khi
+// env không cấu hình domain (deploy sau Nginx reverse proxy).
+const resolveWebhookUrl = async (req) => {
   try {
     const rows = await prisma.appSetting.findMany({
       where: { key: { startsWith: DB_KEY_PREFIX } }
@@ -67,7 +69,17 @@ const resolveWebhookUrl = async () => {
   } catch (err) {
     console.error('Failed to read webhook URL from settings:', err.message);
   }
-  return SEPAY_ENV_DEFAULTS.webhookUrl;
+  // env chain đã ổn định (SEPAY_WEBHOOK_URL > API_URL > APP_URL); nếu
+  // các biến đó trống và có req thì suy ra từ Host header công khai.
+  const envDefault = SEPAY_ENV_DEFAULTS.webhookUrl;
+  if (envDefault && envDefault !== '/api/v1/webhooks/sepay') return envDefault;
+  if (req) {
+    const forwardedHost = req.headers?.['x-forwarded-host'] || req.headers?.host;
+    const forwardedProto = req.headers?.['x-forwarded-proto'] ||
+      (String(req.headers?.host || '').startsWith('localhost') || String(req.headers?.host || '').startsWith('127.0.0.1') ? 'http' : 'https');
+    if (forwardedHost) return `${forwardedProto}://${forwardedHost}/api/v1/webhooks/sepay`;
+  }
+  return envDefault;
 };
 
 const updateSepaySettings = async (data) => {

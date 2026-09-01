@@ -1,9 +1,11 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/useAuthStore';
+import { API_URL } from '../config/env';
 
-// Create axios instance
+// Create axios instance — base URL is resolved from NEXT_PUBLIC_API_URL /
+// VITE_API_URL (default: relative /api/v1 through the Nginx reverse proxy).
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api/v1',
+  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -61,7 +63,7 @@ api.interceptors.response.use(
       try {
         // Call refresh token endpoint
         const response = await axios.post(
-          `${import.meta.env.VITE_API_URL || '/api/v1'}/auth/refresh-token`,
+          `${API_URL}/auth/refresh-token`,
           { refreshToken }
         );
         const { accessToken, refreshToken: newRefreshToken, user } = response.data.data;

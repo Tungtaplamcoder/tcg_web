@@ -15,7 +15,19 @@ const BOX_SELECT_FIELDS = {
   updatedAt: true
 };
 
-// GET /api/v1/virtual-boxes — public list of ACTIVE boxes for the storefront
+const POOL_CARD_FIELDS = {
+  id: true,
+  name: true,
+  slug: true,
+  imageUrl: true,
+  rarity: true,
+  setCode: true,
+  dropRate: true
+};
+
+// GET /api/v1/virtual-boxes — public list of ACTIVE boxes for the storefront.
+// Boxes embed their GachaCard pool so the storefront renders real card
+// artwork, set codes and names straight from the gacha data source.
 const listVirtualBoxes = async (req, res, next) => {
   try {
     const { page = 1, limit = 20 } = req.query;
@@ -32,16 +44,19 @@ const listVirtualBoxes = async (req, res, next) => {
         select: {
           ...BOX_SELECT_FIELDS,
           dropRates: { select: { rarity: true, rate: true } },
-          _count: { select: { poolItems: true } }
+          poolItems: {
+            select: { rarity: true, gachaCard: { select: POOL_CARD_FIELDS } }
+          }
         }
       }),
       prisma.virtualBox.count({ where })
     ]);
 
-    const items = boxes.map(({ dropRates, _count, ...box }) => ({
+    const items = boxes.map(({ dropRates, poolItems, ...box }) => ({
       ...box,
       dropRates,
-      cardPoolCount: _count.poolItems
+      cardPoolCount: poolItems.length,
+      cards: poolItems.map((item) => item.gachaCard)
     }));
 
     res.status(200).json({
@@ -52,10 +67,10 @@ const listVirtualBoxes = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
-// POST /api/v1/virtual-boxes/:id/open — authenticated gacha opening
+// POST /api/v1/virtual-boxes/:id/open — authenticated gacha opening.
 // Gacha is 100% free: no balance is charged. The endpoint rolls the weighted
-// RNG, grants the pulled card to the user's collection and records the opening.
-// Rolls back entirely on any failure.
+// RNG over the box's GachaCard pool, grants the pulled card to the user's
+// collection and records the opening. Rolls back entirely on any failure.
 const openVirtualBox = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -67,18 +82,7 @@ const openVirtualBox = async (req, res, next) => {
         dropRates: { select: { rarity: true, rate: true } },
         poolItems: {
           include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                shortName: true,
-                slug: true,
-                cardNumber: true,
-                rarity: true,
-                images: true,
-                backImage: true
-              }
-            }
+            gachaCard: { select: POOL_CARD_FIELDS }
           }
         }
       }
@@ -99,7 +103,7 @@ const openVirtualBox = async (req, res, next) => {
       const createdCard = await tx.userCard.create({
         data: {
           userId,
-          productId: poolItem.productId,
+          gachaCardId: poolItem.gachaCardId,
           rarity,
           source: 'GACHA'
         }
@@ -133,7 +137,7 @@ const openVirtualBox = async (req, res, next) => {
           rarity,
           source: userCard.source,
           obtainedAt: userCard.obtainedAt,
-          product: poolItem.product
+          gachaCard: poolItem.gachaCard
         },
         opening: {
           id: opening.id,

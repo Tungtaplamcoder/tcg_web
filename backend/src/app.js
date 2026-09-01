@@ -5,7 +5,7 @@ const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const compression = require('compression');
 const path = require('path');
-const { frontendUrl, nodeEnv } = require('./config/env');
+const { corsOrigins, frontendUrl, nodeEnv, isProduction } = require('./config/env');
 const errorHandler = require('./middlewares/errorHandler');
 
 // Route imports
@@ -21,7 +21,7 @@ const gachaRoutes = require('./routes/gacha.routes');
 
 const app = express();
 
-// Trust proxy để express-rate-limit nhận đúng IP qua X-Forwarded-For khi chạy sau ngrok/load balancer
+// Trust proxy để express-rate-limit nhận đúng IP qua X-Forwarded-For khi chạy sau reverse proxy/load balancer
 app.set('trust proxy', 1);
 
 // Security headers - Helmet
@@ -47,20 +47,22 @@ app.use(compression({
 }));
 
 // CORS
-// Allow the configured frontend origin AND reflect any requesting origin so
-// browsers on the LAN (or other origins) can call the API. `credentials: true`
-// requires the echoed origin to match, so we reflect it dynamically.
-const allowedCorsOrigins = [frontendUrl, 'http://localhost', 'http://127.0.0.1'].filter(Boolean);
+// Production: CHỈ cho phép origin từ NEXT_PUBLIC_APP_URL (+ CORS_ALLOWED_ORIGINS),
+// credentials: true để cookie/token hoạt động. Origin bị loại thì reject.
+// Development: cho phép mọi origin (LAN testing, Vite dev server port khác).
+const devOrigins = ['http://localhost:3000', 'http://localhost:5173', 'http://localhost', 'http://127.0.0.1'];
+const allowedCorsOrigins = [...new Set([...corsOrigins, frontendUrl, ...devOrigins].filter(Boolean))];
 
 app.use(
   cors({
     origin: (requestOrigin, callback) => {
-      // No origin (same-origin, curl, mobile) or explicitly allowed -> allow
-      if (!requestOrigin || allowedCorsOrigins.includes(requestOrigin)) {
-        return callback(null, true);
-      }
-      // Otherwise reflect the requesting origin (enables LAN access)
-      return callback(null, requestOrigin);
+      // No origin (same-origin via Nginx proxy, curl, server-to-server IPN) -> allow
+      if (!requestOrigin) return callback(null, true);
+      if (allowedCorsOrigins.includes(requestOrigin)) return callback(null, true);
+      if (!isProduction) return callback(null, requestOrigin); // dev: reflect LAN origins
+      // Production: unknown origin -> rejected (không echo để tránh CORS abuse)
+      console.warn(`[CORS] Rejected origin: ${requestOrigin}`);
+      return callback(null, false);
     },
     credentials: true,
     optionsSuccessStatus: 200,

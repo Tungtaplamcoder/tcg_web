@@ -4,6 +4,7 @@ import Navbar from './components/Navbar.jsx';
 import Footer from './components/Footer.jsx';
 import ChatWidget from './components/ChatWidget.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 
 // Public pages
 import Home from './pages/Home.jsx';
@@ -30,7 +31,6 @@ import PostEditor from './pages/staff/PostEditor.jsx';
 import StaffChatInbox from './pages/staff/StaffChatInbox.jsx';
 import OrderManagement from './pages/OrderManagement.jsx';
 import CategoryManagement from './pages/CategoryManagement.jsx';
-import SetManagement from './pages/SetManagement.jsx';
 
 // Admin pages
 import AdminLayout from './pages/admin/AdminLayout.jsx';
@@ -50,7 +50,14 @@ function App() {
           {/* Public routes */}
           <Route path="/" element={<Home />} />
           <Route path="/catalog" element={<Catalog />} />
-          <Route path="/product/:id" element={<ProductDetail />} />
+          <Route
+            path="/product/:id"
+            element={
+              <ErrorBoundary label="Product Detail Page">
+                <ProductDetail />
+              </ErrorBoundary>
+            }
+          />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/order-lookup" element={<OrderLookup />} />
@@ -76,7 +83,7 @@ function App() {
               <Route path="orders" element={<OrderManagement />} />
               <Route path="inventory" element={<InventoryManager />} />
               <Route path="categories" element={<CategoryManagement />} />
-              <Route path="sets" element={<SetManagement />} />
+              <Route path="virtual-boxes" element={<VirtualBoxes />} />
               <Route path="posts" element={<PostEditor />} />
               <Route path="chat" element={<StaffChatInbox />} />
             </Route>
@@ -90,7 +97,6 @@ function App() {
               <Route path="inventory" element={<InventoryManager />} />
               <Route path="virtual-boxes" element={<VirtualBoxes />} />
               <Route path="categories" element={<CategoryManagement />} />
-              <Route path="sets" element={<SetManagement />} />
               <Route path="posts" element={<PostEditor />} />
               <Route path="users" element={<UserManagement />} />
               <Route path="payment-logs" element={<PaymentLogAudit />} />

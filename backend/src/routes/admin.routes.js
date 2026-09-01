@@ -71,6 +71,7 @@ router.delete('/posts/:id', apiLimiter, authorize('ADMIN'), adminController.dele
 // ==================== CHAT MANAGEMENT ====================
 router.get('/chat/rooms', apiLimiter, authorize(...managementRoles), requirePermission('chat'), adminController.listChatRooms);
 router.get('/chat/rooms/:id/messages', apiLimiter, authorize(...managementRoles), requirePermission('chat'), adminController.getChatRoomMessages);
+router.patch('/chat/rooms/:id/status', apiLimiter, authorize(...managementRoles), requirePermission('chat'), adminController.updateChatRoomStatus);
 
 // ==================== ORDER MANAGEMENT ====================
 router.get('/orders', apiLimiter, authorize(...managementRoles), validate(listOrdersQuerySchema, 'query'), adminController.listOrders);

@@ -54,11 +54,29 @@ const listMessages = async (req, res, next) => {
 
 const sendMessage = async (req, res, next) => {
   try {
-    const message = await chatService.sendMessage(req.params.id, req.user.id, req.body);
+    const { roomId, ...payload } = req.body;
+    const message = await chatService.sendMessage(req.user.id, {
+      ...payload,
+      // Lazy creation: no roomId means the first message creates the room
+      roomId: req.params.id || roomId || null
+    });
     res.status(201).json({
       success: true,
       data: message,
       message: 'Message sent'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateRoomStatus = async (req, res, next) => {
+  try {
+    const room = await chatService.updateRoomStatus(req.params.id, req.user.id, req.body.status);
+    res.status(200).json({
+      success: true,
+      data: room,
+      message: 'Chat room status updated'
     });
   } catch (error) {
     next(error);
@@ -84,5 +102,6 @@ module.exports = {
   getRoom,
   listMessages,
   sendMessage,
+  updateRoomStatus,
   closeRoom
 };

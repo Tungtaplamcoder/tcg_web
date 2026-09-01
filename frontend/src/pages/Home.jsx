@@ -297,7 +297,7 @@ const Home = ({ hero: heroProp }) => {
           )}
 
           {/* 3D card fan showcase — wide cinematic spread */}
-          <div className="relative mx-auto mt-14 h-72 w-full max-w-6xl sm:mt-16 sm:h-[340px] md:h-[400px] lg:h-[460px]" role="group" aria-label="Featured card fan showcase">
+          <div className="relative mx-auto mt-14 h-72 w-full max-w-6xl overflow-x-clip sm:mt-16 sm:h-[340px] md:h-[400px] lg:h-[460px]" role="group" aria-label="Featured card fan showcase">
             {/* Neon aura glows behind the fan */}
             <div
               aria-hidden="true"

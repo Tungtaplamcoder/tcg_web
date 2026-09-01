@@ -1,15 +1,92 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   DollarSign, ShoppingCart, Users, Package, Loader2, AlertCircle, TrendingUp,
   Clock, CheckCircle2, XCircle, Truck
 } from 'lucide-react';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+} from 'recharts';
 import api from '../../services/api';
 import { formatVND } from '../../utils/format';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEKDAYS_VI = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+
+// Trích phần ngày "YYYY-MM-DD" từ ISO string ("2026-08-30" | "2026-08-30T00:00:00.000Z")
+// để tránh lệch ngày theo timezone của browser khi parse bằng new Date().
+const parseDateKey = (value) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ''));
+  if (!match) return null;
+  return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
+};
+
+// Chuẩn hóa dữ liệu thô thành timeline 7 ngày liên tục (kể cả ngày 0đ), tăng dần theo ngày.
+// Anchor về ngày mới nhất trong dữ liệu để khớp với CURRENT_DATE phía server.
+const buildRevenueChartData = (revenueByDay) => {
+  const byKey = new Map();
+  let latestKey = null;
+
+  (revenueByDay || []).forEach((entry) => {
+    const parts = parseDateKey(entry.date);
+    if (!parts) return;
+    const key = `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
+    byKey.set(key, {
+      revenue: Number(entry.revenue) || 0,
+      orders: Number(entry.orders) || 0
+    });
+    if (!latestKey || key > latestKey) latestKey = key;
+  });
+
+  if (!latestKey) return [];
+
+  const anchor = parseDateKey(latestKey);
+  const anchorMs = Date.UTC(anchor.year, anchor.month - 1, anchor.day);
+
+  return Array.from({ length: 7 }, (_, i) => {
+    const dt = new Date(anchorMs - (6 - i) * DAY_MS);
+    const year = dt.getUTCFullYear();
+    const month = String(dt.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(dt.getUTCDate()).padStart(2, '0');
+    const key = `${year}-${month}-${day}`;
+    const entry = byKey.get(key) || { revenue: 0, orders: 0 };
+    return {
+      ...entry,
+      label: `${day}/${month}`,
+      labelFull: `${day}/${month}/${year}`,
+      weekday: WEEKDAYS_VI[dt.getUTCDay()]
+    };
+  });
+};
+
+// Nhãn Y-axis gọn: 25020000 -> "25 tr", 1500000 -> "1,5 tr"
+const formatVNDCompact = (value) => {
+  if (value >= 1e9) return `${(value / 1e9).toFixed(1).replace(/\.0$/, '').replace('.', ',')} tỷ`;
+  if (value >= 1e6) return `${(value / 1e6).toFixed(1).replace(/\.0$/, '').replace('.', ',')} tr`;
+  if (value >= 1e3) return `${Math.round(value / 1e3)}k`;
+  return `${value}`;
+};
+
+const RevenueTooltip = ({ active, payload }) => {
+  if (!active || !payload || !payload.length) return null;
+  const day = payload[0].payload;
+  return (
+    <div className="bg-white/95 backdrop-blur border border-primary-100 rounded-lg shadow-card px-3.5 py-2.5">
+      <p className="text-xs font-semibold text-gray-500 mb-1">{day.weekday}, {day.labelFull}</p>
+      <p className="text-sm font-bold text-primary-700">{formatVND(day.revenue)}</p>
+      <p className="text-xs text-gray-500 mt-0.5">{day.orders} đơn hàng</p>
+    </div>
+  );
+};
 
 const AnalyticsDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const revenueChartData = useMemo(
+    () => buildRevenueChartData(stats?.revenueByDay),
+    [stats]
+  );
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -135,21 +212,45 @@ const AnalyticsDashboard = () => {
           <TrendingUp className="h-5 w-5 mr-2 text-primary-600" />
           Doanh thu 7 ngày qua
         </h3>
-        {stats.revenueByDay && stats.revenueByDay.length > 0 ? (
-          <div className="space-y-3">
-            {stats.revenueByDay.map((day) => (
-              <div key={day.date} className="flex items-center">
-                <span className="w-24 text-sm text-gray-600">{day.date}</span>
-                <div className="flex-1 bg-gray-100 rounded-full h-6 relative">
-                  <div
-                    className="bg-primary-500 h-6 rounded-full flex items-center justify-end pr-2"
-                    style={{ width: `${Math.min(100, (day.revenue / 100) * 2)}%` }}
-                  >
-                    <span className="text-xs font-medium text-white">{formatVND(day.revenue)}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+        {revenueChartData.length > 0 ? (
+          <div className="h-72 w-full">
+            <ResponsiveContainer>
+              <AreaChart data={revenueChartData} margin={{ top: 10, right: 12, left: 4, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ede9fe" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 12, fill: '#6b7280' }}
+                  axisLine={{ stroke: '#e2e8f0' }}
+                  tickLine={false}
+                  interval={0}
+                  tickMargin={8}
+                />
+                <YAxis
+                  tickFormatter={formatVNDCompact}
+                  tick={{ fontSize: 12, fill: '#6b7280' }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={56}
+                  tickMargin={4}
+                />
+                <Tooltip content={<RevenueTooltip />} cursor={{ stroke: '#c4b5fd', strokeWidth: 1.5 }} />
+                <Area
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#7c3aed"
+                  strokeWidth={2.5}
+                  fill="url(#revenueGradient)"
+                  dot={{ r: 3, fill: '#7c3aed', strokeWidth: 0 }}
+                  activeDot={{ r: 5, fill: '#7c3aed', stroke: '#ffffff', strokeWidth: 2 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         ) : (
           <p className="text-gray-500">Chưa có dữ liệu doanh thu.</p>

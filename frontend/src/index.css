@@ -98,14 +98,11 @@ html.theme-boot *::after {
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     scroll-behavior: smooth;
+    background-color: var(--bg-app);
   }
   body {
     @apply text-ink-900 dark:text-white;
     background-color: var(--bg-app);
-    background-image:
-      radial-gradient(60% 50% at 12% -5%, var(--aura-a), transparent 60%),
-      radial-gradient(50% 45% at 95% 0%, var(--aura-b), transparent 60%);
-    background-attachment: fixed;
     overflow-x: hidden;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     transition: background-color 0.5s ease, color 0.5s ease;
@@ -754,6 +751,46 @@ html.theme-boot *::after {
   .animate-tcg-float { animation: tcg-float 7s ease-in-out infinite; }
   .animate-tcg-float-slow { animation: tcg-float 11s ease-in-out infinite; }
 
+  /* ── Ambient glow blobs with soft feathered edges ─────────
+     Radial mask fades the gradient to fully transparent well
+     before the blob edge, so glows never show a hard clip line
+     even without an overflow-hidden wrapper. */
+  .glow-soft-mask {
+    -webkit-mask-image: radial-gradient(circle, black 30%, rgba(0, 0, 0, 0.55) 52%, transparent 72%);
+    mask-image: radial-gradient(circle, black 30%, rgba(0, 0, 0, 0.55) 52%, transparent 72%);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+  }
+
+  /* ── 3D card flip (front/back preview) ───────────────────── */
+  .flip-scene { perspective: 1600px; }
+  .flip-inner {
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    transform: rotateY(0deg);
+  }
+  .flip-inner.is-flipped { transform: rotateY(180deg); }
+  .flip-face {
+    position: relative;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform: rotateY(0deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+  }
+  .flip-face-back {
+    position: absolute;
+    inset: 0;
+    transform: rotateY(180deg);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .flip-inner { transition: none; }
+  }
+
   @keyframes tcg-drift {
     0%, 100% { transform: translate3d(0, 0, 0); }
     50% { transform: translate3d(6%, -4%, 0); }
@@ -1004,14 +1041,16 @@ html.theme-boot *::after {
 }
 
 /* ── Card flip: back shows first, then a full Y-axis spin reveals the front ──
-   The front face lives at 180°; 540° = one full 360° tour + the 180°
-   swap, so the card whirls all the way around yet lands face-up. */
+    The front face lives at 180°; 540° = one full 360° tour + the 180°
+    swap, so the card whirls all the way around yet lands face-up.
+    Scene scaled ~40% vs the original so the revealed pull feels big
+    and impactful. */
 .gacha-flip-scene {
   perspective: 1200px;
-  width: 15rem;
+  width: 21rem;
   aspect-ratio: 3 / 4;
 }
-@media (min-width: 640px) { .gacha-flip-scene { width: 16rem; } }
+@media (min-width: 640px) { .gacha-flip-scene { width: 22rem; } }
 .gacha-flipper {
   position: relative;
   width: 100%;
@@ -1075,15 +1114,79 @@ html.theme-boot *::after {
   100% { background-position: -60% 0; }
 }
 
-/* Outer rarity halo ring wrapping the flipped card */
-.gacha-halo {
-  width: 110%;
-  height: 110%;
-  transform: translate(-50%, -50%);
-  opacity: 0.5;
-  animation: gacha-badge-halo 2.6s ease-in-out infinite;
+/* ── Rarity aura stack (revealed) ──
+   The old treatment drew a hard-edged rectangular glow behind the card
+   (box-shadow on a stretched element) which read as a distorted square.
+   It is replaced by a smooth radial aura + ambient drifting motes:
+   soft, circular, and colored per rarity (purple Rare, gold Legendary…). */
+
+/* Ambient motes: tiny glowing particles that drift lazily upward and
+   fade, orbiting the revealed card like suspended dust in the aura.
+   --mdrift randomizes the horizontal wander. */
+@keyframes gacha-ambient-drift {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.4);
+  }
+  20% { opacity: 0.9; }
+  80% { opacity: 0.55; }
+  100% {
+    opacity: 0;
+    transform: translate(var(--mdrift, 24px), -70px) scale(1.05);
+  }
+}
+.gacha-ambient-mote {
+  position: absolute;
+  border-radius: 9999px;
   pointer-events: none;
-  z-index: 5;
+  animation: gacha-ambient-drift 3.2s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* High-tier auras slowly breathe/lean in space — a subtle sway so the
+   glow feels alive rather than a static blob. Composes with Tailwind's
+   -translate-x/-translate-y utilities (transform-only animation would
+   clobber them, so it writes a wrapped transform). */
+@keyframes gacha-aura-sway {
+  0%, 100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+  50% { transform: translate(-50%, -50%) scale(1.08) rotate(2.5deg); }
+}
+.gacha-aura-sway { animation: gacha-aura-sway 5.2s ease-in-out infinite; }
+
+/* Foil-tear light burst: a dramatic radial flash that washes the whole
+   stage the instant the pack splits, then blooms outward and dies.
+   --burst-ms sets the lifetime from JS. */
+@keyframes gacha-light-burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.35);
+  }
+  22% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  60% {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(1.6);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.3);
+  }
+}
+.gacha-light-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: 60vmin;
+  width: 60vmin;
+  border-radius: 9999px;
+  pointer-events: none;
+  z-index: 35;
+  background:
+    radial-gradient(closest-side, rgba(255, 255, 255, 0.95) 0%, var(--flash-c, rgba(255, 244, 214, 0.9)) 34%, transparent 72%);
+  filter: blur(2px);
+  animation: gacha-light-burst var(--burst-ms, 460ms) cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* Flowing animated gradient for Epic+ foil card frames */
@@ -1161,24 +1264,63 @@ html.theme-boot *::after {
 .holo-card:hover .vip-holo,
 .holo-card.is-hovering .vip-holo { opacity: 0.9; }
 
-/* ── 2. Chasing edge light ──
+/* ── 2. Chasing edge light (fully contained neon frame) ──
    A thin high-intensity neon runner races the card perimeter.
-   --edge holds the rarity color (JS-injected). The border ring is
-   carved out with a content-box mask; a rotating conic light head
-   sweeps around the full frame like a laser chasing the edges. */
+   --edge holds the rarity color (JS-injected).
+
+   CONTAINMENT CONTRACT: .vip-edge is its own clip wrapper — an
+   absolutely positioned inset-0 layer with overflow:hidden and
+   border-radius:inherit — so the oversized rotating laser disc it
+   hosts can never bleed past the card's rounded frame into
+   neighboring cards or section headers. The wrapper is carved
+   down to a 1.5px perimeter band with a content-box mask
+   (xor/exclude); the ::before spinner (a 240%-wide conic square,
+   always larger than the card diagonal, so every rotation angle
+   keeps the full perimeter painted) rotates behind that band.
+   Net result: only a thin 1–2px animated neon border is ever
+   visible, strictly inside the rounded card frame.
+
+   The tilt root (.holo-card) must stay overflow-visible because
+   preserve-3d powers the parallax depth layers — clipping is
+   therefore enforced per effect layer, never on the root.
+   Stack: card background → overlays → border ring (z:18) with
+   badges/text (z:20+) rendering cleanly on top. */
 @keyframes vip-edge-chase {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to   { transform: translate(-50%, -50%) rotate(360deg); }
 }
 .vip-edge {
   position: absolute;
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
+  overflow: hidden;
   opacity: 0;
   transition: opacity 0.35s cubic-bezier(0.22, 1, 0.36, 1);
   padding: 1.5px;
-  /* rotating two-headed laser: bright head + trailing comet tail */
+  /* faint static base ring so the frame reads between laser heads */
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--edge, #d946ef) 20%, transparent);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  z-index: 18;
+}
+/* Rotating two-headed laser: bright head + trailing comet tail.
+   Oversized square disc keeps the ring painted at every angle;
+   the wrapper's overflow:hidden clips it to the rounded frame. */
+.vip-edge::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 240%;
+  aspect-ratio: 1 / 1;
+  transform: translate(-50%, -50%) rotate(0deg);
   background: conic-gradient(
     from 0deg,
     transparent 0deg,
@@ -1198,6 +1340,29 @@ html.theme-boot *::after {
     transparent 330deg,
     transparent 360deg
   );
+  animation: vip-edge-chase 1.6s linear infinite;
+  animation-play-state: paused;
+}
+.holo-card.is-hovering .vip-edge { opacity: 1; }
+.holo-card.is-hovering .vip-edge::before { animation-play-state: running; }
+
+/* Inset glow bloom echoing the chasing border — inner luminance
+   only, so the bloom can never leak outside the rounded frame.
+   The same content-box ring mask confines the light to the
+   1.5px border band; mix-blend keeps it reading as emission. */
+@keyframes vip-edge-bloom {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.6; }
+}
+.vip-edge-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  padding: 6px;
+  box-shadow: inset 0 0 22px -2px var(--edge, #d946ef), inset 0 0 8px 1px var(--edge, #d946ef);
   -webkit-mask:
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
@@ -1206,29 +1371,8 @@ html.theme-boot *::after {
     linear-gradient(#fff 0 0) content-box,
     linear-gradient(#fff 0 0);
   mask-composite: exclude;
-  animation: vip-edge-chase 1.6s linear infinite;
-  animation-play-state: paused;
-  z-index: 18;
-}
-.holo-card.is-hovering .vip-edge { opacity: 1; animation-play-state: running; }
-
-/* Glow bloom echoing the chasing border */
-@keyframes vip-edge-bloom {
-  0%, 100% { opacity: 0.35; }
-  50% { opacity: 0.6; }
-}
-.vip-edge-glow {
-  position: absolute;
-  inset: -3px;
-  border-radius: inherit;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.4s ease;
-  box-shadow:
-    0 0 24px -2px var(--edge, #d946ef),
-    0 0 56px -8px var(--edge, #d946ef);
   animation: vip-edge-bloom 1.6s ease-in-out infinite;
-  z-index: 1;
+  z-index: 17;
 }
 .holo-card.is-hovering .vip-edge-glow { opacity: 0.55; }
 
@@ -1465,3 +1609,198 @@ html.theme-boot *::after {
 .dark .dash-scope .bg-yellow-100 { background-color: rgba(251,191,36,0.14); }
 .dark .dash-scope .text-yellow-500 { color: #fbbf24; }
 .dark .dash-scope .text-yellow-800 { color: #fcd34d; }
+
+/* ════════════════════════════════════════════════════════════
+   PRODUCT DETAIL — TCG DESIGN SYSTEM (Automatic Data Parser UI)
+   Aspect-locked stages, spec badge grid, attack cards, trust pills
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Aspect-locked preview stages ──────────────────────────────
+   The stage owns the aspect ratio + padding; the artwork letter-
+   boxes inside with object-contain — no distortion, no dead space
+   beyond the intentional frame breathing room. */
+.pd-card-stage {
+  aspect-ratio: 5 / 7;
+  max-height: 620px;
+  width: 100%;
+}
+.pd-box-stage {
+  aspect-ratio: 4 / 3;
+  max-height: 560px;
+  width: 100%;
+}
+.pd-card-frame {
+  position: relative;
+  aspect-ratio: 5 / 7; /* 2.5:3.5 — strict TCG card proportion */
+  height: 100%;
+  max-height: 560px;
+  margin-inline: auto;
+  border-radius: 1.25rem;
+  filter:
+    drop-shadow(0 30px 40px rgba(15, 23, 42, 0.35))
+    drop-shadow(0 0 26px rgba(139, 92, 246, 0.22));
+}
+.dark .pd-card-frame {
+  filter:
+    drop-shadow(0 30px 44px rgba(0, 0, 0, 0.6))
+    drop-shadow(0 0 30px rgba(34, 211, 238, 0.28));
+}
+.pd-box-frame {
+  position: relative;
+  height: 100%;
+  max-height: 460px;
+  margin-inline: auto;
+  border-radius: 1.25rem;
+  filter: drop-shadow(0 26px 38px rgba(15, 23, 42, 0.32));
+}
+.dark .pd-box-frame {
+  filter:
+    drop-shadow(0 26px 42px rgba(0, 0, 0, 0.6))
+    drop-shadow(0 0 24px rgba(139, 92, 246, 0.2));
+}
+.pd-artwork {
+  border-radius: 1.25rem;
+  transform: translateZ(30px);
+}
+/* holographic fallback art fills the locked frame */
+.pd-fallback {
+  height: 100%;
+  width: 100%;
+  border-radius: 1.25rem;
+}
+
+/* ── Attack / ability cards ──────────────────────────────────── */
+.pd-attack-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.1rem;
+  padding: 1rem 1.15rem;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.pd-attack-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  border-radius: 9999px;
+  margin-block: 0.7rem;
+  background: linear-gradient(180deg, #22d3ee, #8b5cf6 55%, #d946ef);
+  opacity: 0.65;
+  transition: opacity 0.3s ease;
+}
+.pd-attack-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(139, 92, 246, 0.38);
+  box-shadow: 0 14px 34px -12px rgba(124, 58, 237, 0.3);
+}
+.pd-attack-card:hover::before { opacity: 1; }
+.pd-attack-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2rem;
+  width: 2rem;
+  border-radius: 0.7rem;
+  flex-shrink: 0;
+  color: #fff;
+  background: linear-gradient(135deg, #f97316, #dc2626);
+  box-shadow: 0 6px 16px -6px rgba(220, 38, 38, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.pd-attack-icon--ability {
+  background: linear-gradient(135deg, #0ea5e9, #6366f1);
+  box-shadow: 0 6px 16px -6px rgba(99, 102, 241, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.pd-attack-name {
+  font-family: 'Space Grotesk', Inter, system-ui, sans-serif;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--text-strong);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.pd-attack-damage {
+  display: inline-flex;
+  align-items: center;
+  font-family: 'Space Grotesk', Inter, system-ui, sans-serif;
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  border-radius: 0.75rem;
+  padding: 0.28rem 0.7rem;
+  color: #7c2d12;
+  background: linear-gradient(135deg, rgba(251, 146, 60, 0.22), rgba(244, 63, 94, 0.16));
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  line-height: 1.1;
+}
+.dark .pd-attack-damage {
+  color: #fdba74;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(244, 63, 94, 0.14));
+  border-color: rgba(249, 115, 22, 0.4);
+}
+.pd-attack-cost-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.pd-attack-cost-plain {
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.55rem;
+  background: rgba(139, 92, 246, 0.12);
+  color: #8b5cf6;
+}
+.dark .pd-attack-cost-plain { color: #c4b5fd; }
+.pd-attack-text {
+  margin-top: 0.7rem;
+  font-size: 0.86rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* ── Trust pill row ─────────────────────────────────────────── */
+.pd-trust-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.6rem;
+}
+.pd-trust-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border-radius: 9999px;
+  padding: 0.42rem 0.85rem 0.42rem 0.65rem;
+  box-shadow: 0 2px 10px -4px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pd-trust-pill:hover { transform: translateY(-2px); }
+
+/* ── Inventory / condition chip polish ──────────────────────── */
+.pd-price-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.65rem;
+  border-radius: 1.1rem;
+  padding: 0.85rem 1.35rem;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.10), rgba(217, 70, 239, 0.08));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  border: 1px solid rgba(139, 92, 246, 0.28);
+}
+.dark .pd-price-chip {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.16), rgba(217, 70, 239, 0.12));
+  border-color: rgba(139, 92, 246, 0.4);
+}
+
+/* ── Reduced motion: calm the cards ─────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .pd-attack-card, .pd-trust-pill { transition: none; }
+  .pd-attack-card:hover, .pd-trust-pill:hover { transform: none; }
+}

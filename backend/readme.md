@@ -504,8 +504,8 @@ Response:
       }
     ],
     "revenueByDay": [
-      { "date": "2026-08-17", "revenue": 500.00 },
-      { "date": "2026-08-16", "revenue": 450.00 }
+      { "date": "2026-08-30", "revenue": 500.00, "orders": 2 },
+      { "date": "2026-08-31", "revenue": 0, "orders": 0 }
     ]
   }
 }

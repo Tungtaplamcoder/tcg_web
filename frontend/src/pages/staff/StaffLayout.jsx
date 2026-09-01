@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Package, FileText, MessageSquare, LogOut, Menu, X,
-  User, ClipboardList, Tags, Headset
+  User, ClipboardList, Boxes, Headset
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import ThemeToggle from '../../components/ThemeToggle';
@@ -11,7 +11,7 @@ const PAGE_TITLES = {
   '/staff': 'Overview',
   '/staff/orders': 'Orders',
   '/staff/inventory': 'Inventory',
-  '/staff/sets': 'Sản phẩm',
+  '/staff/virtual-boxes': 'Virtual Boxes',
   '/staff/posts': 'Posts',
   '/staff/chat': 'Chat CSKH'
 };
@@ -32,7 +32,7 @@ const StaffLayout = () => {
     { to: '/staff', label: 'Overview', icon: LayoutDashboard, end: true, visible: true },
     { to: '/staff/orders', label: 'Orders', icon: ClipboardList, visible: true },
     { to: '/staff/inventory', label: 'Inventory', icon: Package, visible: canManageInventory },
-    { to: '/staff/sets', label: 'Sản phẩm', icon: Tags, visible: canManageInventory },
+    { to: '/staff/virtual-boxes', label: 'Virtual Boxes', icon: Boxes, visible: true },
     { to: '/staff/posts', label: 'Posts', icon: FileText, visible: canManagePosts },
     { to: '/staff/chat', label: 'Chat CSKH', icon: MessageSquare, visible: true },
   ].filter(item => item.visible);

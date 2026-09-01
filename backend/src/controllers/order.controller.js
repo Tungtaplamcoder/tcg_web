@@ -101,6 +101,23 @@ const getPaymentStatus = async (req, res, next) => {
   }
 };
 
+// POST /api/v1/orders/:id/sync-payment — fallback: đối soát thanh toán với SePay
+// (reconcile payment log local + verify qua SePay API) khi webhook lỗi/không tới.
+const syncOrderPayment = async (req, res, next) => {
+  try {
+    const result = await orderService.syncOrderPayment(req.params.id, req.user.id);
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: result.synced
+        ? 'Payment verified — order updated'
+        : 'No paid transaction found for this order'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const lookupOrder = async (req, res, next) => {
   try {
     const { orderCode, identifier, email, phone, query } = req.body;
@@ -165,5 +182,6 @@ module.exports = {
   cancelOrder,
   regeneratePayment,
   getPaymentStatus,
+  syncOrderPayment,
   lookupOrder
 };

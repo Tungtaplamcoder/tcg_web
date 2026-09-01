@@ -433,10 +433,16 @@ const cancelOrder = async (orderId, userId = null, note = 'Order cancelled by us
   }, { isolationLevel: 'ReadCommitted' });
 };
 
+/**
+ * Tái tạo phiên thanh toán SePay cho đơn PENDING (nút "Thanh toán ngay" trong
+ * Lịch sử đơn hàng). Trả về signed form fields + checkoutUrl để frontend POST
+ * (auto-submit form) sang trang thanh toán SePay — KHÔNG phải GET link trực
+ * tiếp vì /checkout/init yêu cầu payload có chữ ký HMAC.
+ */
 const regeneratePayment = async (orderId, userId) => {
   const order = await prisma.order.findFirst({
     where: { id: orderId, userId },
-    include: { payments: { where: { status: 'PENDING' }, orderBy: { createdAt: 'desc' } } }
+    include: { payments: { orderBy: { createdAt: 'desc' } } }
   });
 
   if (!order) throw new NotFoundError('Order not found');
@@ -444,20 +450,55 @@ const regeneratePayment = async (orderId, userId) => {
     throw new ConflictError(`Cannot regenerate payment for order in ${order.status} state`);
   }
   if (order.expiresAt && order.expiresAt < new Date()) {
-    throw new PaymentError('Order has expired');
+    throw new PaymentError('Đơn hàng đã quá hạn thanh toán. Vui lòng đặt lại đơn hàng mới.');
   }
 
-  const payment = order.payments[0];
-  if (!payment) throw new PaymentError('No pending payment found');
+  // Dựng signed checkout session mới với đúng metadata của đơn
+  // (orderCode, grandTotal, description, return URLs).
+  const { successUrl, errorUrl, cancelUrl } = sepayService.buildPaymentUrls(order.id);
+  const session = sepayService.createCheckoutSession(
+    order.orderCode,
+    Number(order.grandTotal),
+    `Thanh toan don hang ${order.orderCode}`,
+    { successUrl, errorUrl, cancelUrl }
+  );
+
+  // Persist URL mới nhất vào payment record (PENDING hoặc bản ghi gần nhất)
+  const targetPayment = order.payments.find((p) => p.status === 'PENDING') || order.payments[0];
+  if (targetPayment) {
+    await prisma.payment.update({
+      where: { id: targetPayment.id },
+      data: {
+        paymentUrl: session.checkoutUrl,
+        amount: order.grandTotal,
+        ...(targetPayment.status === 'FAILED' ? { status: 'PENDING' } : {})
+      }
+    });
+  } else {
+    await prisma.payment.create({
+      data: {
+        orderId: order.id,
+        paymentMethod: order.paymentMethod || 'SEPAy',
+        amount: order.grandTotal,
+        status: 'PENDING',
+        sepayOrderCode: order.orderCode,
+        paymentUrl: session.checkoutUrl,
+        qrCodeUrl: null
+      }
+    });
+  }
 
   return {
-    paymentUrl: payment.paymentUrl,
-    qrCodeUrl: payment.qrCodeUrl,
+    orderId: order.id,
+    orderCode: order.orderCode,
+    amount: Number(order.grandTotal),
+    checkoutUrl: session.checkoutUrl,
+    formFields: session.formFields,
     webhookUrl: await sepayService.resolveWebhookUrl(),
     accountNumber: env.sepayAccountNumber,
     accountName: env.sepayAccountName,
-    amount: payment.amount,
-    transferContent: order.orderCode
+    transferContent: order.orderCode,
+    expiresAt: order.expiresAt
   };
 };
 
@@ -476,6 +517,27 @@ const getPaymentStatus = async (orderId, userId) => {
 
   if (!order) throw new NotFoundError('Order not found');
   return order;
+};
+
+// Fallback sync: đối soát thanh toán với SePay khi webhook lỗi/không tới.
+// Ưu tiên reconcile từ PaymentLog local, sau đó hỏi trực tiếp SePay PG API.
+const syncOrderPayment = async (orderId, userId) => {
+  const order = await prisma.order.findFirst({
+    where: { id: orderId, userId },
+    select: { id: true, status: true }
+  });
+  if (!order) throw new NotFoundError('Order not found');
+
+  if (order.status !== 'PENDING') {
+    return {
+      synced: false,
+      reason: 'ORDER_ALREADY_PROCESSED',
+      orderId: order.id,
+      status: order.status
+    };
+  }
+
+  return sepayService.syncOrderPaymentFromSepay(orderId, userId);
 };
 
 const cancelExpiredOrders = async () => {
@@ -510,5 +572,6 @@ module.exports = {
   cancelOrder,
   regeneratePayment,
   getPaymentStatus,
+  syncOrderPayment,
   cancelExpiredOrders
 };

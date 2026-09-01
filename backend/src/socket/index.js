@@ -2,11 +2,23 @@ const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/prisma');
 const env = require('../config/env');
+const { corsOrigins, nodeEnv } = env;
 
 const setupSocket = (httpServer) => {
+  // CORS allowlist giống HTTP layer: NEXT_PUBLIC_APP_URL + CORS_ALLOWED_ORIGINS.
+  // Dev: reflect mọi origin (LAN testing); production: chỉ allowlist.
+  const devOrigins = ['http://localhost:3000', 'http://localhost:5173', 'http://localhost', 'http://127.0.0.1'];
+  const socketOrigins = [...new Set([...corsOrigins, ...devOrigins].filter(Boolean))];
+
   const io = new Server(httpServer, {
     cors: {
-      origin: env.frontendUrl,
+      origin: (requestOrigin, callback) => {
+        if (!requestOrigin) return callback(null, true);
+        if (socketOrigins.includes(requestOrigin)) return callback(null, true);
+        if (nodeEnv !== 'production') return callback(null, requestOrigin);
+        console.warn(`[Socket CORS] Rejected origin: ${requestOrigin}`);
+        return callback(null, false);
+      },
       credentials: true
     }
   });
@@ -116,10 +128,43 @@ const setupSocket = (httpServer) => {
 
     socket.on('chat:message', async (data) => {
       try {
-        const { roomId, content, attachments = [] } = data;
-        if (!roomId || !content) return socket.emit('chat:error', { code: 'INVALID_INPUT', message: 'roomId and content required' });
+        const { content, attachments = [] } = data;
+        let { roomId } = data;
+        if (!content) return socket.emit('chat:error', { code: 'INVALID_INPUT', message: 'roomId and content required' });
         if (content.length > 2000) return socket.emit('chat:error', { code: 'CONTENT_TOO_LONG', message: 'Message too long' });
-        if (!checkRateLimit(userId)) return socket.emit('chat:error', { code: 'RATE_LIMIT_EXCEEDED', message: 'Too many messages' });
+        if (checkRateLimit(userId) === false) return socket.emit('chat:error', { code: 'RATE_LIMIT_EXCEEDED', message: 'Too many messages' });
+
+        // Lazy room creation: first message from the storefront widget
+        // persists the general support room at send time (never on open).
+        if (!roomId) {
+          const existing = await prisma.chatRoom.findFirst({
+            where: { userId, orderId: null, subject: 'General Support', status: 'OPEN' },
+            orderBy: { updatedAt: 'desc' }
+          });
+          if (existing) {
+            roomId = existing.id;
+          } else {
+            const created = await prisma.chatRoom.create({
+              data: {
+                userId,
+                orderId: null,
+                subject: 'General Support',
+                status: 'OPEN',
+                participants: { create: { userId } }
+              }
+            });
+            roomId = created.id;
+            io.to('admin:chat').emit('chat:new_room', {
+              room: {
+                id: created.id,
+                subject: created.subject,
+                userId: created.userId,
+                createdAt: created.createdAt
+              }
+            });
+          }
+          socket.join(`chat:${roomId}`);
+        }
 
         // Verify access
         const room = await prisma.chatRoom.findUnique({

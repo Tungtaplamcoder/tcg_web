@@ -4,6 +4,7 @@ import {
   Layers, Link2, ImagePlus, MessageSquarePlus
 } from 'lucide-react';
 import api from '../../services/api';
+import { useAuthStore } from '../../store/useAuthStore';
 
 const RARITY_ORDER = ['Common', 'Rare', 'Epic', 'Legendary'];
 
@@ -36,23 +37,32 @@ const EMPTY_FORM = {
   name: '',
   status: 'DRAFT',
   gradient: 'from-violet-500 to-fuchsia-500',
+  imageUrl: '',
   dropRates: RARITY_ORDER.map((rarity) => ({ rarity, rate: rarity === 'Common' ? 100 : 0 })),
   pool: [],
 };
 
-const EMPTY_POOL_ENTRY = () => ({ name: '', imageUrl: '', rarity: 'Common' });
+const EMPTY_POOL_ENTRY = () => ({ name: '', imageUrl: '', rarity: 'Common', setCode: '', dropRate: '' });
 
 const formatDate = (iso) => {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? '-' : d.toLocaleDateString();
 };
 
-const BoxThumbnail = ({ gradient, size = 'normal' }) => {
-  const sizeClasses = size === 'large' ? 'h-20 w-20 rounded-xl' : 'h-12 w-12 rounded-lg';
+const BoxThumbnail = ({ gradient, imageUrl, name, size = 'normal' }) => {
+  const sizeClasses = size === 'large' ? 'h-24 w-24 rounded-xl' : 'h-14 w-14 rounded-lg';
   const iconClasses = size === 'large' ? 'h-9 w-9 text-white/90' : 'h-5 w-5 text-white/90';
   return (
-    <div className={`${sizeClasses} bg-gradient-to-br ${gradient} flex items-center justify-center shadow-inner ring-1 ring-black/10`}>
-      <Boxes className={iconClasses} />
+    <div className={`${sizeClasses} bg-gradient-to-br ${gradient} flex items-center justify-center shadow-inner ring-1 ring-black/10 overflow-hidden relative shrink-0`}>
+      {imageUrl ? (
+        <img
+          src={imageUrl}
+          alt={name || 'Box cover'}
+          className="h-full w-full object-contain p-0.5"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+      ) : null}
+      {!imageUrl && <Boxes className={iconClasses} />}
     </div>
   );
 };
@@ -75,6 +85,11 @@ const DropRateChips = ({ dropRates }) => (
 );
 
 const VirtualBoxes = () => {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'ADMIN';
+  const canDelete = isAdmin;
+  const canUpload = isAdmin || user?.canManageInventory;
+
   const [boxes, setBoxes] = useState([]);
   const [meta, setMeta] = useState({ totalPages: 1 });
   const [page, setPage] = useState(1);
@@ -139,17 +154,19 @@ const VirtualBoxes = () => {
       const entry = (box.dropRates || []).find((d) => d.rarity === enumRarity);
       return { rarity: label, rate: entry ? Number(entry.rate) : 0 };
     });
-    // Prefer poolItems (used by the gacha opener), fall back to the pool table
-    const poolSource = (box.poolItems && box.poolItems.length > 0 ? box.poolItems : box.pool) || [];
-    const pool = poolSource.map((item) => ({
-      name: item.product?.name || item.product?.shortName || item.card?.sku || '',
-      imageUrl: item.product?.images?.[0] || '',
+    // The gacha opener reads poolItems joined with their GachaCard
+    const pool = (box.poolItems || []).map((item) => ({
+      name: item.gachaCard?.name || '',
+      imageUrl: item.gachaCard?.imageUrl || '',
       rarity: ENUM_TO_RARITY[item.rarity] || 'Common',
+      setCode: item.gachaCard?.setCode || '',
+      dropRate: item.gachaCard?.dropRate != null ? String(item.gachaCard.dropRate) : '',
     }));
     setForm({
       name: box.name,
       status: box.status,
       gradient: box.gradient || 'from-violet-500 to-fuchsia-500',
+      imageUrl: box.imageUrl || '',
       dropRates: rates,
       pool,
     });
@@ -193,14 +210,34 @@ const VirtualBoxes = () => {
     setForm((prev) => ({ ...prev, pool: prev.pool.filter((_, i) => i !== index) }));
   };
 
+  const uploadImageFile = async (file) => {
+    const data = new FormData();
+    data.append('image', file);
+    const response = await api.post('/admin/upload-image', data, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return response.data.data.url;
+  };
+
+  const handleCoverUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const url = await uploadImageFile(file);
+      handleFormChange('imageUrl', url);
+      showToast('Đã upload ảnh cover.');
+    } catch (err) {
+      console.error(err);
+      showToast(err.response?.data?.error?.message || 'Không thể upload ảnh cover. Dán link ảnh vào ô Cover Image URL.', 'error');
+    } finally {
+      e.target.value = '';
+    }
+  };
+
   const handlePoolCardUpload = async (index, e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const data = new FormData();
-      data.append('image', file);
-      const response = await api.post('/admin/upload-image', data, { headers: { 'Content-Type': 'multipart/form-data' } });
-      handlePoolCardChange(index, 'imageUrl', response.data.data.url);
+      const url = await uploadImageFile(file);
+      handlePoolCardChange(index, 'imageUrl', url);
       showToast('Đã upload ảnh thẻ.');
     } catch (err) {
       console.error(err);
@@ -210,14 +247,17 @@ const VirtualBoxes = () => {
     }
   };
 
+  const isValidImageSource = (value) =>
+    /^(https?:\/\/|\/)/i.test(String(value || '').trim());
+
   const validatePool = () => {
     for (let i = 0; i < form.pool.length; i += 1) {
       const entry = form.pool[i];
       if (!entry.name.trim()) {
         return `Thẻ #${i + 1}: thiếu tên thẻ.`;
       }
-      if (entry.imageUrl && !/^https?:\/\//.test(entry.imageUrl.trim())) {
-        return `Thẻ #${i + 1}: link ảnh phải bắt đầu bằng http:// hoặc https://.`;
+      if (entry.imageUrl && !isValidImageSource(entry.imageUrl)) {
+        return `Thẻ #${i + 1}: link ảnh phải bắt đầu bằng http(s):// hoặc /.`;
       }
     }
     return '';
@@ -230,16 +270,23 @@ const VirtualBoxes = () => {
     if (rateTotal !== 100) { setFormError(`Drop rates must total 100% (currently ${rateTotal}%).`); return; }
     const poolError = validatePool();
     if (poolError) { setFormError(poolError); return; }
+    if (form.imageUrl && !isValidImageSource(form.imageUrl)) {
+      setFormError('Cover image URL phải bắt đầu bằng http(s):// hoặc /.');
+      return;
+    }
 
     const payload = {
       name: form.name.trim(),
       status: form.status,
       gradient: form.gradient,
+      imageUrl: form.imageUrl.trim() || null,
       dropRates: form.dropRates.map((r) => ({ rarity: RARITY_TO_ENUM[r.rarity], rate: Number(r.rate) || 0 })),
       pool: form.pool.map((entry) => ({
         name: entry.name.trim(),
         imageUrl: entry.imageUrl.trim() || null,
         rarity: RARITY_TO_ENUM[entry.rarity],
+        setCode: entry.setCode.trim() || null,
+        ...(entry.dropRate !== '' && Number.isFinite(Number(entry.dropRate)) ? { dropRate: Number(entry.dropRate) } : {}),
       })),
     };
 
@@ -385,7 +432,7 @@ const VirtualBoxes = () => {
               {filtered.map((box) => (
                 <tr key={box.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
-                    <BoxThumbnail gradient={box.gradient} />
+                    <BoxThumbnail gradient={box.gradient} imageUrl={box.imageUrl} name={box.name} />
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-gray-800">{box.name}</div>
@@ -408,9 +455,11 @@ const VirtualBoxes = () => {
                       <button onClick={() => openEdit(box)} className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg" title="Edit">
                         <Pencil className="h-5 w-5" />
                       </button>
-                      <button onClick={() => setDeleteTarget(box)} className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg" title="Delete">
-                        <Trash2 className="h-5 w-5" />
-                      </button>
+                      {canDelete && (
+                        <button onClick={() => setDeleteTarget(box)} className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg" title="Delete">
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -436,17 +485,58 @@ const VirtualBoxes = () => {
               <button onClick={closeModal} className="text-gray-500 hover:text-gray-700"><X className="h-5 w-5" /></button>
             </div>
             <form onSubmit={handleSubmit} className="px-6 pb-6 pt-4 space-y-4">
-              <div className="flex items-center gap-3">
-                <BoxThumbnail gradient={form.gradient} size="large" />
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700">Gradient</label>
-                  <select
-                    value={form.gradient}
-                    onChange={(e) => handleFormChange('gradient', e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  >
-                    {GRADIENT_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
-                  </select>
+              <div className="flex items-start gap-3">
+                <BoxThumbnail gradient={form.gradient} imageUrl={form.imageUrl} name={form.name} size="large" />
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Cover / Pack Image URL</label>
+                    <div className="mt-1 flex gap-1.5">
+                      <input
+                        type="text"
+                        value={form.imageUrl}
+                        onChange={(e) => handleFormChange('imageUrl', e.target.value)}
+                        placeholder="https://... (booster pack artwork — ẩn khi trống, fallback về gradient)"
+                        className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      />
+                      {canUpload && (
+                        <label
+                          className="inline-flex items-center justify-center px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 cursor-pointer shrink-0"
+                          title="Upload ảnh cover / booster pack"
+                        >
+                          <ImagePlus className="h-4 w-4" />
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleCoverUpload}
+                          />
+                        </label>
+                      )}
+                      {form.imageUrl && (
+                        <button
+                          type="button"
+                          onClick={() => handleFormChange('imageUrl', '')}
+                          className="inline-flex items-center justify-center px-3 py-2 border border-gray-300 rounded-lg text-sm text-red-500 hover:bg-red-50 shrink-0"
+                          title="Xóa ảnh cover, dùng lại gradient"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs text-gray-400">
+                      Ảnh cover hiển thị ở catalog & 3D unboxing (khổ booster pack dọc). Bỏ trống để dùng gradient.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Gradient (fallback)</label>
+                    <select
+                      value={form.gradient}
+                      onChange={(e) => handleFormChange('gradient', e.target.value)}
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      {GRADIENT_OPTIONS.map((g) => <option key={g} value={g}>{g}</option>)}
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -543,18 +633,18 @@ const VirtualBoxes = () => {
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                          <div className="sm:col-span-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div>
                             <label className="block text-[11px] font-medium text-gray-500 mb-1">Card Name *</label>
                             <input
                               type="text"
                               value={entry.name}
                               onChange={(e) => handlePoolCardChange(index, 'name', e.target.value)}
-                              placeholder="VD: Charizard VMAX"
+                              placeholder="VD: Celestial Dragon"
                               className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                             />
                           </div>
-                          <div className="sm:col-span-1">
+                          <div>
                             <label className="block text-[11px] font-medium text-gray-500 mb-1">Rarity</label>
                             <select
                               value={entry.rarity}
@@ -566,34 +656,58 @@ const VirtualBoxes = () => {
                               ))}
                             </select>
                           </div>
-                          <div className="sm:col-span-1">
+                          <div>
+                            <label className="block text-[11px] font-medium text-gray-500 mb-1">Set Code</label>
+                            <input
+                              type="text"
+                              value={entry.setCode}
+                              onChange={(e) => handlePoolCardChange(index, 'setCode', e.target.value)}
+                              placeholder="VD: CEL-001"
+                              className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-medium text-gray-500 mb-1">Drop Rate (trọng số trong tier)</label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.1"
+                              value={entry.dropRate}
+                              onChange={(e) => handlePoolCardChange(index, 'dropRate', e.target.value)}
+                              placeholder="1 = đồng đều"
+                              className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
                             <label className="block text-[11px] font-medium text-gray-500 mb-1">Image URL / Upload</label>
                             <div className="flex gap-1.5">
                               <input
-                                type="url"
+                                type="text"
                                 value={entry.imageUrl}
                                 onChange={(e) => handlePoolCardChange(index, 'imageUrl', e.target.value)}
-                                placeholder="https://..."
+                                placeholder="https://... hoặc /uploads/..."
                                 className="flex-1 min-w-0 px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                               />
-                              <label
-                                className="inline-flex items-center justify-center px-2 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 cursor-pointer shrink-0"
-                                title="Upload ảnh thẻ"
-                              >
-                                <ImagePlus className="h-4 w-4" />
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={(e) => handlePoolCardUpload(index, e)}
-                                />
-                              </label>
+                              {canUpload && (
+                                <label
+                                  className="inline-flex items-center justify-center px-2 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 cursor-pointer shrink-0"
+                                  title="Upload ảnh thẻ"
+                                >
+                                  <ImagePlus className="h-4 w-4" />
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => handlePoolCardUpload(index, e)}
+                                  />
+                                </label>
+                              )}
                             </div>
                           </div>
                         </div>
                         {entry.imageUrl && (
                           <div className="flex items-center gap-2">
-                            <img src={entry.imageUrl} alt={entry.name || 'Card'} className="h-12 w-12 object-contain rounded border border-gray-200" />
+                            <img src={entry.imageUrl} alt={entry.name || 'Card'} className="h-14 w-14 object-contain rounded border border-gray-200" />
                             <span className="inline-flex items-center gap-1 text-[11px] text-gray-500">
                               <Link2 className="h-3 w-3" /> Ảnh đã gắn
                             </span>

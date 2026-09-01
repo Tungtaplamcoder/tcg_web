@@ -35,7 +35,10 @@ const ChatWidget = () => {
     };
   }, []);
 
-  // Initialize chat when opened and authenticated
+  // Initialize chat when opened and authenticated.
+  // Lazy initialization: opening the widget does NOT create a chat room.
+  // We only load the existing room (if any); a room is persisted server-side
+  // solely when the user actually sends their FIRST message.
   const initializeChat = useCallback(async () => {
     if (!isAuthenticated) return;
 
@@ -53,29 +56,25 @@ const ChatWidget = () => {
         if (socket.connected) socketStatusRef.current = true;
       }
 
-      // 2. Fetch or create chat room
+      // 2. Look for an existing room only — do NOT create one just by opening the widget
       const roomsResponse = await api.get('/chat/rooms');
       const rooms = roomsResponse.data.data;
-      let targetRoom = null;
-      if (rooms && rooms.length > 0) {
-        targetRoom = rooms.find(r => r.status === 'OPEN') || rooms[0];
+      const targetRoom = Array.isArray(rooms) && rooms.length > 0
+        ? (rooms.find(r => r.status === 'OPEN') || rooms[0])
+        : null;
+
+      setRoomId(targetRoom ? targetRoom.id : null);
+
+      // 3. Join socket room + load history when a room exists
+      if (targetRoom) {
+        if (socket) {
+          emitSocketEvent('chat:join', { roomId: targetRoom.id });
+        }
+        const messagesResponse = await api.get(`/chat/rooms/${targetRoom.id}/messages?page=1&limit=50`);
+        setMessages(messagesResponse.data.data.items || []);
+      } else {
+        setMessages([]);
       }
-
-      if (!targetRoom) {
-        const createResponse = await api.post('/chat/rooms', { subject: 'General Support' });
-        targetRoom = createResponse.data.data.room;
-      }
-
-      setRoomId(targetRoom.id);
-
-      // 3. Join socket room
-      if (socket) {
-        emitSocketEvent('chat:join', { roomId: targetRoom.id });
-      }
-
-      // 4. Load messages
-      const messagesResponse = await api.get(`/chat/rooms/${targetRoom.id}/messages?page=1&limit=50`);
-      setMessages(messagesResponse.data.data.items || []);
     } catch (err) {
       console.error('Failed to initialize chat:', err.response?.data?.error?.message || err.message);
       setError('Failed to load chat. Please try again.');
@@ -97,8 +96,19 @@ const ChatWidget = () => {
     if (!isOpen || !isAuthenticated) return;
 
     const cleanupMessage = onSocketEvent('chat:message', (message) => {
+      // roomId === null means the room was lazily created by our first
+      // message; adopt its id and accept the message.
+      if (!roomId && message.roomId) {
+        setRoomId(message.roomId);
+        setMessages((prev) => (
+          prev.some((m) => m.id === message.id) ? prev : [...prev, message]
+        ));
+        return;
+      }
       if (message.roomId === roomId) {
-        setMessages((prev) => [...prev, message]);
+        setMessages((prev) => (
+          prev.some((m) => m.id === message.id) ? prev : [...prev, message]
+        ));
       }
     });
 
@@ -112,22 +122,35 @@ const ChatWidget = () => {
     };
   }, [isOpen, isAuthenticated, roomId]);
 
-  // Send message
+  // Send message.
+  // Lazy creation: when no room exists yet (roomId === null), the first
+  // message is what triggers room creation on the server side.
   const handleSend = async (e) => {
     e.preventDefault();
-    if (!input.trim() || !roomId) return;
+    if (!input.trim()) return;
 
     const content = input.trim();
     setInput('');
 
     try {
-      // Try via socket first
       const socket = getSocket();
       if (socket && socket.connected) {
-        emitSocketEvent('chat:message', { roomId, content });
+        if (roomId) {
+          emitSocketEvent('chat:message', { roomId, content });
+        } else {
+          // First ever message — server lazily creates the room
+          emitSocketEvent('chat:message', { content });
+        }
       } else {
-        // Fallback to REST
-        const response = await api.post(`/chat/rooms/${roomId}/messages`, { content });
+        // REST fallback (lazy-creates the room when none exists yet)
+        const endpoint = roomId
+          ? `/chat/rooms/${roomId}/messages`
+          : '/chat/messages';
+        const response = await api.post(endpoint, { content });
+        if (!roomId && response.data.data?.roomId) {
+          setRoomId(response.data.data.roomId);
+          emitSocketEvent('chat:join', { roomId: response.data.data.roomId });
+        }
         setMessages((prev) => [...prev, response.data.data]);
       }
     } catch (err) {

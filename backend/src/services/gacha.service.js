@@ -60,20 +60,38 @@ const pickRandom = (items, rng = Math.random) => {
   return items[index];
 };
 
+// Weighted random pick over pool items of one rarity. Each item's weight is
+// its GachaCard dropRate when set (> 0), otherwise uniform. `rng` injectable.
+const pickWeightedRandom = (items, rng = Math.random) => {
+  if (!Array.isArray(items) || items.length === 0) return null;
+  const weights = items.map((item) => {
+    const rate = Number(item?.gachaCard?.dropRate);
+    return Number.isFinite(rate) && rate > 0 ? rate : 1;
+  });
+  const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+  let roll = rng() * totalWeight;
+  for (let i = 0; i < items.length; i += 1) {
+    roll -= weights[i];
+    if (roll < 0) return items[i];
+  }
+  return items[items.length - 1];
+};
+
 // Warn at most once per box (per process) about empty-rarity pools
 const warnedBoxIds = new Set();
 
 // Roll a card from a VirtualBox.
 // `box` must include `dropRates` ({ rarity, rate }[]) and `poolItems`
-// ({ id, rarity, productId, ... }[]).
+// ({ id, rarity, gachaCardId, gachaCard: { id, name, imageUrl, rarity,
+// setCode, dropRate } }[]).
 //
 // Steps:
 //   1. Validate the configured drop rates sum to 100%.
 //   2. Build effective weights from rarities that actually have pool items,
 //      redistributing the weight of empty rarities proportionally so an
 //      opening never fails at runtime because of a pool gap.
-//   3. Roll the rarity (weighted), then pick a uniformly random pool item
-//      of that rarity.
+//   3. Roll the rarity (weighted), then pick a pool item of that rarity —
+//      weighted by the card's own dropRate when set (fallback: uniform).
 const rollCardFromBox = (box, rng = Math.random) => {
   const validated = validateDropRates(box.dropRates);
 
@@ -102,7 +120,7 @@ const rollCardFromBox = (box, rng = Math.random) => {
   }
 
   const rarity = rollRarity(effectiveWeights, rng);
-  const poolItem = pickRandom(poolByRarity.get(rarity), rng);
+  const poolItem = pickWeightedRandom(poolByRarity.get(rarity), rng);
   if (!poolItem) {
     throw new AppError('This box has no cards available to pull', 409, 'BOX_POOL_EMPTY');
   }
@@ -115,5 +133,6 @@ module.exports = {
   validateDropRates,
   rollRarity,
   pickRandom,
+  pickWeightedRandom,
   rollCardFromBox
 };

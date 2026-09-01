@@ -56,10 +56,14 @@ services:
       SEPAY_ENV: ${SEPAY_ENV:-sandbox}
       SEPAY_MERCHANT_ID: ${SEPAY_MERCHANT_ID}
       SEPAY_MERCHANT_SECRET_KEY: ${SEPAY_MERCHANT_SECRET_KEY}
+      SEPAY_WEBHOOK_URL: ${SEPAY_WEBHOOK_URL:-}
       SEPAY_WEBHOOK_SECRET: ${SEPAY_WEBHOOK_SECRET:-}
       SEPAY_ACCOUNT_NUMBER: ${SEPAY_ACCOUNT_NUMBER:-}
       SEPAY_ACCOUNT_NAME: ${SEPAY_ACCOUNT_NAME:-}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      # Public domains — SePay callbacks + CORS (no hardcoded hosts)
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER}
@@ -94,9 +98,12 @@ services:
       dockerfile: Dockerfile
       target: production
       args:
+        NEXT_PUBLIC_API_URL: ${VITE_API_URL:-/api/v1}
+        NEXT_PUBLIC_APP_URL: ${VITE_APP_URL:-}
+        NEXT_PUBLIC_SOCKET_URL: ${VITE_SOCKET_URL:-}
         VITE_API_URL: ${VITE_API_URL:-/api/v1}
-        VITE_SOCKET_URL: ${VITE_SOCKET_URL:-http://localhost}
-        VITE_APP_URL: ${VITE_APP_URL:-http://localhost}
+        VITE_SOCKET_URL: ${VITE_SOCKET_URL:-}
+        VITE_APP_URL: ${VITE_APP_URL:-}
         VITE_PORT: ${VITE_PORT:-3000}
         VITE_ENABLE_CHAT: ${VITE_ENABLE_CHAT:-true}
         VITE_ENABLE_PAYMENT: ${VITE_ENABLE_PAYMENT:-true}

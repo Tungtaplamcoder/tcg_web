@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ShoppingCart, Star, Shield, Truck, ArrowLeft, Loader2, Minus, Plus, Check
+  ShoppingCart, ArrowLeft, Loader2, Minus, Plus, Check, Zap, Package, Star
 } from 'lucide-react';
 import {
   ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -10,11 +10,13 @@ import api from '../services/api';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useTheme } from '../context/ThemeContext';
-import { formatVND, formatVNDNumber, USD_TO_VND_RATE } from '../utils/format';
+import { formatVND, USD_TO_VND_RATE } from '../utils/format';
 import { playTick, vibrate } from '../utils/sfx';
-import TiltCard from '../components/TiltCard';
-import ProductImage from '../components/ProductImage';
-import RarityBadge from '../components/RarityBadge';
+import BreadcrumbBar from '../components/BreadcrumbBar';
+import ProductGallery from '../components/ProductGallery';
+import TrustBadges from '../components/TrustBadges';
+import { parseProductData, repairProductEncoding } from '../utils/productDataParser';
+import { getProductCategory } from '../constants/productCategories';
 
 const RANGE_LABELS = {
   month: '1 Month Snapshot',
@@ -37,7 +39,7 @@ const VARIANT_LABELS = {
   REVERSE_HOLOFOIL: 'Reverse Holofoil',
   '1ST_EDITION': '1st Edition',
   '1ST_EDITION_HOLOFOIL': '1st Edition Holofoil',
-  UNLIMITED_HOLOFOIL: 'Unlimited Holofoil'
+  'UNLIMITED_HOLOFOIL': 'Unlimited Holofoil'
 };
 
 const formatCondition = (c) => CONDITION_LABELS[c] || (c ? c.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase()) : 'Near Mint');
@@ -46,7 +48,7 @@ const formatVariant = (v) => VARIANT_LABELS[v] || (v && v !== '' ? v.toLowerCase
 const CHART_THEMES = {
   light: {
     grid: '#e2e8f0', text: '#94a3b8', axis: '#cbd5e1',
-    bar: '#ede9fe', barRing: 'rgba(196,181,253,0.6)', cursor: '#c4b5fd'
+    bar: 'rgba(147, 51, 234, 0.25)', barRing: 'rgba(196,181,253,0.6)', cursor: '#c4b5fd'
   },
   dark: {
     grid: 'rgba(255,255,255,0.08)', text: '#7c83a3', axis: 'rgba(255,255,255,0.14)',
@@ -71,6 +73,26 @@ const ProductDetail = () => {
   const { isAuthenticated } = useAuthStore();
   const { theme } = useTheme();
   const chartTheme = CHART_THEMES[theme] || CHART_THEMES.light;
+
+  /* ── Automatic Data Parser: one memoized pass for the whole page ── */
+  const parsed = useMemo(() => (product ? parseProductData(product) : null), [product]);
+  const productType = parsed?.productType;
+  const isBox = productType === 'BOX';
+  const categoryMeta = useMemo(() => getProductCategory(product), [product]);
+
+  /* ── Breadcrumb trail: Home > Catalog > [Category >] Product ──
+     MUST live above the early returns — conditional hook order is the
+     classic "white screen after data loads" crash (React throws
+     "Rendered more hooks than during the previous render"). */
+  const breadcrumbItems = useMemo(() => {
+    if (!product) return [];
+    const items = [{ label: 'Catalog', to: '/catalog' }];
+    if (categoryMeta) {
+      items.push({ label: categoryMeta.description || categoryMeta.label, to: `/catalog?category=${categoryMeta.value === 'BOX' ? 'box' : 'card'}` });
+    }
+    items.push({ label: product.shortName || product.name });
+    return items;
+  }, [product, categoryMeta]);
 
   const formatCurrency = (value) => {
     if (value === null || value === undefined || isNaN(Number(value))) return 'N/A';
@@ -100,15 +122,47 @@ const ProductDetail = () => {
     const fetchProduct = async () => {
       setLoading(true);
       setError('');
+      setProduct(null);
       try {
         const response = await api.get(`/products/${id}`);
-        const data = response.data.data;
-        setProduct(data);
-        const available = data.variants?.find(v => v.stockQuantity > 0) || data.variants?.[0];
+        const data = response?.data?.data;
+
+        // ── Payload validation: never render a malformed record ──
+        if (!data || typeof data !== 'object' || !data.id) {
+          console.error('[ProductDetail] API returned invalid product payload:', response?.data);
+          setError('Product not found.');
+          return;
+        }
+
+        // Normalize optional fields so downstream rendering is crash-proof
+        const safeData = repairProductEncoding({
+          ...data,
+          name: data.name || 'Unnamed Product',
+          images: Array.isArray(data.images) ? data.images : [],
+          variants: Array.isArray(data.variants) ? data.variants : [],
+          sets: Array.isArray(data.sets) ? data.sets : [],
+          attributes:
+            data.attributes && typeof data.attributes === 'object' && !Array.isArray(data.attributes)
+              ? data.attributes
+              : {}
+        });
+
+        setProduct(safeData);
+        const available = safeData.variants.find(v => v?.stockQuantity > 0) || safeData.variants[0];
         if (available) setSelectedVariantId(available.id);
       } catch (err) {
-        console.error('Failed to load product:', err);
-        setError('Product not found.');
+        // Distinguish 404 (missing product) from network/server errors
+        const status = err?.response?.status;
+        if (status === 404) {
+          console.error(`[ProductDetail] Product ${id} not found (404):`, err?.response?.data);
+          setError('This product does not exist or has been removed.');
+        } else if (!err?.response) {
+          console.error('[ProductDetail] Network error while loading product:', err);
+          setError('Cannot reach the server. Please check your connection and try again.');
+        } else {
+          console.error(`[ProductDetail] Failed to load product (HTTP ${status}):`, err?.response?.data || err);
+          setError('Failed to load this product. Please try again.');
+        }
       } finally {
         setLoading(false);
       }
@@ -133,25 +187,23 @@ const ProductDetail = () => {
     setIsLoadingRange(true);
     try {
       const response = await api.get(`/tcgplayer/price-history/${product.tcgplayerId}`, {
-        params: {
-          range,
-          condition,
-          variant
-        }
+        params: { range, condition, variant }
       });
-      const data = response.data.data;
+      const data = response?.data?.data || {};
       const normalizedData = {
-        chart_data: data.chart_data || [],
-        price_metrics: data.price_metrics || {
-          comparison_prices: [],
-          price_points: null,
-          snapshot: null
-        }
+        chart_data: Array.isArray(data.chart_data) ? data.chart_data : [],
+        price_metrics: (data.price_metrics && typeof data.price_metrics === 'object')
+          ? data.price_metrics
+          : { comparison_prices: [], price_points: null, snapshot: null }
       };
+      if (normalizedData.price_metrics.comparison_prices == null) {
+        normalizedData.price_metrics.comparison_prices = [];
+      }
       cacheRef.current.set(cacheKey, normalizedData);
       setPriceData(normalizedData);
     } catch (err) {
-        console.error('Failed to load price history:', err);
+      console.error('Failed to load price history:', err);
+      setPriceData({ chart_data: [], price_metrics: { comparison_prices: [], price_points: null, snapshot: null } });
     } finally {
       setIsLoadingRange(false);
     }
@@ -183,6 +235,25 @@ const ProductDetail = () => {
     setTimeout(() => navigate('/cart'), 750);
   };
 
+  const handleBuyNow = () => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: `/product/${id}` } });
+      return;
+    }
+    if (!selectedVariantId || !selectedVariant?.stockQuantity) return;
+
+    addItem({
+      id: product.id,
+      name: product.name,
+      price: Number(selectedVariant.price),
+      images: product.images || [],
+      stockQuantity: selectedVariant.stockQuantity
+    }, quantity, selectedVariant.id);
+    playTick();
+    vibrate([12]);
+    navigate('/checkout');
+  };
+
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
@@ -211,8 +282,11 @@ const ProductDetail = () => {
     );
   }
 
-  const chartData = priceData?.chart_data || [];
-  const metrics = priceData?.price_metrics || null;
+  const chartData = (Array.isArray(priceData?.chart_data) ? priceData.chart_data : [])
+    .filter((item) => item && typeof item === 'object');
+  const metrics = (priceData?.price_metrics && typeof priceData.price_metrics === 'object')
+    ? priceData.price_metrics
+    : null;
 
   const chartDataMapped = chartData.map(item => ({
     date: item.date || '',
@@ -236,17 +310,27 @@ const ProductDetail = () => {
     return picked;
   })();
 
-  // Right axis: volume scale maxes at 6000 with 1500 steps (grows only if data exceeds it)
-  const volumeTop = Math.max(6000, Math.ceil(Math.max(...chartDataMapped.map(d => d.quantitySold), 0) / 1500) * 1500);
-  const volumeTicks = Array.from({ length: volumeTop / 1500 + 1 }, (_, i) => i * 1500);
+  // Right axis: volume scale derives from the active filtered dataset so bars
+  // always fill the plot area across every timeframe. Math.max() with an empty
+  // spread returns -Infinity — guard with a 0 floor. 1.2 headroom keeps the
+  // tallest bar from touching the top; rounded tick steps keep labels clean.
+  const maxVolume = chartDataMapped.length > 0
+    ? Math.max(...chartDataMapped.map(d => d.quantitySold), 0)
+    : 0;
+  const rawTop = Math.max(maxVolume * 1.2, 10);
+  const volumeStep = Math.pow(10, Math.floor(Math.log10(rawTop))) / 2;
+  const volumeTop = Math.ceil(rawTop / volumeStep) * volumeStep;
+  const volumeTicks = Array.from({ length: Math.round(volumeTop / volumeStep) + 1 }, (_, i) =>
+    Math.round(i * volumeStep * 100) / 100
+  );
 
   const snapshotTitle = RANGE_LABELS[priceRange] || 'Snapshot';
 
-  const CustomTooltip = ({ active, payload, label }) => {
+  const CustomTooltip = ({ active, payload }) => {
     if (!active || !payload || payload.length === 0) return null;
     const data = payload[0].payload;
     return (
-        <div className="glass-panel-strong text-strong rounded-xl shadow-2xl shadow-ink-900/15 border border-subtle p-3.5" style={{ minWidth: '200px' }}>
+      <div className="glass-panel-strong text-strong rounded-xl shadow-2xl shadow-ink-900/15 border border-subtle p-3.5" style={{ minWidth: '200px' }}>
         <div className="text-ink-400 dark:text-ink-300 text-xs font-semibold border-b border-ink-100 dark:border-white/10 pb-1.5 mb-2">
           {data.dateLabel || formatFullDate(data.date)}
         </div>
@@ -266,45 +350,36 @@ const ProductDetail = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 app-bg animate-tcg-reveal">
-      <button onClick={() => navigate(-1)} className="btn-ghost mb-6 !px-3">
-        <ArrowLeft className="h-4 w-4 mr-1.5" /> Back
-      </button>
+    <div className="w-full min-h-screen animate-tcg-reveal">
+      <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+      <BreadcrumbBar items={breadcrumbItems} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-        {/* Product image */}
-        <div className="lg:sticky lg:top-24 self-start">
-          <div className="relative overflow-hidden rounded-3xl glass-panel-strong aura-glow p-8 sm:p-10 flex items-center justify-center" style={{ minHeight: '300px' }}>
-            <div className="pointer-events-none absolute -top-16 -right-16 h-56 w-56 rounded-full bg-fuchsia-400/15 blur-[80px] animate-tcg-float" />
-            <div className="pointer-events-none absolute -bottom-16 -left-16 h-56 w-56 rounded-full bg-primary-400/15 blur-[80px] animate-tcg-float-slow" />
-            {product.rarity && (
-              <div className="absolute top-4 left-4 z-20">
-                <RarityBadge rarity={product.rarity} size="lg" />
-              </div>
-            )}
-            <TiltCard max={16} scale={1.05} rarity={product.rarity} className="relative w-full flex items-center justify-center">
-              <ProductImage
-                src={product.images && product.images.length > 0 ? product.images[0] : null}
-                alt={product.name}
-                className="relative max-h-[440px] w-auto object-contain drop-shadow-[0_24px_40px_rgba(15,23,42,0.35)] dark:drop-shadow-[0_24px_50px_rgba(34,211,238,0.25)]"
-                fallbackClassName="h-[380px] w-full rounded-2xl"
-                iconClassName="h-12 w-12 text-white/90"
-                label={product.shortName || product.name || 'No image'}
-              />
-            </TiltCard>
-          </div>
-        </div>
+        {/* ── Image container & 3D interactive view ─────────────── */}
+        <ProductGallery product={product} />
 
-        {/* Details */}
+        {/* ── Details ───────────────────────────────────────────── */}
         <div>
-          {product.rarity && (
-            <div className="mb-3">
-              <RarityBadge rarity={product.rarity} size="lg" />
-            </div>
-          )}
+          {/* Product type eyebrow */}
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${
+              isBox
+                ? 'bg-amber-400/15 text-amber-700 dark:text-amber-300 ring-1 ring-amber-400/30'
+                : 'bg-primary-400/15 text-primary-700 dark:text-primary-300 ring-1 ring-primary-400/30'
+            }`}>
+              {isBox ? <Package className="h-3 w-3" /> : <Zap className="h-3 w-3" />}
+              {isBox ? 'Sealed Box' : 'Single Card'}
+            </span>
+            {parsed?.franchise?.label && (
+              <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-faint">
+                {parsed.franchise.label}
+              </span>
+            )}
+          </div>
+
           <h1 className="heading-display text-3xl sm:text-4xl leading-tight">{product.name}</h1>
           {product.sets && product.sets.length > 0 && (
-            <p className="text-ink-500 dark:text-ink-300 mt-2 font-medium">{product.sets.map(s => s.name).join(', ')}</p>
+            <p className="text-ink-500 dark:text-ink-300 mt-2 font-medium">{product.sets.map(s => s?.name).filter(Boolean).join(', ')}</p>
           )}
 
           <div className="mt-4 flex items-center gap-2.5">
@@ -314,12 +389,26 @@ const ProductDetail = () => {
             <span className="text-sm text-ink-400 dark:text-ink-300">(0 reviews)</span>
           </div>
 
-          <div className="mt-6 inline-flex items-baseline gap-3 rounded-2xl bg-brand-gradient-soft ring-1 ring-primary-200/60 px-5 py-3.5">
-            <span className="text-3xl sm:text-4xl font-display font-bold text-gradient-brand">
-              {selectedVariant ? formatVND(selectedVariant.price) : 'Select condition'}
-            </span>
+          {/* Price + live inventory badge */}
+          <div className="mt-6 flex flex-wrap items-center gap-4">
+            <div className="pd-price-chip">
+              <span className="text-3xl sm:text-4xl font-display font-bold text-gradient-brand">
+                {selectedVariant ? formatVND(selectedVariant.price) : 'Select condition'}
+              </span>
+            </div>
+            {selectedVariant && (
+              <span className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider ${
+                selectedVariant.stockQuantity > 0
+                  ? 'bg-emerald-400/15 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-400/30'
+                  : 'bg-rose-400/15 text-rose-600 dark:text-rose-300 ring-1 ring-rose-400/30'
+              }`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${selectedVariant.stockQuantity > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                {selectedVariant.stockQuantity > 0 ? 'In Stock' : 'Sold Out'}
+              </span>
+            )}
           </div>
 
+          {/* Condition / variant selector */}
           {product.variants && product.variants.length > 0 && (
             <div className="mt-6">
               <label className="label-premium">Condition & Card Type</label>
@@ -354,19 +443,20 @@ const ProductDetail = () => {
             </div>
           )}
 
+          {/* ── Action area: quantity + CTA ─────────────────────── */}
           <div className="mt-7 flex items-stretch gap-3">
             <div className="inline-flex items-center self-stretch rounded-xl border border-subtle surface overflow-hidden shrink-0">
               <button
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="p-3 text-ink-500 dark:text-ink-300 hover:text-primary-700 hover:bg-primary-50 transition-colors"
+                className="p-3 text-ink-500 dark:text-ink-300 hover:text-primary-700 hover:bg-primary-50 dark:hover:bg-primary-400/10 transition-colors"
                 aria-label="Decrease quantity"
               >
                 <Minus className="h-4 w-4" />
               </button>
-              <span className="px-5 py-3 font-bold text-ink-900 dark:text-white min-w-[3rem] text-center">{quantity}</span>
+              <span className="px-5 py-3 font-bold text-ink-900 dark:text-white min-w-[3rem] text-center tabular-nums">{quantity}</span>
               <button
                 onClick={() => setQuantity(Math.min(selectedVariant?.stockQuantity || 10, quantity + 1))}
-                className="p-3 text-ink-500 dark:text-ink-300 hover:text-primary-700 hover:bg-primary-50 transition-colors"
+                className="p-3 text-ink-500 dark:text-ink-300 hover:text-primary-700 hover:bg-primary-50 dark:hover:bg-primary-400/10 transition-colors"
                 aria-label="Increase quantity"
               >
                 <Plus className="h-4 w-4" />
@@ -377,28 +467,40 @@ const ProductDetail = () => {
               disabled={!selectedVariantId || !selectedVariant?.stockQuantity || added}
               className={`btn-primary flex-1 w-full !py-3.5 text-base ${added ? '!from-emerald-500 !to-teal-500' : ''}`}
             >
-              {added ? (<><Check className="h-5 w-5" /> Added!</> ) : (<><ShoppingCart className="h-5 w-5" /> Add to cart</>)}
+              {added ? (<><Check className="h-5 w-5" /> Added!</>) : (<><ShoppingCart className="h-5 w-5" /> Add to cart</>)}
             </button>
           </div>
 
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={handleBuyNow}
+              disabled={!selectedVariantId || !selectedVariant?.stockQuantity}
+              className="btn-aura w-full !py-3.5 text-base"
+            >
+              <Zap className="h-5 w-5" /> Buy Now
+            </button>
+          </div>
+
+          {/* ── Trust badges ────────────────────────────────────── */}
+          <div className="mt-6">
+            <TrustBadges />
+          </div>
+
+          {/* ── Description: classic unified block ──────────────── */}
           {product.description && (
-            <div className="mt-6 p-5 rounded-2xl glass-panel text-muted text-sm leading-relaxed whitespace-pre-wrap">
-              {product.description}
-            </div>
+            <section className="mt-8">
+              <p className="section-eyebrow">Specifications</p>
+              <h2 className="heading-display text-xl mt-1 mb-4">
+                {isBox ? 'Box details' : 'Card details'}
+              </h2>
+              <div className="rounded-2xl bg-white/50 dark:bg-white/5 ring-1 ring-ink-900/5 dark:ring-white/10 backdrop-blur-md p-6">
+                <p className="text-sm text-ink-600 dark:text-ink-300 leading-relaxed whitespace-pre-wrap font-medium">
+                  {product.description}
+                </p>
+              </div>
+            </section>
           )}
-
-          <div className="mt-5 space-y-2 text-sm">
-            {product.artist && <p className="text-ink-600 dark:text-ink-200"><strong className="text-ink-800 dark:text-white">Artist:</strong> {product.artist}</p>}
-          </div>
-
-          <div className="mt-7 grid grid-cols-2 gap-3">
-            <div className="flex items-center gap-2.5 rounded-xl bg-emerald-50/80 dark:bg-emerald-400/10 ring-1 ring-emerald-100 dark:ring-emerald-400/20 px-4 py-3 text-sm font-medium text-emerald-800 dark:text-emerald-300">
-              <Shield className="h-[18px] w-[18px] text-emerald-600" /> 100% Authentic
-            </div>
-            <div className="flex items-center gap-2.5 rounded-xl bg-primary-50/80 dark:bg-primary-400/10 ring-1 ring-primary-100 dark:ring-primary-400/20 px-4 py-3 text-sm font-medium text-primary-800 dark:text-primary-200">
-              <Truck className="h-[18px] w-[18px] text-primary-600" /> Fast shipping
-            </div>
-          </div>
         </div>
       </div>
 
@@ -468,7 +570,7 @@ const ProductDetail = () => {
                             dataKey="quantitySold"
                             fill={chartTheme.bar}
                             barCategoryGap="2%"
-                            barSize={14}
+                            maxBarSize={20}
                             radius={[4, 4, 0, 0]}
                           />
                           <Line
@@ -512,7 +614,7 @@ const ProductDetail = () => {
                   {/* Legend */}
                   <div className="mt-4 flex items-center justify-center flex-wrap gap-x-6 gap-y-2 text-xs text-ink-500 dark:text-ink-300">
                     <div className="flex items-center">
-                      <span className="w-3 h-3 rounded-sm bg-[#ede9fe] dark:bg-primary-500/30 ring-1 ring-primary-200 dark:ring-primary-400/30 mr-1.5"></span>
+                      <span className="w-3 h-3 rounded-sm bg-primary-400/25 dark:bg-primary-500/30 ring-1 ring-primary-200 dark:ring-primary-400/30 mr-1.5"></span>
                       Items Sold
                     </div>
                     <div className="flex items-center">
@@ -549,14 +651,14 @@ const ProductDetail = () => {
                       </div>
                     </div>
 
-                    {metrics?.comparison_prices?.length > 0 && (
+                    {(Array.isArray(metrics?.comparison_prices) ? metrics.comparison_prices : []).length > 0 && (
                       <div className="mt-4 pt-4 border-t border-primary-200/40">
                         <p className="text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2.5">Near Mint Comparison Prices</p>
                         <div className="flex flex-wrap gap-2">
                           {metrics.comparison_prices.map((item, idx) => (
                             <div key={idx} className="flex items-center gap-2 bg-white/85 dark:bg-white/10 rounded-lg px-3 py-1.5 ring-1 ring-primary-200/50 dark:ring-white/10 shadow-sm">
-                              <span className="text-sm text-ink-500 dark:text-ink-300">{item.label}:</span>
-                              <span className="font-bold text-ink-800 dark:text-white">{formatCurrency(item.value)}</span>
+                              <span className="text-sm text-ink-500 dark:text-ink-300">{item?.label ?? 'Price'}:</span>
+                              <span className="font-bold text-ink-800 dark:text-white">{formatCurrency(item?.value)}</span>
                             </div>
                           ))}
                         </div>
@@ -566,7 +668,7 @@ const ProductDetail = () => {
 
                   <div className="rounded-2xl surface p-5">
                     <h3 className="font-display font-bold text-ink-900 dark:text-white">{snapshotTitle}</h3>
-                    {metrics?.snapshot ? (
+                    {metrics?.snapshot && typeof metrics.snapshot === 'object' ? (
                       <div className="grid grid-cols-2 gap-2.5 mt-4">
                         <div className="rounded-xl surface-2 p-3 text-center">
                           <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">Low Sale Price</p>
@@ -596,6 +698,7 @@ const ProductDetail = () => {
         </div>
       )}
 
+      </div>
     </div>
   );
 };

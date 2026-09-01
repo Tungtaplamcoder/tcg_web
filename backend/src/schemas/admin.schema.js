@@ -122,7 +122,11 @@ const listPostsQuerySchema = z.object({
 
 const updateOrderStatusSchema = z.object({
   status: z.enum(['CANCELLED', 'PACKAGING', 'SHIPPING', 'DELIVERED']),
-  note: z.string().optional()
+  note: z.string().optional(),
+  trackingNumber: z.string().trim().min(1, 'Mã vận đơn không được để trống').max(100, 'Mã vận đơn tối đa 100 ký tự').optional()
+}).refine((data) => data.status !== 'SHIPPING' || !!data.trackingNumber, {
+  message: 'Mã vận đơn là bắt buộc khi bắt đầu vận chuyển',
+  path: ['trackingNumber']
 });
 
 const listOrdersQuerySchema = z.object({
@@ -164,21 +168,43 @@ const listUsersQuerySchema = z.object({
 
 const gachaRarityEnum = z.enum(['COMMON', 'RARE', 'EPIC', 'LEGENDARY']);
 
+// Uploaded artwork is either an absolute URL (ImgBB) or a relative path
+// (/uploads/<file>) served by the local storage fallback — z.string().url()
+// would reject the latter.
+const imageSourceSchema = z.string().trim().max(2048).refine(
+  (value) => /^(https?:\/\/|\/)/i.test(value),
+  { message: 'Image URL must be an absolute http(s) URL or a relative path starting with "/"' }
+);
+
+// Accept `image` as an alias for `imageUrl` (box cover and pool entries)
+// so either field name persists.
+const withImageAlias = (schema) => z.preprocess((data) => {
+  if (data && typeof data === 'object' && !('imageUrl' in data) && 'image' in data) {
+    const { image, ...rest } = data;
+    return { ...rest, imageUrl: image };
+  }
+  return data;
+}, schema);
+
 const virtualBoxDropRateSchema = z.object({
   rarity: gachaRarityEnum,
   rate: z.coerce.number().min(0).max(100)
 });
 
-const virtualBoxPoolEntrySchema = z.object({
-  productId: z.string().uuid().optional(),
-  cardId: z.string().uuid().optional(),
+// A pool entry IS a gacha card definition — the gacha ecosystem is fully
+// decoupled from the shop inventory, so entries reference GachaCard rows
+// (by id) or define a new card inline (name + artwork + rarity + set code).
+// `dropRate` is the per-card weight inside its rarity tier.
+const virtualBoxPoolEntrySchema = withImageAlias(z.object({
+  gachaCardId: z.string().uuid().optional(),
   name: z.string().min(1).max(200).optional(),
-  imageUrl: z.string().url().optional().nullable(),
+  imageUrl: imageSourceSchema.optional().nullable(),
   rarity: z.string().min(1).max(50).optional(),
-  weight: z.coerce.number().int().min(1).default(1)
-}).refine((entry) => Boolean(entry.productId || entry.cardId || entry.name), {
-  message: 'Each pool entry requires a productId, a cardId or a card name'
-});
+  setCode: z.string().trim().max(32).optional().nullable(),
+  dropRate: z.coerce.number().min(0).max(100).optional()
+}).refine((entry) => Boolean(entry.gachaCardId || entry.name), {
+  message: 'Each pool entry requires a gachaCardId or a card name'
+}));
 
 const dropRatesValid = (data) => {
   if (!data.dropRates || data.dropRates.length === 0) return true;
@@ -195,7 +221,7 @@ const baseVirtualBoxSchema = z.object({
   name: z.string().min(2).max(200),
   slug: z.string().min(2).max(200).optional(),
   description: z.string().max(2000).optional().nullable(),
-  imageUrl: z.string().url().optional().nullable(),
+  imageUrl: imageSourceSchema.optional().nullable(),
   gradient: z.string().max(200).optional().nullable(),
   // Price is no longer edited in the admin modal; defaults to 0 (free entry)
   price: z.coerce.number().min(0).optional().default(0),
@@ -204,9 +230,9 @@ const baseVirtualBoxSchema = z.object({
   pool: z.array(virtualBoxPoolEntrySchema).max(500).optional()
 });
 
-const createVirtualBoxSchema = baseVirtualBoxSchema.refine(dropRatesValid, dropRatesMessage);
+const createVirtualBoxSchema = withImageAlias(baseVirtualBoxSchema.refine(dropRatesValid, dropRatesMessage));
 
-const updateVirtualBoxSchema = baseVirtualBoxSchema.partial().refine(dropRatesValid, dropRatesMessage);
+const updateVirtualBoxSchema = withImageAlias(baseVirtualBoxSchema.partial().refine(dropRatesValid, dropRatesMessage));
 
 const listVirtualBoxesQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),

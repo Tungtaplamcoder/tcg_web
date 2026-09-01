@@ -129,8 +129,9 @@ const BoxCard = ({ box, index, onPlay }) => {
   const background = boxBackground(box, index);
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-3xl glass-panel transition-[transform,box-shadow] duration-300 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1.5 hover:ring-iridescent animate-tcg-reveal" style={{ animationDelay: `${Math.min(index * 0.06, 0.42)}s` }}>
-      {/* Box art */}
-      <div className="relative aspect-[16/10] overflow-hidden">
+      {/* Box art — vertical booster-pack stage; artwork letterboxes inside
+          with object-contain so the natural pack ratio is never distorted */}
+      <div className="relative aspect-[4/5] overflow-hidden">
         <div
           aria-hidden="true"
           className="absolute inset-0 transition-transform duration-500 group-hover:scale-[1.04]"
@@ -142,11 +143,11 @@ const BoxCard = ({ box, index, onPlay }) => {
           style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.75) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.75) 1px, transparent 1px)', backgroundSize: '22px 22px' }}
         />
         {box.imageUrl ? (
-          <div className="absolute inset-0">
+          <div className="absolute inset-0 flex items-center justify-center p-4">
             <ProductImage
               src={box.imageUrl}
               alt={box.name}
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+              className="max-h-full w-auto max-w-full object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.45)]"
               fallbackClassName="h-full w-full"
               label={box.name}
             />
@@ -279,7 +280,7 @@ const VirtualBoxesPage = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
             {[...Array(6)].map((_, idx) => (
               <div key={idx} className="surface rounded-3xl overflow-hidden animate-pulse">
-                <div className="aspect-[16/10] bg-ink-100 dark:bg-white/5" />
+                <div className="aspect-[4/5] bg-ink-100 dark:bg-white/5" />
                 <div className="p-5 space-y-3">
                   <div className="h-4 bg-ink-100 dark:bg-white/5 rounded w-5/6" />
                   <div className="h-3 bg-ink-100 dark:bg-white/5 rounded w-2/3" />

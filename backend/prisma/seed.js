@@ -10,32 +10,57 @@ async function hashPassword(password) {
 }
 
 async function main() {
-  console.log('Cleaning existing data...');
+  // =========================================================================
+  // IDEMPOTENCY GUARD — this seed runs on every deploy via deploy.sh.
+  // If the database already contains data (users/products/orders), exit
+  // immediately WITHOUT deleting anything. A redeploy must never wipe data.
+  // To force a fresh reseed, delete rows manually or run with SEED_FORCE=1.
+  // =========================================================================
+  const forceSeed = process.env.SEED_FORCE === '1' || process.env.SEED_FORCE === 'true';
+  if (!forceSeed) {
+    const [userCount, productCount, orderCount] = await Promise.all([
+      prisma.user.count(),
+      prisma.product.count(),
+      prisma.order.count()
+    ]);
+    if (userCount > 0 || productCount > 0 || orderCount > 0) {
+      console.log(`Seed skipped — database already has data (users: ${userCount}, products: ${productCount}, orders: ${orderCount}).`);
+      console.log('Re-deploying does NOT reseed. Set SEED_FORCE=1 to force a fresh seed (destructive).');
+      return;
+    }
+    console.log('Empty database detected — seeding initial data...');
+  } else {
+    console.log('SEED_FORCE is set — wiping and reseeding demo data...');
+  }
 
-  // Delete in dependency-safe order
-  await prisma.orderStatusHistory.deleteMany({});
-  await prisma.paymentLog.deleteMany({});
-  await prisma.payment.deleteMany({});
-  await prisma.orderItem.deleteMany({});
-  await prisma.order.deleteMany({});
-  await prisma.chatMessage.deleteMany({});
-  await prisma.chatParticipant.deleteMany({});
-  await prisma.chatRoom.deleteMany({});
-  await prisma.post.deleteMany({}); // Posts reference User.authorId with Restrict
-  await prisma.card.deleteMany({});
-  await prisma.userCard.deleteMany({});
-  await prisma.virtualBoxOpening.deleteMany({});
-  await prisma.virtualBoxPoolItem.deleteMany({});
-  await prisma.virtualBoxDropRate.deleteMany({});
-  await prisma.virtualBoxPool.deleteMany({});
-  await prisma.virtualBox.deleteMany({});
-  await prisma.product.deleteMany({});
-  await prisma.set.deleteMany({});
-  await prisma.category.deleteMany({});
-  await prisma.refreshToken.deleteMany({});
-  await prisma.passwordResetToken.deleteMany({});
-  await prisma.appSetting.deleteMany({});
-  await prisma.user.deleteMany({});
+  if (forceSeed) {
+    console.log('Cleaning existing data...');
+
+    // Delete in dependency-safe order
+    await prisma.orderStatusHistory.deleteMany({});
+    await prisma.paymentLog.deleteMany({});
+    await prisma.payment.deleteMany({});
+    await prisma.orderItem.deleteMany({});
+    await prisma.order.deleteMany({});
+    await prisma.chatMessage.deleteMany({});
+    await prisma.chatParticipant.deleteMany({});
+    await prisma.chatRoom.deleteMany({});
+    await prisma.post.deleteMany({}); // Posts reference User.authorId with Restrict
+    await prisma.card.deleteMany({});
+    await prisma.userCard.deleteMany({});
+    await prisma.virtualBoxOpening.deleteMany({});
+    await prisma.virtualBoxPoolItem.deleteMany({});
+    await prisma.virtualBoxDropRate.deleteMany({});
+    await prisma.virtualBox.deleteMany({});
+    await prisma.gachaCard.deleteMany({});
+    await prisma.product.deleteMany({});
+    await prisma.set.deleteMany({});
+    await prisma.category.deleteMany({});
+    await prisma.refreshToken.deleteMany({});
+    await prisma.passwordResetToken.deleteMany({});
+    await prisma.appSetting.deleteMany({});
+    await prisma.user.deleteMany({});
+  }
 
   console.log('Creating users...');
 
@@ -357,20 +382,44 @@ async function main() {
 
   console.log('Created individual cards.');
 
-  // Create Virtual Boxes (gacha) with drop rates and a card pool per box
-  console.log('Creating virtual boxes...');
+  // Create dedicated Gacha cards + Virtual Boxes (gacha) — the gacha pool is
+  // fully decoupled from the retail shop inventory: boxes pull from
+  // GachaCard rows with their own artwork, set codes and drop weights.
+  console.log('Creating gacha cards and virtual boxes...');
 
-  const productBySlug = (slug) => {
-    const product = createdProducts.find(p => p.slug === slug);
-    if (!product) throw new Error(`Seed error: product ${slug} not found`);
-    return product;
-  };
+  const gachaCardsData = [
+    { name: 'Ember Fox', rarity: 'COMMON', setCode: 'GEN-001', imageUrl: 'https://example.com/gacha/ember-fox.jpg' },
+    { name: 'Tide Runner', rarity: 'COMMON', setCode: 'GEN-002', imageUrl: 'https://example.com/gacha/tide-runner.jpg' },
+    { name: 'Stone Sentinel', rarity: 'COMMON', setCode: 'GEN-003', imageUrl: 'https://example.com/gacha/stone-sentinel.jpg' },
+    { name: 'Gale Dancer', rarity: 'RARE', setCode: 'GEN-014', imageUrl: 'https://example.com/gacha/gale-dancer.jpg' },
+    { name: 'Void Wanderer', rarity: 'RARE', setCode: 'GEN-019', imageUrl: 'https://example.com/gacha/void-wanderer.jpg' },
+    { name: 'Aurora Weaver', rarity: 'EPIC', setCode: 'AUR-032', imageUrl: 'https://example.com/gacha/aurora-weaver.jpg' },
+    { name: 'Prism Colossus', rarity: 'EPIC', setCode: 'AUR-041', imageUrl: 'https://example.com/gacha/prism-colossus.jpg' },
+    { name: 'Celestial Dragon', rarity: 'LEGENDARY', setCode: 'CEL-001', imageUrl: 'https://example.com/gacha/celestial-dragon.jpg' },
+    { name: 'Eclipse Sovereign', rarity: 'LEGENDARY', setCode: 'CEL-009', imageUrl: 'https://example.com/gacha/eclipse-sovereign.jpg' }
+  ];
+
+  const gachaCardByName = {};
+  for (const cardData of gachaCardsData) {
+    const card = await prisma.gachaCard.create({
+      data: {
+        name: cardData.name,
+        slug: `gacha-${cardData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}`,
+        rarity: cardData.rarity,
+        setCode: cardData.setCode,
+        imageUrl: cardData.imageUrl,
+        dropRate: 1
+      }
+    });
+    gachaCardByName[cardData.name] = card;
+  }
+  console.log(`Created ${gachaCardsData.length} gacha cards.`);
 
   const virtualBoxesData = [
     {
       name: 'Genesis Starter Box',
       slug: 'genesis-starter-box',
-      description: 'Entry-level gacha box with a balanced pool of popular singles.',
+      description: 'Entry-level gacha box with a balanced pool of collectible cards.',
       price: 24.99,
       status: 'ACTIVE',
       gradient: 'from-violet-500 to-fuchsia-500',
@@ -381,11 +430,12 @@ async function main() {
         { rarity: 'LEGENDARY', rate: 5 }
       ],
       pool: [
-        { slug: 'dark-magician', rarity: 'COMMON' },
-        { slug: 'pikachu-vmax', rarity: 'COMMON' },
-        { slug: 'blue-eyes-white-dragon', rarity: 'RARE' },
-        { slug: 'ragavan-nimble-pilferer', rarity: 'EPIC' },
-        { slug: 'charizard-vmax', rarity: 'LEGENDARY' }
+        { name: 'Ember Fox', rarity: 'COMMON' },
+        { name: 'Tide Runner', rarity: 'COMMON' },
+        { name: 'Stone Sentinel', rarity: 'COMMON' },
+        { name: 'Gale Dancer', rarity: 'RARE' },
+        { name: 'Aurora Weaver', rarity: 'EPIC' },
+        { name: 'Celestial Dragon', rarity: 'LEGENDARY' }
       ]
     },
     {
@@ -402,11 +452,11 @@ async function main() {
         { rarity: 'LEGENDARY', rate: 6 }
       ],
       pool: [
-        { slug: 'pikachu-vmax', rarity: 'COMMON' },
-        { slug: 'dark-magician', rarity: 'COMMON' },
-        { slug: 'blue-eyes-white-dragon', rarity: 'RARE' },
-        { slug: 'ragavan-nimble-pilferer', rarity: 'EPIC' },
-        { slug: 'charizard-vmax', rarity: 'LEGENDARY' }
+        { name: 'Tide Runner', rarity: 'COMMON' },
+        { name: 'Ember Fox', rarity: 'COMMON' },
+        { name: 'Void Wanderer', rarity: 'RARE' },
+        { name: 'Prism Colossus', rarity: 'EPIC' },
+        { name: 'Eclipse Sovereign', rarity: 'LEGENDARY' }
       ]
     },
     {
@@ -423,9 +473,9 @@ async function main() {
         { rarity: 'LEGENDARY', rate: 4 }
       ],
       pool: [
-        { slug: 'pikachu-vmax', rarity: 'COMMON' },
-        { slug: 'blue-eyes-white-dragon', rarity: 'RARE' },
-        { slug: 'charizard-vmax', rarity: 'EPIC' }
+        { name: 'Stone Sentinel', rarity: 'COMMON' },
+        { name: 'Gale Dancer', rarity: 'RARE' },
+        { name: 'Prism Colossus', rarity: 'EPIC' }
       ]
     }
   ];
@@ -438,7 +488,7 @@ async function main() {
         dropRates: { create: dropRates },
         poolItems: {
           create: pool.map(entry => ({
-            productId: productBySlug(entry.slug).id,
+            gachaCardId: gachaCardByName[entry.name].id,
             rarity: entry.rarity
           }))
         }

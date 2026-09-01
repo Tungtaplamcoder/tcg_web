@@ -16,7 +16,12 @@ RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
 COPY . .
 
-# Build arguments injected as VITE_ env vars (baked into the bundle)
+# Build arguments injected as client env vars (baked into the bundle).
+# Both Next-style NEXT_PUBLIC_* and native VITE_* names are accepted —
+# vite.config.js exposes both prefixes to the client bundle.
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_APP_URL
+ARG NEXT_PUBLIC_SOCKET_URL
 ARG VITE_API_URL
 ARG VITE_SOCKET_URL
 ARG VITE_APP_URL
@@ -25,6 +30,9 @@ ARG VITE_ENABLE_CHAT
 ARG VITE_ENABLE_PAYMENT
 ARG VITE_ENABLE_WISHLIST
 
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+ENV NEXT_PUBLIC_SOCKET_URL=${NEXT_PUBLIC_SOCKET_URL}
 ENV VITE_API_URL=${VITE_API_URL}
 ENV VITE_SOCKET_URL=${VITE_SOCKET_URL}
 ENV VITE_APP_URL=${VITE_APP_URL}

@@ -1,5 +1,6 @@
 import { io } from 'socket.io-client';
 import { useAuthStore } from '../store/useAuthStore';
+import { SOCKET_URL } from '../config/env';
 
 let socket = null;
 
@@ -15,9 +16,10 @@ export const initializeSocket = () => {
     return socket;
   }
 
-  // Use environment variable for socket URL; fall back to the page's own origin
-  // so the WebSocket connects to whatever host served the app (works on LAN).
-  const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin;
+  // Socket origin from NEXT_PUBLIC_SOCKET_URL / VITE_SOCKET_URL; empty means
+  // "same origin as the page" — the correct default behind the Nginx
+  // reverse proxy, under whatever production domain serves the app.
+  const socketUrl = SOCKET_URL || window.location.origin;
 
   socket = io(socketUrl, {
     auth: {

@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Package, AlertCircle, ChevronDown, MapPin, ExternalLink
+  Package, AlertCircle, ChevronDown, MapPin, ExternalLink, Truck, Loader2
 } from 'lucide-react';
 import api from '../services/api';
+import { onSocketEvent } from '../services/socket';
 import { useAuthStore } from '../store/useAuthStore';
 import { STATUS_MAP, TIMELINE_STEPS } from '../constants/orderStatus';
 import { formatVND } from '../utils/format';
@@ -19,9 +20,11 @@ const OrderHistory = () => {
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [cancellingId, setCancellingId] = useState(null);
   const [cancelTargetId, setCancelTargetId] = useState(null);
+  const [repayingId, setRepayingId] = useState(null);
 
-  const fetchOrders = async () => {
-    setLoading(true);
+  const lastSyncAttemptRef = useRef({}); // orderId -> timestamp of last sync-payment call
+
+  const fetchOrders = useCallback(async () => {
     setError('');
     try {
       const response = await api.get(`/orders?page=${page}&limit=10`);
@@ -33,13 +36,80 @@ const OrderHistory = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page]);
 
   useEffect(() => {
     if (user) {
       fetchOrders();
     }
-  }, [user, page]);
+  }, [user, fetchOrders]);
+
+  // ── Real-time updates: Socket.IO events from the payment webhook ──────────
+  // Backend emits `order:paid` / `order:status_changed` / `order:cancelled`
+  // when SePay IPN (or admin) updates the order — refresh the list instantly.
+  useEffect(() => {
+    if (!user) return undefined;
+
+    const handleOrderEvent = (data) => {
+      console.log('Order socket event:', data);
+      fetchOrders();
+    };
+
+    const cleanups = [
+      onSocketEvent('order:paid', handleOrderEvent),
+      onSocketEvent('order:status_changed', handleOrderEvent),
+      onSocketEvent('order:cancelled', handleOrderEvent)
+    ];
+
+    return () => cleanups.forEach((cleanup) => cleanup && cleanup());
+  }, [user, fetchOrders]);
+
+  // ── Polling fallback: re-fetch every 15s while a PENDING order exists ────
+  // (covers cases where the socket connection drops or the user has multiple tabs)
+  const hasPendingOrder = orders.some((o) => o.status === 'PENDING');
+  useEffect(() => {
+    if (!user || !hasPendingOrder) return undefined;
+    const interval = setInterval(() => {
+      fetchOrders();
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [user, hasPendingOrder, fetchOrders]);
+
+  // ── Fallback sync: verify PENDING orders against SePay when webhook fails ─
+  // POST /orders/:id/sync-payment re-checks SePay server-side; if SePay says
+  // PAID, the backend flips the order to PACKAGING and we refresh the list.
+  // Throttled to 1 attempt per order per 30s to avoid hammering SePay.
+  useEffect(() => {
+    if (!user) return undefined;
+    const pendingOrders = orders.filter((o) => o.status === 'PENDING');
+    if (pendingOrders.length === 0) return undefined;
+
+    const SYNC_THROTTLE_MS = 30000;
+    const now = Date.now();
+    const dueOrders = pendingOrders.filter(
+      (o) => !lastSyncAttemptRef.current[o.id] || now - lastSyncAttemptRef.current[o.id] > SYNC_THROTTLE_MS
+    );
+    if (dueOrders.length === 0) return undefined;
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      dueOrders.forEach((o) => { lastSyncAttemptRef.current[o.id] = Date.now(); });
+      const results = await Promise.allSettled(
+        dueOrders.map((order) => api.post(`/orders/${order.id}/sync-payment`))
+      );
+      if (cancelled) return;
+      const anySynced = results.some((r) => r.status === 'fulfilled' && r.value?.data?.data?.synced);
+      if (anySynced) {
+        fetchOrders();
+      }
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, orders, fetchOrders]);
 
   const handleToggleExpand = (orderId) => {
     setExpandedOrderId(expandedOrderId === orderId ? null : orderId);
@@ -57,6 +127,41 @@ const OrderHistory = () => {
       setError(err.response?.data?.error?.message || 'Không thể hủy đơn hàng.');
     } finally {
       setCancellingId(null);
+    }
+  };
+
+  // ── Retry payment ("Thanh toán ngay") ─────────────────────────────────────
+  // SePay /checkout/init yêu cầu POST form có chữ ký HMAC (merchant, mã đơn,
+  // số tiền, signature...) — link GET trực tiếp sẽ gặp 404. Nên gọi
+  // POST /orders/:id/repay để backend tái tạo signed form fields rồi
+  // auto-submit form chuyển hướng sang trang thanh toán SePay.
+  const handleRepay = async (orderId) => {
+    setRepayingId(orderId);
+    setError('');
+    try {
+      const response = await api.post(`/orders/${orderId}/repay`);
+      const { checkoutUrl, formFields } = response.data.data || {};
+
+      if (!checkoutUrl || !formFields) {
+        throw new Error('Backend không trả về phiên thanh toán SePay hợp lệ.');
+      }
+
+      const form = document.createElement('form');
+      form.action = checkoutUrl;
+      form.method = 'POST';
+      Object.entries(formFields).forEach(([key, value]) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
+      });
+      document.body.appendChild(form);
+      form.submit();
+    } catch (err) {
+      console.error('Failed to retry payment:', err.response?.status, err.response?.data?.error?.message || err.message);
+      setError(err.response?.data?.error?.message || 'Không thể tạo phiên thanh toán. Vui lòng thử lại.');
+      setRepayingId(null);
     }
   };
 
@@ -220,6 +325,16 @@ const OrderHistory = () => {
                         ))}
                       </div>
 
+                      {/* Tracking number (visible once the order ships) */}
+                      {order.trackingNumber && ['SHIPPING', 'DELIVERED'].includes(order.status) && (
+                        <div className="mt-4 text-sm bg-white dark:bg-white/5 p-4 rounded-xl border border-indigo-100 dark:border-indigo-400/20 flex items-center gap-2.5">
+                          <Truck className="h-4 w-4 text-indigo-600 flex-shrink-0" />
+                          <span className="text-ink-600 dark:text-ink-200">
+                            Mã vận đơn: <span className="font-mono font-semibold text-ink-900 dark:text-white">{order.trackingNumber}</span>
+                          </span>
+                        </div>
+                      )}
+
                       {/* Shipping address */}
                       <div className="mt-4 text-sm text-ink-600 dark:text-ink-200 bg-white dark:bg-white/5 p-4 rounded-xl border border-ink-100 dark:border-white/10">
                         <p className="font-semibold flex items-center text-ink-800 dark:text-white mb-1.5">
@@ -233,17 +348,23 @@ const OrderHistory = () => {
                       {/* Action buttons */}
                       {order.status === 'PENDING' && (
                         <div className="mt-5 flex flex-col sm:flex-row justify-end gap-3">
-                          {order.payments && order.payments.length > 0 && (
-                            <a
-                              href={order.payments[0].paymentUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="btn-primary !py-2.5 text-sm"
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                              Thanh toán ngay
-                            </a>
-                          )}
+                          <button
+                            onClick={() => handleRepay(order.id)}
+                            disabled={repayingId !== null}
+                            className="btn-primary !py-2.5 text-sm"
+                          >
+                            {repayingId === order.id ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Đang chuyển hướng...
+                              </>
+                            ) : (
+                              <>
+                                <ExternalLink className="h-4 w-4" />
+                                Thanh toán ngay
+                              </>
+                            )}
+                          </button>
                           <button
                             onClick={() => setCancelTargetId(order.id)}
                             disabled={cancellingId === order.id}

@@ -76,6 +76,7 @@ const getProductById = async (id) => {
     where: { id },
     include: {
       sets: true,
+      category: { select: { id: true, name: true, slug: true } },
       variants: {
         where: { status: 'ACTIVE' },
         orderBy: [{ condition: 'asc' }, { variant: 'asc' }]

@@ -7,11 +7,12 @@ const { webhookLimiter } = require('../middlewares/rateLimiters');
 // (SEPAY_WEBHOOK_URL > APP_BASE_URL + path > FRONTEND_URL + path > relative path)
 router.get('/sepay', webhookController.getSepayWebhookConfig);
 
-// Dùng express.json() để parse body tự động
+// Dùng express.raw() để giữ nguyên raw body (verify chữ ký HMAC-SHA256),
+// controller tự parse JSON từ raw body.
 router.post(
   '/sepay',
   webhookLimiter,
-  express.json({ limit: '1mb' }),
+  webhookController.verifyRawBody,
   webhookController.handleSepayWebhook
 );
 

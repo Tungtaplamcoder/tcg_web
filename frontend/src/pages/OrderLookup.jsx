@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Package, AlertCircle, ShieldCheck, MapPin } from 'lucide-react';
+import { Search, Package, AlertCircle, ShieldCheck, MapPin, Truck } from 'lucide-react';
 import api from '../services/api';
 import { STATUS_MAP, TIMELINE_STEPS } from '../constants/orderStatus';
 import { detectIdentifier, IDENTIFIER_LABELS } from '../utils/orderId';
@@ -173,6 +173,16 @@ const OrderResult = ({ order }) => {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* tracking number (visible once the order ships) */}
+      {order.trackingNumber && order.status !== 'CANCELLED' && (
+        <div className="mt-5 text-sm bg-white dark:bg-white/5 p-4 rounded-xl border border-indigo-100 dark:border-indigo-400/20 flex items-center gap-2.5">
+          <Truck className="h-4 w-4 text-indigo-600 flex-shrink-0" />
+          <span className="text-ink-600 dark:text-ink-200">
+            Mã vận đơn: <span className="font-mono font-semibold text-ink-900 dark:text-white">{order.trackingNumber}</span>
+          </span>
         </div>
       )}
 
