@@ -1,14 +1,23 @@
+/* Minimal merchandising taxonomy — mirrored from
+ * backend/src/constants/productCategories.js. The semantic keys
+ * (BOX/CARD) are what forms send to the API; each maps to a canonical
+ * category slug resolved by the backend (DB is the source of truth).
+ * Language / rarity / card set are product attributes — they live in
+ * tcgMetadata.js and are NEVER hardcoded into categories. */
+
 export const PRODUCT_CATEGORIES = [
   {
     value: 'BOX',
-    label: 'Box',
-    description: 'Sealed Boxes',
+    label: 'Sealed Products',
+    slug: 'sealed-products',
+    description: 'Sealed booster boxes, ETBs and special collections',
     badgeClass: 'bg-amber-50 text-amber-700 border-amber-200'
   },
   {
     value: 'CARD',
-    label: 'Card',
-    description: 'Single Cards',
+    label: 'Single Cards',
+    slug: 'single-cards',
+    description: 'Authenticated singles and chase cards',
     badgeClass: 'bg-blue-50 text-blue-700 border-blue-200'
   }
 ];
@@ -18,14 +27,61 @@ export const PRODUCT_CATEGORY_MAP = PRODUCT_CATEGORIES.reduce((acc, cat) => {
   return acc;
 }, {});
 
+// Legacy spellings → semantic key (old deep links keep working)
+const LEGACY_ALIASES = {
+  box: 'BOX',
+  sealedbox: 'BOX',
+  sealedboxes: 'BOX',
+  sealedproducts: 'BOX',
+  card: 'CARD',
+  singlecard: 'CARD',
+  singlecards: 'CARD'
+};
+
+// Level-2 sealed sub-types (slug / normalized name) — these live UNDER the
+// Sealed Products root, so they must resolve to BOX instead of falling back
+// to the CARD default. Kept in sync with backend/prisma SEALED_TYPES.
+const SEALED_TYPE_ALIASES = new Set([
+  'boosterbox',
+  'elitetrainerbox',
+  'elitetrainerboxetb',
+  'boosterpack',
+  'specialcollectionbox',
+  'tinbox'
+]);
+
 export const resolveCategoryKey = (category) => {
   if (!category) return null;
   if (PRODUCT_CATEGORY_MAP[category]) return category;
   const source = typeof category === 'string' ? category : (category.slug || category.name || '');
   const norm = String(source).toLowerCase().replace(/[^a-z]/g, '');
-  if (norm === 'box' || norm === 'sealedbox' || norm === 'sealedboxes') return 'BOX';
-  if (norm === 'card' || norm === 'singlecard' || norm === 'singlecards') return 'CARD';
-  return null;
+  if (LEGACY_ALIASES[norm]) return LEGACY_ALIASES[norm];
+  if (SEALED_TYPE_ALIASES.has(norm) || norm.includes('sealed')) return 'BOX';
+  const canonical = PRODUCT_CATEGORIES.find((cat) => cat.slug.replace(/-/g, '') === norm);
+  return canonical ? canonical.value : null;
+};
+
+export const MAIN_TYPES = {
+  SEALED_PRODUCT: 'SEALED_PRODUCT',
+  SINGLE_CARD: 'SINGLE_CARD'
+};
+
+/**
+ * Resolve a product's main type. Prefers an explicit `main_type` field
+ * when the API exposes one (SEALED_PRODUCT / SINGLE_CARD), otherwise
+ * derives it from the category tree (sealed sub-types → sealed) with the
+ * legacy rarity='BOX' convention as a last resort.
+ */
+export const resolveProductMainType = (product) => {
+  const explicit = product?.main_type || product?.mainType || product?.productType;
+  if (explicit) {
+    const norm = String(explicit).trim().toUpperCase().replace(/[^A-Z]/g, '');
+    if (['SEALEDPRODUCT', 'SEALED', 'BOX'].includes(norm)) return MAIN_TYPES.SEALED_PRODUCT;
+    if (['SINGLECARD', 'SINGLE', 'CARD'].includes(norm)) return MAIN_TYPES.SINGLE_CARD;
+  }
+  const key = resolveCategoryKey(product?.category) ||
+    (String(product?.rarity || '').trim().toUpperCase() === 'BOX' ? 'BOX' : null);
+  return key === 'BOX' ? MAIN_TYPES.SEALED_PRODUCT : MAIN_TYPES.SINGLE_CARD;
 };
 
 export const getProductCategory = (product) => {

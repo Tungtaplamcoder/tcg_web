@@ -1,37 +1,51 @@
 # =============================================================================
-# Docker Compose for TCG E-Commerce Platform (zero-config, single command)
+# Docker Compose for TCG E-Commerce Platform
 # =============================================================================
 # Usage:
-#   docker compose up -d --build      # start everything
-#   docker compose ps                 # view health
-#   docker compose down               # stop
-# SSL is optional: docker compose --profile ssl up -d certbot
+#   docker compose up -d --build          # start everything
+#   docker compose ps                     # view health
+#   docker compose down                   # stop (volumes preserved)
+#   ./deploy.sh                           # full automated deploy (see script)
+# SSL is optional: docker compose --profile ssl up certbot
 # =============================================================================
 
 services:
   # ---------------------------------------------------------------------------
-  # PostgreSQL database
+  # MariaDB database
   # ---------------------------------------------------------------------------
-  postgres:
-    image: postgres:16-alpine
-    container_name: tcg_postgres
+  # `restart: unless-stopped` + healthcheck with --innodb_initialized guards
+  # against the classic race where MariaDB reports "ready" on the socket
+  # during first-boot InnoDB recovery but rejects connections a moment later.
+  # All migrations/seeding run ONLY after this service reports healthy
+  # (enforced by deploy.sh + depends_on conditions below).
+  # ---------------------------------------------------------------------------
+  mariadb:
+    image: mariadb:11
+    container_name: tcg_mariadb
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_secure_pass}
-      POSTGRES_DB: ${POSTGRES_DB:-tcg_db}
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+      MARIADB_ROOT_PASSWORD: ${DB_PASS:?DB_PASS required}
+      MARIADB_DATABASE: ${DB_NAME:-tcg_db}
+      MARIADB_USER: ${DB_USER:-tcg}
+      MARIADB_PASSWORD: ${DB_PASS:?DB_PASS required}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+      - mariadb_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-tcg_db}"]
+      # Three-stage readiness probe:
+      #   1. healthcheck.sh --connect          → server accepts connections
+      #   2. --innodb_initialized              → InnoDB recovery finished
+      #   3. mariadb-admin ping over TCP :3306 → real port + credentials work
+      # backend/migrate/seed gate on service_healthy, so they can NEVER hit
+      # a half-initialized database. ($$ escapes compose interpolation —
+      # the password is read from the container's own env at runtime.)
+      test: ["CMD-SHELL", "healthcheck.sh --connect --innodb_initialized && mariadb-admin ping --silent -h 127.0.0.1 -P 3306 -u root -p\"$$MARIADB_ROOT_PASSWORD\""]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
       start_period: 30s
     networks:
-      - tcg-network
+      tcg-network:
+        aliases:
+          - db
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
@@ -41,17 +55,36 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: production
+      target: runner
     container_name: tcg_backend
     environment:
       NODE_ENV: ${NODE_ENV:-production}
+      # E2E/test suites log in once per spec; raise the auth rate window cap
+      # without flipping NODE_ENV (empty ⇒ hardened default of 10/15min).
+      AUTH_RATE_LIMIT_MAX: ${AUTH_RATE_LIMIT_MAX:-}
       PORT: ${BACKEND_PORT:-4000}
-      DATABASE_URL: ${DATABASE_URL}
+      # DATABASE_URL is composed by the backend from DB_* parts (src/config/env.js
+      # builds mysql://DB_USER:DB_PASS@DB_HOST:DB_PORT/DB_NAME). Keeping the
+      # parts as first-class env vars lets both styles work and avoids a
+      # duplicated secret that can drift.
+      DB_HOST: ${DB_HOST:-mariadb}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USER: ${DB_USER:?DB_USER required}
+      DB_PASS: ${DB_PASS:?DB_PASS required}
+      DB_NAME: ${DB_NAME:-tcg_db}
+      DB_POOL_LIMIT: ${DB_POOL_LIMIT:-5}
+      DB_POOL_TIMEOUT: ${DB_POOL_TIMEOUT:-10}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL required}
       DATABASE_SSL_MODE: ${DATABASE_SSL_MODE:-disable}
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      # Connection retry (handled by src/server.js): tolerate brief network
+      # delays after MariaDB reports healthy (first-connection flap, etc.)
+      DB_CONNECT_RETRIES: ${DB_CONNECT_RETRIES:-10}
+      DB_CONNECT_RETRY_DELAY_MS: ${DB_CONNECT_RETRY_DELAY_MS:-2000}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET required}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET required}
       JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      # SePay payment gateway (sandbox | production)
       SEPAY_API_URL: ${SEPAY_API_URL:-https://my.sepay.vn}
       SEPAY_ENV: ${SEPAY_ENV:-sandbox}
       SEPAY_MERCHANT_ID: ${SEPAY_MERCHANT_ID}
@@ -60,34 +93,112 @@ services:
       SEPAY_WEBHOOK_SECRET: ${SEPAY_WEBHOOK_SECRET:-}
       SEPAY_ACCOUNT_NUMBER: ${SEPAY_ACCOUNT_NUMBER:-}
       SEPAY_ACCOUNT_NAME: ${SEPAY_ACCOUNT_NAME:-}
-      # Public domains — SePay callbacks + CORS (no hardcoded hosts)
+      # Public domains — SePay callbacks + CORS (never hardcoded)
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
-      SMTP_HOST: ${SMTP_HOST}
+      SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASS: ${SMTP_PASS}
-      SMTP_HOSTNAME: ${SMTP_HOSTNAME}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_HOSTNAME: ${SMTP_HOSTNAME:-}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@tcg.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       IMGBB_API_KEY: ${IMGBB_API_KEY}
     volumes:
       - backend_uploads:/app/public/uploads
+      - backend_logs:/app/logs
+    expose:
+      - "4000"
     ports:
-      - "4000:4000"
+      - "${BACKEND_PORT:-4000}:4000"
     depends_on:
-      postgres:
+      mariadb:
         condition: service_healthy
     networks:
       - tcg-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/health', (r) => { if (r.statusCode !== 200) process.exit(1) })"]
-      interval: 30s
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:4000/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"]
+      interval: 15s
       timeout: 10s
-      retries: 3
+      retries: 5
       start_period: 40s
+
+  # ---------------------------------------------------------------------------
+  # Migration runner (one-shot)
+  # ---------------------------------------------------------------------------
+  # Applies pending Prisma migrations. Runs via:
+  #   docker compose --profile migrate up migrate --exit-code-from migrate
+  # or through deploy.sh. Gated on mariadb service_healthy so migrations can
+  # NEVER hit a half-initialized database.
+  # ---------------------------------------------------------------------------
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runner
+    container_name: tcg_migrate
+    profiles: ["migrate"]
+    environment:
+      # DB_* parts are authoritative; scripts/db-url.js composes a correctly
+      # URL-encoded mysql:// URL at runtime, immune to special chars in
+      # DB_PASS and to stale DATABASE_URL strings in .env.
+      DB_HOST: ${DB_HOST:-mariadb}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USER: ${DB_USER:?DB_USER required}
+      DB_PASS: ${DB_PASS:?DB_PASS required}
+      DB_NAME: ${DB_NAME:-tcg_db}
+      DB_POOL_LIMIT: ${DB_POOL_LIMIT:-5}
+      DB_POOL_TIMEOUT: ${DB_POOL_TIMEOUT:-10}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL required}
+    # db-url-exec composes DATABASE_URL from DB_* parts (URL-encoded) and
+    # runs the command with it — immune to special chars in DB_PASS and to
+    # stale DATABASE_URL strings in .env.
+    command: ["node", "scripts/db-url-exec.js", "--", "npx", "prisma", "migrate", "deploy"]
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - tcg-network
+    restart: "no"
+
+  # ---------------------------------------------------------------------------
+  # Seeder (one-shot, idempotent)
+  # ---------------------------------------------------------------------------
+  # prisma/seed.js exits early when data already exists — safe on every deploy.
+  # ---------------------------------------------------------------------------
+  seed:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runner
+    container_name: tcg_seed
+    profiles: ["seed"]
+    environment:
+      DB_HOST: ${DB_HOST:-mariadb}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USER: ${DB_USER:?DB_USER required}
+      DB_PASS: ${DB_PASS:?DB_PASS required}
+      DB_NAME: ${DB_NAME:-tcg_db}
+      DB_POOL_LIMIT: ${DB_POOL_LIMIT:-5}
+      DB_POOL_TIMEOUT: ${DB_POOL_TIMEOUT:-10}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL required}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@tcg.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      SEPAY_MERCHANT_ID: ${SEPAY_MERCHANT_ID}
+      SEPAY_MERCHANT_SECRET_KEY: ${SEPAY_MERCHANT_SECRET_KEY}
+      SEPAY_ENV: ${SEPAY_ENV:-sandbox}
+      SEPAY_WEBHOOK_SECRET: ${SEPAY_WEBHOOK_SECRET:-}
+      SEPAY_ACCOUNT_NUMBER: ${SEPAY_ACCOUNT_NUMBER:-}
+      SEPAY_ACCOUNT_NAME: ${SEPAY_ACCOUNT_NAME:-}
+    command: ["node", "scripts/db-url-exec.js", "--", "sh", "-c", "npx prisma migrate deploy && node prisma/seed.js"]
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - tcg-network
+    restart: "no"
 
   # ---------------------------------------------------------------------------
   # Frontend (Vite/React build served by Nginx)
@@ -100,21 +211,22 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${VITE_API_URL:-/api/v1}
         NEXT_PUBLIC_APP_URL: ${VITE_APP_URL:-}
-        NEXT_PUBLIC_SOCKET_URL: ${VITE_SOCKET_URL:-}
         VITE_API_URL: ${VITE_API_URL:-/api/v1}
-        VITE_SOCKET_URL: ${VITE_SOCKET_URL:-}
         VITE_APP_URL: ${VITE_APP_URL:-}
         VITE_PORT: ${VITE_PORT:-3000}
         VITE_ENABLE_CHAT: ${VITE_ENABLE_CHAT:-true}
         VITE_ENABLE_PAYMENT: ${VITE_ENABLE_PAYMENT:-true}
         VITE_ENABLE_WISHLIST: ${VITE_ENABLE_WISHLIST:-false}
     container_name: tcg_frontend
-    ports:
-      - "3000:80"
-    depends_on:
-      - backend
     networks:
       - tcg-network
+    expose:
+      - "80"
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:80/"]
@@ -124,7 +236,7 @@ services:
       start_period: 15s
 
   # ---------------------------------------------------------------------------
-  # Nginx reverse proxy (port 80 entrypoint for the whole stack)
+  # Nginx reverse proxy (entrypoint for the whole stack)
   # ---------------------------------------------------------------------------
   nginx:
     image: nginx:alpine
@@ -137,16 +249,16 @@ services:
       - "80:80"
       - "443:443"
     depends_on:
-      frontend:
-        condition: service_healthy
       backend:
+        condition: service_healthy
+      frontend:
         condition: service_healthy
     networks:
       - tcg-network
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
-  # Certbot (optional SSL) — only runs with: docker compose --profile ssl up -d certbot
+  # Certbot (optional SSL) — docker compose --profile ssl up certbot
   # ---------------------------------------------------------------------------
   certbot:
     image: certbot/certbot:latest
@@ -173,7 +285,9 @@ networks:
     name: tcg-network
 
 volumes:
-  postgres_data:
-    name: tcg_postgres_data
+  mariadb_data:
+    name: tcg_mariadb_data
   backend_uploads:
     name: tcg_backend_uploads
+  backend_logs:
+    name: tcg_backend_logs

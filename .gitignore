@@ -21,6 +21,10 @@ build
 */.env.local
 */.env.*.local
 
+# Remote-ops credentials (LOCAL machine only — NEVER committed/uploaded)
+.env.cpanel
+*/.env.cpanel
+
 # Logs
 logs
 *.log
@@ -57,6 +61,11 @@ coverage
 # Prisma
 prisma/migrations/.migration_lock.toml
 
+# NOTE: the generated Prisma client (backend/src/generated/prisma, custom
+# output — see backend/prisma/schema.prisma) is deliberately COMMITTED and
+# shipped inside the deploy zip, so `prisma generate` never runs on the
+# production server (cPanel LVE kills the CLI's Wasm validation with OOM).
+
 # Uploads (runtime data)
 uploads
 public/uploads
@@ -70,6 +79,9 @@ backend/uploads
 .next
 .nuxt
 .output
+
+# cPanel deploy artifact (built locally by pack-cpanel.sh)
+deploy-cpanel.zip
 
 # Database backups
 backups

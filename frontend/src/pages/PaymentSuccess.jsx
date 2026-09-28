@@ -3,14 +3,15 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Package, Home, Loader2, RefreshCw } from 'lucide-react';
 import { useCartStore } from '../store/useCartStore';
 import api from '../services/api';
+import { useLanguage } from '../i18n/LanguageContext';
 import { formatVND } from '../utils/format';
 
-const STATUS_LABELS = {
-  PENDING: 'Awaiting payment confirmation',
-  PACKAGING: 'Payment confirmed — preparing your order',
-  SHIPPING: 'Paid — on its way to you',
-  DELIVERED: 'Delivered',
-  CANCELLED: 'Cancelled'
+const STATUS_KEYS = {
+  PENDING: 'payment.statusPending',
+  PACKAGING: 'payment.statusPackaging',
+  SHIPPING: 'payment.statusShipping',
+  DELIVERED: 'payment.statusDelivered',
+  CANCELLED: 'payment.statusCancelled'
 };
 
 /**
@@ -27,6 +28,7 @@ const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { clearCart } = useCartStore();
+  const { t } = useLanguage();
   const orderId = searchParams.get('orderId');
 
   const [order, setOrder] = useState(null);
@@ -101,13 +103,13 @@ const PaymentSuccess = () => {
             <CheckCircle2 className="h-9 w-9 text-white" />
           </div>
         </div>
-        <h1 className="mt-6 heading-display text-2xl">Payment Successful!</h1>
+        <h1 className="mt-6 heading-display text-2xl">{t('payment.successTitle')}</h1>
         <p className="mt-2 text-ink-500 dark:text-ink-300 leading-relaxed">
-          Your order has been confirmed. We will process and ship your items soon.
+          {t('payment.successBody')}
         </p>
         {orderId && (
           <p className="mt-3 inline-block text-sm text-ink-400 dark:text-ink-300 rounded-full bg-ink-50 dark:bg-white/5 ring-1 ring-ink-100 dark:ring-white/10 px-4 py-1.5">
-            Order ID: <span className="font-mono font-semibold text-ink-700 dark:text-ink-100">{orderId}</span>
+            {t('payment.orderId')} <span className="font-mono font-semibold text-ink-700 dark:text-ink-100">{orderId}</span>
           </p>
         )}
 
@@ -116,36 +118,36 @@ const PaymentSuccess = () => {
           {verifyState === 'loading' && (
             <span className="inline-flex items-center gap-1.5 text-ink-400 dark:text-ink-300">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Verifying payment…
+              {t('payment.verifying')}
             </span>
           )}
           {verifyState === 'confirmed' && order && (
             <span className={`inline-flex items-center gap-1.5 ${isPaid ? 'text-emerald-600 dark:text-emerald-400' : 'text-ink-500 dark:text-ink-300'}`}>
               {isPaid ? <CheckCircle2 className="h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
-              {STATUS_LABELS[statusKey] || 'Order received'}
+              {(statusKey && STATUS_KEYS[statusKey]) ? t(STATUS_KEYS[statusKey]) : t('payment.orderReceived')}
             </span>
           )}
           {verifyState === 'unavailable' && (
             <span className="text-ink-400 dark:text-ink-300">
-              We could not reach the server to double-check this order, but your payment reference is saved above.
+              {t('payment.unavailable')}
             </span>
           )}
         </div>
 
         {order?.grandTotal != null && (
           <p className="mt-1 text-sm font-semibold text-ink-700 dark:text-ink-100">
-            Total: {formatVND(Number(order.grandTotal))}
+            {t('payment.total')} {formatVND(Number(order.grandTotal))}
           </p>
         )}
 
         <div className="mt-8 space-y-3">
           <button onClick={() => navigate('/orders')} className="btn-primary w-full">
             <Package className="h-5 w-5" />
-            View My Orders
+            {t('payment.viewMyOrders')}
           </button>
           <button onClick={() => navigate('/')} className="btn-secondary w-full">
             <Home className="h-5 w-5" />
-            Back to Home
+            {t('common.backToHome')}
           </button>
         </div>
       </div>

@@ -22,6 +22,6 @@ adminRouter.use(authorize('ADMIN', 'STAFF'));
 adminRouter.get('/', apiLimiter, validate(listPostsQuerySchema, 'query'), postController.listPosts);
 adminRouter.post('/', apiLimiter, validate(createPostSchema), postController.createPost);
 adminRouter.patch('/:id', apiLimiter, validate(updatePostSchema), postController.updatePost);
-adminRouter.delete('/:id', apiLimiter, authorize('ADMIN'), postController.deletePost);
+adminRouter.delete('/:id', apiLimiter, postController.deletePost);
 
 module.exports = { router, adminRouter };

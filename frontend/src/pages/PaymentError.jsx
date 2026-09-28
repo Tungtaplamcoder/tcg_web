@@ -1,9 +1,11 @@
 import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { XCircle, Home, RotateCcw, ShoppingCart } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const PaymentError = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get('orderId');
 
@@ -19,30 +21,30 @@ const PaymentError = () => {
             <XCircle className="h-9 w-9 text-white" />
           </div>
         </div>
-        <h1 className="mt-6 heading-display text-2xl">Thanh toán thất bại</h1>
+        <h1 className="mt-6 heading-display text-2xl">{t('payment.errTitle')}</h1>
         <p className="mt-2 text-ink-500 dark:text-ink-300 leading-relaxed">
-          Đã xảy ra lỗi khi xử lý thanh toán của bạn. Vui lòng thử lại hoặc liên hệ hỗ trợ.
+          {t('payment.errBody')}
         </p>
         {orderId && (
           <p className="mt-3 inline-block text-sm text-ink-400 dark:text-ink-300 rounded-full bg-ink-50 dark:bg-white/5 ring-1 ring-ink-100 dark:ring-white/10 px-4 py-1.5">
-            Mã đơn hàng: <span className="font-mono font-semibold text-ink-700 dark:text-ink-100">{orderId}</span>
+            {t('lookup.identifier.orderCode')}: <span className="font-mono font-semibold text-ink-700 dark:text-ink-100">{orderId}</span>
           </p>
         )}
         <div className="mt-8 space-y-3">
           <button onClick={() => navigate('/checkout')} className="btn-primary w-full">
             <RotateCcw className="h-5 w-5" />
-            Thử lại thanh toán
+            {t('payment.retryPayment')}
           </button>
           <button onClick={() => navigate('/cart')} className="btn-secondary w-full">
             <RotateCcw className="h-5 w-5" />
-            Quay lại giỏ hàng
+            {t('payment.backToCart')}
           </button>
           <button
             onClick={() => navigate('/')}
             className="w-full inline-flex items-center justify-center gap-2 py-3 text-sm font-medium text-ink-400 dark:text-ink-300 hover:text-ink-700 dark:text-ink-100 transition-colors"
           >
             <Home className="h-4 w-4" />
-            Về trang chủ
+            {t('common.backToHome')}
           </button>
         </div>
       </div>

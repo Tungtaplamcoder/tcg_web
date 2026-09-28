@@ -29,7 +29,6 @@ const authenticate = async (req, res, next) => {
         avatarUrl: true,
         canManageInventory: true,
         canManagePosts: true,
-        canAccessChat: true,
         createdAt: true,
         updatedAt: true
       }
@@ -66,6 +65,12 @@ const authorize = (...allowedRoles) => {
   };
 };
 
+const ROLE_DEFAULT_PERMISSIONS = {
+  ADMIN: ['inventory', 'posts', 'orders', 'payments', 'users', 'settings'],
+  STAFF: ['inventory', 'posts', 'orders'],
+  MODERATOR: ['posts']
+};
+
 const requirePermission = (permission) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -73,10 +78,12 @@ const requirePermission = (permission) => {
     }
     if (req.user.role === 'ADMIN') return next();
 
+    const roleDefaults = ROLE_DEFAULT_PERMISSIONS[req.user.role] || [];
+    if (roleDefaults.includes(permission)) return next();
+
     const permissionMap = {
       inventory: req.user.canManageInventory,
       posts: req.user.canManagePosts,
-      chat: req.user.canAccessChat,
     };
 
     if (permissionMap[permission]) return next();

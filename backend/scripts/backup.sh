@@ -2,7 +2,7 @@
 # =============================================================================
 # Database Backup Script for TCG E-Commerce Platform
 # =============================================================================
-# Creates a timestamped PostgreSQL database backup using pg_dump
+# Creates a timestamped MariaDB/MySQL backup using mariadb-dump (or mysqldump)
 # Usage: ./scripts/backup.sh [custom_backup_name]
 # =============================================================================
 
@@ -25,43 +25,24 @@ else
     exit 1
 fi
 
-# Parse DATABASE_URL to extract connection parameters
-# Format: postgresql://user:password@host:port/database?schema=public
-if [ -z "${DATABASE_URL:-}" ]; then
-    echo -e "${RED}Error: DATABASE_URL not set in .env${NC}"
+# Connection parameters come from DB_* variables in .env (never hardcoded)
+if [ -z "${DB_NAME:-}" ] || [ -z "${DB_USER:-}" ]; then
+    echo -e "${RED}Error: DB_USER / DB_NAME not set in .env${NC}"
     exit 1
 fi
 
-# Extract connection parameters from DATABASE_URL
-# Remove protocol
-DB_URL="${DATABASE_URL#postgresql://}"
-DB_URL="${DB_URL#postgres://}"
-
-# Extract user:password@host:port/database
-if [[ "$DB_URL" == *"@"* ]]; then
-    AUTH_PART="${DB_URL%%@*}"
-    DB_USER="${AUTH_PART%%:*}"
-    DB_PASS="${AUTH_PART#*:}"
-    HOST_PART="${DB_URL#*@}"
-else
-    # No auth in URL
-    DB_USER="${PGUSER:-postgres}"
-    DB_PASS="${PGPASSWORD:-}"
-    HOST_PART="$DB_URL"
-fi
-
-# Extract host:port/database
-DB_HOST="${HOST_PART%%:*}"
-PORT_DB="${HOST_PART#*:}"
-DB_PORT="${PORT_DB%%/*}"
-DB_NAME="${PORT_DB#*/}"
-DB_NAME="${DB_NAME%%\?*}" # Remove query parameters
-
-# Set defaults
 DB_HOST="${DB_HOST:-localhost}"
-DB_PORT="${DB_PORT:-5432}"
-DB_USER="${DB_USER:-postgres}"
-DB_NAME="${DB_NAME:-tcg_db}"
+DB_PORT="${DB_PORT:-3306}"
+
+# Prefer mariadb-dump, fall back to mysqldump
+if command -v mariadb-dump >/dev/null 2>&1; then
+    DUMP_CMD="mariadb-dump"
+elif command -v mysqldump >/dev/null 2>&1; then
+    DUMP_CMD="mysqldump"
+else
+    echo -e "${RED}Error: mariadb-dump / mysqldump not found${NC}"
+    exit 1
+fi
 
 # Backup directory
 BACKUP_DIR="${BACKUP_DIR:-./backups}"
@@ -86,36 +67,25 @@ echo -e "User:     ${GREEN}$DB_USER${NC}"
 echo -e "Output:   ${GREEN}$BACKUP_FILE${NC}"
 echo -e "${BLUE}========================================${NC}"
 
-# Set PGPASSWORD for pg_dump
-export PGPASSWORD="$DB_PASS"
-
-# Run pg_dump
-# --no-owner: Don't output commands to set ownership
-# --no-privileges: Don't output GRANT/REVOKE commands
-# --clean: Drop objects before creating them
-# --if-exists: Use IF EXISTS when dropping objects
-# --format=custom: Use custom format (compressed, allows parallel restore)
-# --verbose: Verbose output
-if pg_dump \
+# Run dump — credentials passed via MYSQL_PWD (never on the command line)
+# --single-transaction: consistent snapshot without locking (InnoDB)
+# --routines --triggers --events: include server-side objects
+if MYSQL_PWD="$DB_PASS" "$DUMP_CMD" \
     --host="$DB_HOST" \
     --port="$DB_PORT" \
-    --username="$DB_USER" \
-    --dbname="$DB_NAME" \
-    --no-owner \
-    --no-privileges \
-    --clean \
-    --if-exists \
-    --format=custom \
-    --verbose \
-    --file="$BACKUP_FILE"; then
-    
+    --user="$DB_USER" \
+    --single-transaction \
+    --routines --triggers --events \
+    --no-tablespaces \
+    "$DB_NAME" > "$BACKUP_FILE"; then
+
     # Get file size
     FILE_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
-    
+
     echo -e "${GREEN}✓ Backup completed successfully!${NC}"
     echo -e "File: ${GREEN}$BACKUP_FILE${NC} (${FILE_SIZE})"
     echo -e "${BLUE}========================================${NC}"
-    
+
     # Create a latest symlink for convenience
     LATEST_LINK="${BACKUP_DIR}/latest_${DB_NAME}.sql"
     ln -sf "$(basename "$BACKUP_FILE")" "$LATEST_LINK"

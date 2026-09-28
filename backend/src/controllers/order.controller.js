@@ -1,20 +1,6 @@
 const { AppError, PaymentError, ConflictError } = require('../utils/errors');
 const orderService = require('../services/order.service');
-
-// Chuyển lỗi Prisma thành AppError có message rõ ràng thay vì để lỗi 500 mơ hồ
-const mapDatabaseError = (error) => {
-  if (error?.code === 'P2002') {
-    return new ConflictError('Dữ liệu bị trùng lặp (unique constraint). Vui lòng thử lại.');
-  }
-  if (error?.code === 'P2025') {
-    return new AppError('Bản ghi không tồn tại hoặc đã bị thay đổi. Vui lòng làm mới và thử lại.', 409, 'CONFLICT');
-  }
-  return new AppError(
-    `Lỗi hệ thống khi xử lý đơn hàng: ${error?.message || 'Unknown database error'}`,
-    500,
-    'CHECKOUT_DB_ERROR'
-  );
-};
+const { isDatabaseError, emptyPage, sendDbEmpty, sendDbError, logDatabaseError } = require('../utils/dbGuard');
 
 const checkout = async (req, res, next) => {
   try {
@@ -30,9 +16,13 @@ const checkout = async (req, res, next) => {
       console.error('Checkout failed:', error.code, error.message);
       return next(error);
     }
-    // Lỗi Prisma/SQL không định dạng -> map để tránh 500 không rõ nguyên nhân
-    console.error('Checkout unexpected error:', error);
-    return next(mapDatabaseError(error));
+    // Lỗi Prisma/SQL thô -> 400 sạch (không 500), đơn đã rollback
+    if (isDatabaseError(error)) {
+      return sendDbError(res, 'order.checkout', error);
+    }
+    // Lỗi bất ngờ khác (TypeError, bug code) -> global handler
+    logDatabaseError('order.checkout unexpected', error);
+    return next(error);
   }
 };
 
@@ -45,6 +35,11 @@ const listOrders = async (req, res, next) => {
       message: 'Orders retrieved'
     });
   } catch (error) {
+    // DB failure on the order-history list: empty page keeps pagination UI
+    // stable (OrderHistory reads data.items / data.meta).
+    if (isDatabaseError(error)) {
+      return sendDbEmpty(res, 'order.listOrders', error, emptyPage(req.query?.page, req.query?.limit));
+    }
     next(error);
   }
 };
@@ -58,6 +53,11 @@ const getOrder = async (req, res, next) => {
       message: 'Order retrieved'
     });
   } catch (error) {
+    if (isDatabaseError(error)) {
+      // Single read: clean 400 — the frontend shows a retryable message
+      // instead of an unhandled 500.
+      return sendDbError(res, 'order.getOrder', error);
+    }
     next(error);
   }
 };
@@ -71,6 +71,10 @@ const cancelOrder = async (req, res, next) => {
       message: 'Order cancelled successfully'
     });
   } catch (error) {
+    if (isDatabaseError(error)) {
+      // Write: transaction rolled back — clean 400 so the UI can retry.
+      return sendDbError(res, 'order.cancelOrder', error);
+    }
     next(error);
   }
 };
@@ -84,6 +88,9 @@ const regeneratePayment = async (req, res, next) => {
       message: 'Payment URL regenerated'
     });
   } catch (error) {
+    if (isDatabaseError(error)) {
+      return sendDbError(res, 'order.regeneratePayment', error);
+    }
     next(error);
   }
 };
@@ -97,6 +104,11 @@ const getPaymentStatus = async (req, res, next) => {
       message: 'Payment status retrieved'
     });
   } catch (error) {
+    if (isDatabaseError(error)) {
+      // Polling endpoint (Checkout/PaymentSuccess): null data is handled by
+      // the frontend as "try again" — never crash the polling loop.
+      return sendDbEmpty(res, 'order.getPaymentStatus', error, null);
+    }
     next(error);
   }
 };
@@ -114,10 +126,15 @@ const syncOrderPayment = async (req, res, next) => {
         : 'No paid transaction found for this order'
     });
   } catch (error) {
+    if (isDatabaseError(error)) {
+      return sendDbError(res, 'order.syncOrderPayment', error);
+    }
     next(error);
   }
 };
 
+// POST /api/v1/orders/lookup — guest order lookup (no auth) by tracking code
+// or contact. DB failures degrade to a clean 400, not an unhandled 500.
 const lookupOrder = async (req, res, next) => {
   try {
     const { orderCode, identifier, email, phone, query } = req.body;
@@ -171,6 +188,10 @@ const lookupOrder = async (req, res, next) => {
       message: 'Order found'
     });
   } catch (error) {
+    if (isDatabaseError(error)) {
+      // Guest lookup: clean 400 with retry guidance — never an open 500.
+      return sendDbError(res, 'order.lookupOrder', error);
+    }
     next(error);
   }
 };

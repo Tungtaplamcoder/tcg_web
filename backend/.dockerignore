@@ -48,8 +48,9 @@ docker-compose*.yml
 coverage
 .nyc_output
 
-# Prisma
-prisma/migrations/.migration_lock.toml
+# Prisma — nothing here should be ignored: schema.prisma, migrations/ and
+# migration_lock.toml are ALL required inside the image for
+# `prisma migrate deploy` to work.
 
 # Uploads (runtime data)
 uploads

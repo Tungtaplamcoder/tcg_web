@@ -18,9 +18,10 @@ import {
   Snowflake
 } from 'lucide-react';
 import api from '../services/api';
-import HoloCard from '../components/HoloCard';
+import ProductCard from '../components/ProductCard';
 import TiltCard from '../components/TiltCard';
 import ProductImage from '../components/ProductImage';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const SOFT_ORB_MASK = 'radial-gradient(circle, rgba(0,0,0,1) 28%, rgba(0,0,0,0.5) 56%, transparent 78%)';
 
@@ -30,14 +31,14 @@ export const DEFAULT_HERO_CONTENT = {
   subtext: 'Premium authenticated singles and sealed booster boxes, curated weekly for collectors who chase the extraordinary.'
 };
 
-const POWER_TYPES = [
-  { id: 'fighter', label: 'Fighter', Icon: Swords, iconCls: 'from-orange-400 to-rose-500 text-white' },
-  { id: 'fire', label: 'Fire', Icon: Flame, iconCls: 'from-red-400 to-orange-500 text-white' },
-  { id: 'ghost', label: 'Ghost', Icon: Ghost, iconCls: 'from-violet-400 to-indigo-500 text-white' },
-  { id: 'normal', label: 'Normal', Icon: Circle, iconCls: 'from-stone-300 to-stone-500 text-white' },
-  { id: 'ice', label: 'Ice', Icon: Snowflake, iconCls: 'from-cyan-300 to-sky-500 text-white' },
-  { id: 'psychic', label: 'Psychic', Icon: Brain, iconCls: 'from-fuchsia-400 to-purple-500 text-white' },
-  { id: 'electric', label: 'Electric', Icon: Zap, iconCls: 'from-amber-300 to-yellow-500 text-white' }
+const POWER_TYPE_KEYS = [
+  { id: 'fighter', key: 'home.powerTypeFighter', Icon: Swords, iconCls: 'from-orange-400 to-rose-500 text-white' },
+  { id: 'fire', key: 'home.powerTypeFire', Icon: Flame, iconCls: 'from-red-400 to-orange-500 text-white' },
+  { id: 'ghost', key: 'home.powerTypeGhost', Icon: Ghost, iconCls: 'from-violet-400 to-indigo-500 text-white' },
+  { id: 'normal', key: 'home.powerTypeNormal', Icon: Circle, iconCls: 'from-stone-300 to-stone-500 text-white' },
+  { id: 'ice', key: 'home.powerTypeIce', Icon: Snowflake, iconCls: 'from-cyan-300 to-sky-500 text-white' },
+  { id: 'psychic', key: 'home.powerTypePsychic', Icon: Brain, iconCls: 'from-fuchsia-400 to-purple-500 text-white' },
+  { id: 'electric', key: 'home.powerTypeElectric', Icon: Zap, iconCls: 'from-amber-300 to-yellow-500 text-white' }
 ];
 
 /*
@@ -125,7 +126,7 @@ const FAN_SLOTS = [
 const FanCard = ({ card, slot, delay = 0 }) => (
   <div className={`absolute left-1/2 top-1/2 ${slot.z}`} style={{ transform: 'translate(-50%, -50%)' }}>
     <div className="animate-tcg-reveal" style={{ animationDelay: `${delay}s` }}>
-      <div className={`will-change-transform ${slot.cls}`}>
+      <div className={`will-change-transform translate-z-0 ${slot.cls}`}>
         <TiltCard
           max={slot.center ? 15 : 12}
           scale={slot.center ? 1.06 : 1.04}
@@ -160,26 +161,27 @@ const FanCard = ({ card, slot, delay = 0 }) => (
 );
 
 /* Binary storefront taxonomy — the only two categories we surface */
-const SHOP_CATEGORIES = [
+const SHOP_CATEGORY_CONFIG = [
   {
     key: 'BOX',
-    slug: 'box',
-    name: 'Box',
-    tagline: 'Sealed booster boxes & special collections',
+    slug: 'sealed-products',
+    nameKey: 'home.categoryBoxName',
+    taglineKey: 'home.categoryBoxTagline',
     Icon: Box,
     iconCls: 'from-amber-400 to-orange-500'
   },
   {
     key: 'CARD',
-    slug: 'card',
-    name: 'Card',
-    tagline: 'Authenticated singles & chase cards',
+    slug: 'single-cards',
+    nameKey: 'home.categoryCardName',
+    taglineKey: 'home.categoryCardTagline',
     Icon: Layers,
     iconCls: 'from-fuchsia-500 to-purple-500'
   }
 ];
 
 const Home = ({ hero: heroProp }) => {
+  const { t } = useLanguage();
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [heroContent, setHeroContent] = useState(() => ({ ...DEFAULT_HERO_CONTENT, ...(heroProp || {}) }));
   const [categories, setCategories] = useState([]);
@@ -196,7 +198,7 @@ const Home = ({ hero: heroProp }) => {
         setError('');
       } catch (err) {
         console.error(err);
-        setError('Failed to load featured products.');
+        setError(t('home.errFeatured'));
       } finally {
         if (active) setLoading(false);
       }
@@ -214,6 +216,7 @@ const Home = ({ hero: heroProp }) => {
     return () => {
       active = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -224,10 +227,10 @@ const Home = ({ hero: heroProp }) => {
     categories.find((c) => String(c.slug || '').toLowerCase() === slug)?._count?.products ?? null;
 
   const features = [
-    { icon: Shield, title: 'Authenticity Guaranteed', desc: 'Every card is verified' },
-    { icon: Truck, title: 'Fast Shipping', desc: 'Worldwide delivery available' },
-    { icon: CreditCard, title: 'Secure Payment', desc: 'SePay bank transfer' },
-    { icon: Star, title: 'Top Rated', desc: 'Trusted by collectors worldwide' }
+    { icon: Shield, title: t('home.featureAuthenticTitle'), desc: t('home.featureAuthenticDesc') },
+    { icon: Truck, title: t('home.featureShippingTitle'), desc: t('home.featureShippingDesc') },
+    { icon: CreditCard, title: t('home.featurePaymentTitle'), desc: t('home.featurePaymentDesc') },
+    { icon: Star, title: t('home.featureRatedTitle'), desc: t('home.featureRatedDesc') }
   ];
 
   return (
@@ -276,23 +279,30 @@ const Home = ({ hero: heroProp }) => {
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-fuchsia-400 opacity-75 motion-reduce:animate-none" />
                     <span className="relative inline-flex h-2 w-2 rounded-full bg-fuchsia-500 dark:bg-pink-400" />
                   </span>
-                  {heroContent.badge}
+                  {t('home.heroBadge')}
                 </span>
               </span>
             </div>
           )}
 
-          {/* Headline + subheadline */}
-          <h1 className="mx-auto mt-7 max-w-3xl text-center font-display text-4xl font-extrabold leading-[1.06] tracking-tightest text-ink-950 dark:text-white [text-wrap:balance] animate-tcg-reveal sm:text-5xl lg:text-6xl" style={{ animationDelay: '0.08s' }}>
-            Discover{' '}
-            <span className="bg-gradient-to-r from-fuchsia-600 to-purple-600 bg-clip-text text-transparent dark:from-pink-400 dark:to-purple-400 dark:drop-shadow-[0_0_20px_rgba(244,114,182,0.4)]">
-              Rare Pokémon Cards
+          {/* Headline + subheadline — Latin-Ext display font, tight but
+              diacritic-safe leading (1.2) so stacked Vietnamese vowels
+              ("hiếm", "Bạn") never clip or collide with the previous
+              line's descenders; balanced wrapping via text-wrap:balance
+              keeps the 3-line rhythm on mobile. The sm:/lg: leading
+              overrides are REQUIRED: text-5xl/6xl bundle line-height:1
+              and responsive utilities compile after base ones, so a
+              bare leading-[1.2] is silently defeated at >=640px. */}
+          <h1 className="mx-auto mt-7 max-w-3xl text-center font-display text-4xl font-extrabold leading-[1.2] tracking-tight text-ink-950 dark:text-white [text-wrap:balance] animate-tcg-reveal sm:text-5xl sm:leading-[1.2] lg:text-6xl lg:leading-[1.2]" style={{ animationDelay: '0.08s' }}>
+            {t('home.heroHeadlinePre')}{' '}
+            <span className="bg-gradient-to-r from-fuchsia-600 via-purple-500 to-violet-600 bg-clip-text text-transparent dark:from-pink-400 dark:via-purple-400 dark:to-fuchsia-400 dark:drop-shadow-[0_0_20px_rgba(244,114,182,0.4)]">
+              {t('home.heroHeadlineHighlight')}
             </span>{' '}
-            You Don&rsquo;t Want To Miss
+            {t('home.heroHeadlinePost')}
           </h1>
           {heroContent.subtext && (
-            <p className="mx-auto mt-5 max-w-xl text-center text-base leading-relaxed text-ink-600 dark:text-purple-200/70 animate-tcg-reveal sm:text-lg" style={{ animationDelay: '0.16s' }}>
-              {heroContent.subtext}
+            <p className="mx-auto mt-5 max-w-xl text-center text-base leading-[1.65] text-ink-600 dark:text-purple-200/70 animate-tcg-reveal sm:text-lg" style={{ animationDelay: '0.16s' }}>
+              {t('home.heroSubtext')}
             </p>
           )}
 
@@ -318,48 +328,57 @@ const Home = ({ hero: heroProp }) => {
             ))}
           </div>
 
-          {/* Decorative editorial typography */}
+          {/* Decorative editorial typography — key phrases get the
+              Vietnamese-safe script replacement (Plus Jakarta Sans,
+              Latin Ext + vn subsets) with subtle gradient ink accents
+              instead of the broken Caveat cursive: Caveat has no
+              Vietnamese subset, so "Chúng tôi/Biến/có thật" rendered
+              with missing glyphs, and its leading-none/1.3em inline
+              spans clipped stacked diacritics. The replacement spans
+              inherit the 1.4 line box so accents never clip. */}
           <div className="mx-auto mt-16 max-w-3xl text-center sm:mt-20">
-            <p className="font-display text-2xl font-bold leading-[1.3] tracking-tight text-ink-950 dark:text-white animate-tcg-reveal sm:text-3xl lg:text-[2.6rem]" style={{ animationDelay: '0.28s' }}>
-              <span className="-rotate-2 inline-block px-1 font-script text-[1.3em] leading-none text-fuchsia-600 dark:text-pink-400">We&rsquo;re</span>{' '}
-              here to help you{' '}
+            <p className="font-display text-2xl font-bold leading-[1.4] tracking-tight text-ink-950 dark:text-white animate-tcg-reveal sm:text-3xl sm:leading-[1.4] lg:text-[2.4rem] lg:leading-[1.4]" style={{ animationDelay: '0.28s' }}>
+              <span className="-rotate-2 inline-block bg-gradient-to-r from-fuchsia-600 to-purple-600 bg-clip-text px-1 font-script font-extrabold text-transparent dark:from-pink-400 dark:to-purple-400">{t('home.scriptWeAre')}</span>{' '}
+              {t('home.scriptHereTo')}{' '}
               <Flame className="mx-0.5 inline-block h-[0.8em] w-[0.8em] -translate-y-[0.06em] text-orange-500 dark:text-orange-400" aria-hidden="true" />{' '}
-              <span className="-rotate-1 inline-block px-1 font-script text-[1.3em] leading-none text-fuchsia-600 dark:text-pink-400">Turn</span>{' '}
-              your passion for Pokémon into something{' '}
-              <span className="rotate-1 inline-block px-1 font-script text-[1.3em] leading-none text-fuchsia-600 dark:text-pink-400">Real</span>
+              <span className="-rotate-1 inline-block bg-gradient-to-r from-fuchsia-600 to-purple-600 bg-clip-text px-1 font-script font-extrabold text-transparent dark:from-pink-400 dark:to-purple-400">{t('home.scriptTurn')}</span>{' '}
+              {t('home.scriptPassion')}{' '}
+              <span className="rotate-1 inline-block bg-gradient-to-r from-fuchsia-600 to-purple-600 bg-clip-text px-1 font-script font-extrabold text-transparent dark:from-pink-400 dark:to-purple-400">{t('home.scriptReal')}</span>
               <Sparkles className="mx-1 inline-block h-[0.85em] w-[0.85em] -translate-y-[0.08em] text-amber-500 dark:text-amber-300" aria-hidden="true" />
-              <Link
-                to="/catalog"
-                className="animate-tcg-bob motion-reduce:animate-none mx-2 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-fuchsia-600 to-violet-600 px-5 py-2 align-middle text-base font-bold text-white shadow-[0_14px_34px_-10px_rgba(192,38,211,0.55)] ring-1 ring-white/40 transition-shadow hover:shadow-[0_18px_40px_-10px_rgba(192,38,211,0.7)]"
-              >
-                Shop Now! <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
+              <span className="animate-tcg-bob motion-reduce:animate-none mx-2 mt-2 inline-block align-middle">
+                <Link
+                  to="/catalog"
+                  className="group inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-fuchsia-600 to-violet-600 px-6 py-3 align-middle text-base font-bold text-white shadow-[0_14px_34px_-10px_rgba(192,38,211,0.55)] ring-1 ring-inset ring-white/30 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg hover:shadow-purple-500/25 hover:brightness-110 active:translate-y-0 active:scale-[0.98] dark:shadow-[0_14px_34px_-10px_rgba(192,38,211,0.4)]"
+                >
+                  {t('home.shopNow')} <ArrowRight className="h-4 w-4 -translate-y-px transition-transform duration-300 group-hover:translate-x-0.5" aria-hidden="true" />
+                </Link>
+              </span>
             </p>
             <p className="mx-auto mt-5 max-w-xl text-sm text-ink-600 dark:text-purple-200/70 animate-tcg-reveal sm:text-base" style={{ animationDelay: '0.36s' }}>
-              From graded singles to sealed boxes, every card is authenticated and ready for its new binder.
+              {t('home.heroFooterNote')}
             </p>
           </div>
 
           {/* Power types dock */}
           <div className="mt-14 pb-20 sm:mt-16 sm:pb-24">
-            <h2 className="sr-only">Browse by power type</h2>
+            <h2 className="sr-only">{t('home.powerTypes')}</h2>
             <div
               className="animate-tcg-reveal mx-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-transparent bg-white/70 px-4 py-3 shadow-lg ring-1 ring-white/70 backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] dark:ring-white/10 sm:justify-center sm:px-6"
               role="list"
-              aria-label="Elemental power types"
+              aria-label={t('home.powerTypes')}
               style={{ animationDelay: '0.42s' }}
             >
-              {POWER_TYPES.map(({ id, label, Icon, iconCls }) => (
+              {POWER_TYPE_KEYS.map(({ id, key, Icon, iconCls }) => (
                 <span
                   key={id}
                   role="listitem"
-                  aria-label={`${label} type`}
+                  aria-label={t(key)}
                   className="group inline-flex shrink-0 cursor-default select-none items-center gap-2 rounded-full px-3 py-1.5 transition-[transform,background-color] duration-300 ease-out hover:-translate-y-1.5 hover:bg-white/80 dark:hover:bg-white/10 motion-reduce:transition-none"
                 >
                   <span className={`flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br shadow-sm transition-transform duration-300 group-hover:scale-110 ${iconCls}`}>
                     <Icon className="h-4 w-4" aria-hidden="true" />
                   </span>
-                  <span className="text-sm font-semibold text-ink-700 dark:text-purple-100">{label}</span>
+                  <span className="text-sm font-semibold text-ink-700 dark:text-purple-100">{t(key)}</span>
                 </span>
               ))}
             </div>
@@ -395,15 +414,15 @@ const Home = ({ hero: heroProp }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-end justify-between mb-8">
             <div>
-              <p className="section-eyebrow dark:from-pink-400 dark:to-purple-400">Collections</p>
-              <h2 className="mt-2 heading-display text-3xl dark:text-white">Shop by category</h2>
+              <p className="section-eyebrow dark:from-pink-400 dark:to-purple-400">{t('home.collectionsEyebrow')}</p>
+              <h2 className="mt-2 heading-display text-3xl dark:text-white">{t('home.shopByCategory')}</h2>
             </div>
             <Link to="/catalog" className="text-fuchsia-600 hover:text-fuchsia-700 dark:text-fuchsia-400 dark:hover:text-white font-medium flex items-center shrink-0">
-              View All <ArrowRight className="ml-1 h-4 w-4" />
+              {t('home.viewAll')} <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
           </div>
           <div className="grid grid-cols-2 gap-4 sm:gap-6 max-w-3xl mx-auto">
-            {SHOP_CATEGORIES.map(({ key, slug, name, tagline, Icon, iconCls }, i) => {
+            {SHOP_CATEGORY_CONFIG.map(({ key, slug, nameKey, taglineKey, Icon, iconCls }, i) => {
               const count = categoryCount(slug);
               return (
                 <Link
@@ -417,10 +436,10 @@ const Home = ({ hero: heroProp }) => {
                   <span className={`relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br shadow-lg group-hover:scale-110 transition-transform duration-300 ${iconCls}`}>
                     <Icon className="h-7 w-7 text-white" aria-hidden="true" />
                   </span>
-                  <span className="relative mt-3 font-display text-lg font-bold text-strong dark:text-white group-hover:text-fuchsia-700 dark:group-hover:text-pink-300 transition-colors">{name}</span>
-                  <span className="relative mt-1 text-xs text-muted dark:text-purple-200/70">{tagline}</span>
+                  <span className="relative mt-3 font-display text-lg font-bold text-strong dark:text-white group-hover:text-fuchsia-700 dark:group-hover:text-pink-300 transition-colors">{t(nameKey)}</span>
+                  <span className="relative mt-1 text-xs text-muted dark:text-purple-200/70">{t(taglineKey)}</span>
                   {count !== null && (
-                    <span className="relative mt-1.5 text-[11px] font-semibold text-faint dark:text-purple-200/50">{count} products</span>
+                    <span className="relative mt-1.5 text-[11px] font-semibold text-faint dark:text-purple-200/50">{t('home.productsCount', { count })}</span>
                   )}
                 </Link>
               );
@@ -434,11 +453,11 @@ const Home = ({ hero: heroProp }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-end justify-between mb-8">
             <div>
-              <p className="section-eyebrow dark:from-pink-400 dark:to-purple-400">Hot Picks</p>
-              <h2 className="mt-2 heading-display text-3xl dark:text-white">Featured Products</h2>
+              <p className="section-eyebrow dark:from-pink-400 dark:to-purple-400">{t('home.hotPicksEyebrow')}</p>
+              <h2 className="mt-2 heading-display text-3xl dark:text-white">{t('home.featuredTitle')}</h2>
             </div>
             <Link to="/catalog" className="text-fuchsia-600 hover:text-fuchsia-700 dark:text-fuchsia-400 dark:hover:text-white font-medium flex items-center shrink-0">
-              View All <ArrowRight className="ml-1 h-4 w-4" />
+              {t('home.viewAll')} <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
           </div>
 
@@ -457,7 +476,7 @@ const Home = ({ hero: heroProp }) => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {featuredProducts.map((product) => (
-                <HoloCard key={product.id} product={product} />
+                <ProductCard key={product.id} product={product} />
               ))}
             </div>
           )}
@@ -473,10 +492,10 @@ const Home = ({ hero: heroProp }) => {
             <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
             <div className="relative">
               <Sparkles className="h-10 w-10 mx-auto text-pink-100 dark:text-purple-200" />
-              <h2 className="mt-4 text-3xl sm:text-4xl font-extrabold">Ready to expand your collection?</h2>
-              <p className="mt-3 text-white/80 max-w-xl mx-auto">Browse our catalog and find your next chase card.</p>
+              <h2 className="mt-4 text-3xl sm:text-4xl font-extrabold">{t('home.ctaTitle')}</h2>
+              <p className="mt-3 text-white/80 max-w-xl mx-auto">{t('home.ctaBody')}</p>
               <Link to="/catalog" className="btn-aura mt-8">
-                Explore Catalog <ArrowRight className="ml-2 h-5 w-5" />
+                {t('home.ctaBtn')} <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </div>
           </div>

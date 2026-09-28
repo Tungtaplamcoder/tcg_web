@@ -88,7 +88,11 @@ export default {
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
         display: ['"Space Grotesk"', 'Inter', 'system-ui', 'sans-serif'],
-        script: ['Caveat', 'cursive']
+        /* script: viết tay — Caveat KHÔNG có subset tiếng Việt nên dấu
+           tiếng Việt rơi về fallback cursive gây vỡ glyph. Plus Jakarta
+           Sans (Latin Extended + Vietnamese subsets) giữ đường nét
+           đậm/highlight không cần viết tay. */
+        script: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif']
       },
       letterSpacing: {
         tightest: '-0.04em'
@@ -150,6 +154,13 @@ export default {
         'tcg-bob': {
           '0%, 100%': { transform: 'translate3d(0, 0, 0)' },
           '50%': { transform: 'translate3d(0, -6px, 0)' }
+        },
+        'shake': {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '20%': { transform: 'translateX(-5px)' },
+          '40%': { transform: 'translateX(5px)' },
+          '60%': { transform: 'translateX(-3px)' },
+          '80%': { transform: 'translateX(3px)' }
         }
       },
       animation: {
@@ -162,7 +173,8 @@ export default {
         'scale-in': 'scale-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both',
         'fade-in': 'fade-in 0.2s ease-out both',
         'tcg-float': 'tcg-float 7s ease-in-out infinite',
-        'tcg-bob': 'tcg-bob 3.4s ease-in-out infinite'
+        'tcg-bob': 'tcg-bob 3.4s ease-in-out infinite',
+        'shake': 'shake 0.4s ease-in-out both'
       }
     }
   },

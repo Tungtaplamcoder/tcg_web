@@ -8,7 +8,7 @@ const { sendEmail } = require('../utils/email');
 
 const generateAccessToken = (user) => {
   return jwt.sign(
-    { sub: user.id, role: user.role, email: user.email },
+    { sub: user.id, role: user.role, email: user.email ?? null, phone: user.phone ?? null },
     env.jwtAccessSecret,
     { expiresIn: env.jwtAccessExpiresIn }
   );
@@ -16,7 +16,7 @@ const generateAccessToken = (user) => {
 
 const generateRefreshToken = () => {
   return jwt.sign(
-    { type: 'refresh' },
+    { type: 'refresh', jti: crypto.randomUUID() },
     env.jwtRefreshSecret,
     { expiresIn: env.jwtRefreshExpiresIn }
   );
@@ -47,30 +47,37 @@ const createTokens = async (user, ipAddress = null) => {
 };
 
 const register = async (data, ipAddress) => {
-  const existing = await prisma.user.findUnique({ where: { email: data.email } });
-  if (existing) {
-    throw new ConflictError('Email already registered');
+  if (data.email) {
+    const existing = await prisma.user.findUnique({ where: { email: data.email } });
+    if (existing) {
+      throw new ConflictError('Email already registered', [{ field: 'email', message: 'Email already registered' }]);
+    }
+  }
+
+  const existingPhone = await prisma.user.findFirst({ where: { phone: data.phone } });
+  if (existingPhone) {
+    throw new ConflictError('Phone number already registered', [{ field: 'phone', message: 'Phone number already registered' }]);
   }
 
   const passwordHash = await hashPassword(data.password);
 
   const user = await prisma.user.create({
     data: {
-      email: data.email,
+      email: data.email || null,
       passwordHash,
       fullName: data.fullName,
-      phone: data.phone || null,
+      phone: data.phone,
       address: data.address || null
     },
     select: {
       id: true,
       email: true,
       fullName: true,
+      phone: true,
       role: true,
       avatarUrl: true,
       canManageInventory: true,
       canManagePosts: true,
-      canAccessChat: true,
       createdAt: true
     }
   });
@@ -80,7 +87,11 @@ const register = async (data, ipAddress) => {
 };
 
 const login = async (data, ipAddress) => {
-  const user = await prisma.user.findUnique({ where: { email: data.email } });
+  const identifier = (data.email || data.phone || '').trim();
+  const isEmail = identifier.includes('@');
+  const user = isEmail
+    ? await prisma.user.findUnique({ where: { email: identifier } })
+    : await prisma.user.findUnique({ where: { phone: identifier } });
   if (!user) {
     throw new AuthenticationError('Invalid credentials');
   }
@@ -100,12 +111,12 @@ const login = async (data, ipAddress) => {
   const userData = {
     id: user.id,
     email: user.email,
+    phone: user.phone,
     fullName: user.fullName,
     role: user.role,
     avatarUrl: user.avatarUrl,
     canManageInventory: user.canManageInventory,
-    canManagePosts: user.canManagePosts,
-    canAccessChat: user.canAccessChat
+    canManagePosts: user.canManagePosts
   };
 
   const tokens = await createTokens(userData, ipAddress);
@@ -139,12 +150,12 @@ const refresh = async (token, ipAddress) => {
   const userData = {
     id: user.id,
     email: user.email,
+    phone: user.phone,
     fullName: user.fullName,
     role: user.role,
     avatarUrl: user.avatarUrl,
     canManageInventory: user.canManageInventory,
-    canManagePosts: user.canManagePosts,
-    canAccessChat: user.canAccessChat
+    canManagePosts: user.canManagePosts
   };
 
   const tokens = await createTokens(userData, ipAddress);
@@ -173,7 +184,6 @@ const getMe = async (userId) => {
       status: true,
       canManageInventory: true,
       canManagePosts: true,
-      canAccessChat: true,
       createdAt: true,
       updatedAt: true
     }
@@ -202,7 +212,6 @@ const updateMe = async (userId, data) => {
       status: true,
       canManageInventory: true,
       canManagePosts: true,
-      canAccessChat: true,
       createdAt: true,
       updatedAt: true
     }

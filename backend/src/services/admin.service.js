@@ -1,5 +1,5 @@
 const { z } = require('zod');
-const { PRODUCT_CATEGORY_ENUM } = require('../constants/productCategories');
+const { PRODUCT_CATEGORY_KEYS } = require('../constants/productCategories');
 
 // ==================== USER SCHEMAS ====================
 
@@ -13,8 +13,7 @@ const updateUserStatusSchema = z.object({
 
 const updateUserPermissionsSchema = z.object({
   canManageInventory: z.boolean().optional(),
-  canManagePosts: z.boolean().optional(),
-  canAccessChat: z.boolean().optional()
+  canManagePosts: z.boolean().optional()
 });
 
 const changeUserPasswordSchema = z.object({
@@ -30,7 +29,7 @@ const createProductSchema = z.object({
   name: z.string().min(2).max(200),
   slug: z.string().min(2).max(200).optional(),
   description: z.string().optional(),
-  category: z.enum(PRODUCT_CATEGORY_ENUM).optional(), // Binary: Box (Sealed Boxes) or Card (Single Cards)
+  category: z.enum(PRODUCT_CATEGORY_KEYS).optional(), // BOX (Sealed Products) or CARD (Single Cards)
   setId: z.string().uuid().optional(),
   cardNumber: z.string().optional(),
   rarity: z.string().optional(),

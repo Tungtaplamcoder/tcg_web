@@ -1,10 +1,18 @@
 generator client {
-  provider = "prisma-client-js"
-  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+  provider      = "prisma-client-js"
+  // Custom output — the generated client (including the query-engine
+  // binaries) is committed as source and shipped inside the deploy zip, so
+  // `prisma generate` NEVER needs to run on the production server
+  // (cPanel/CloudLinux LVE kills the Prisma CLI's Wasm schema validation
+  // with "Out of memory: Cannot allocate Wasm memory").
+  output       = "../src/generated/prisma"
+  // Engine targets: native (local dev/build machine) + the runtime targets
+  // used by cPanel/CloudLinux (RHEL-family glibc) and Debian-based images.
+  binaryTargets = ["native", "debian-openssl-1.0.x", "debian-openssl-1.1.x", "debian-openssl-3.0.x", "rhel-openssl-1.1.x", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -78,16 +86,6 @@ enum ProductStatus {
   DELETED
 }
 
-enum ChatRoomStatus {
-  OPEN
-  CLOSED
-}
-
-enum MessageType {
-  TEXT
-  SYSTEM
-}
-
 enum VirtualBoxStatus {
   ACTIVE
   DRAFT
@@ -107,14 +105,25 @@ enum UserCardSource {
   PROMOTION
 }
 
+enum DiscountType {
+  PERCENT
+  FIXED
+}
+
+enum VoucherScope {
+  ALL
+  CATEGORY
+  PRODUCT
+}
+
 // ==================== MODELS ====================
 
 model User {
   id                 String     @id @default(uuid())
-  email              String     @unique
+  email              String?    @unique
   passwordHash       String
   fullName           String
-  phone              String?
+  phone              String     @unique
   address            String?
   avatarUrl          String?
   role               Role       @default(CUSTOMER)
@@ -122,7 +131,6 @@ model User {
   emailVerified      Boolean    @default(false)
   canManageInventory Boolean    @default(false)
   canManagePosts     Boolean    @default(false)
-  canAccessChat      Boolean    @default(false)
   balance            Decimal    @default(0) @db.Decimal(12, 2)
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
@@ -130,12 +138,10 @@ model User {
   refreshTokens        RefreshToken[]
   passwordResetTokens  PasswordResetToken[]
   orders               Order[]
-  chatRooms            ChatRoom[]
-  chatMessages         ChatMessage[]
-  chatParticipants     ChatParticipant[]
   posts                Post[]
   userCards            UserCard[]
   virtualBoxOpenings   VirtualBoxOpening[]
+  userVouchers         UserVoucher[]
 }
 
 model Post {
@@ -154,12 +160,18 @@ model Post {
 
 model RefreshToken {
   id              String   @id @default(uuid())
-  token           String   @unique
+  // JWT refresh tokens are ~210 chars (HS256) — VARCHAR(191) overflowed with
+  // P2000. @db.Text is NOT allowed with @unique on MySQL/MariaDB (TEXT cannot
+  // be uniquely indexed), so the fix is a wider VARCHAR instead.
+  // 512 chars * 4 bytes (utf8mb4) = 2048B < 3072B InnoDB index key limit.
+  token           String   @unique @db.VarChar(512)
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt       DateTime
   revoked         Boolean  @default(false)
-  replacedByToken String?
+  // Stores a full refresh token when rotation records its replacement —
+  // widen alongside `token` to avoid the same P2000 on the nullable column.
+  replacedByToken String?  @db.VarChar(512)
   createdByIp     String?
   createdAt       DateTime @default(now())
 }
@@ -174,28 +186,42 @@ model PasswordResetToken {
   createdAt DateTime @default(now())
 }
 
+// Hierarchical category tree — Level 1 roots (Single Cards, Sealed
+// Products, Accessories) → Level 2 series/eras (Sun & Moon Series…) →
+// Level 3 expansion sets (Cosmic Eclipse…). `parentId` null = root.
 model Category {
-  id          String    @id @default(uuid())
-  name        String    @unique
-  slug        String    @unique
+  id          String     @id @default(uuid())
+  name        String     @unique
+  slug        String     @unique
   description String?
   imageUrl    String?
-  isActive    Boolean   @default(true)
+  isActive    Boolean    @default(true)
+  parentId    String?
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[] @relation("CategoryHierarchy")
   products    Product[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([parentId])
 }
 
 model Set {
   id          String    @id @default(uuid())
   name        String
   slug        String    @unique
+  // Short expansion code, e.g. "S12a" (VSTAR Universe), "SVI" (Scarlet &
+  // Violet base). Powers `?set=S12a` filtering without hardcoding anything
+  // into categories.
+  code        String?
   releaseDate DateTime?
   description String?
   imageUrl    String?
   products    Product[] @relation("ProductSets")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  @@index([code])
 }
 
 model Product {
@@ -206,12 +232,16 @@ model Product {
   description   String?
   cardNumber    String?
   rarity        String?
+  // TCG metadata for single cards — language of the print (JP, ENG, …)
+  language      String?
+  // Card set / expansion name (e.g. "Surging Sparks", "151")
+  cardSet       String?
   artist        String?
   tcgplayerId   String?
   categoryId    String?
   category      Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   sets          Set[]         @relation("ProductSets")
-  images        String[]      @default([])
+  images        Json          @default("[]")
   backImage     String?
   attributes    Json?
   status        ProductStatus @default(ACTIVE)
@@ -224,9 +254,19 @@ model Product {
   cards         Card[]
   orderItems    OrderItem[]
 
+  // Composite indexes for the common multi-attribute filter pattern
+  // `?category=...&language=...&rarity=...` — column order matches filter
+  // selectivity (category first, then language, then rarity). Single-column
+  // language/cardSet/rarity indexes remain for narrower queries.
   @@index([categoryId])
   @@index([status])
   @@index([slug])
+  @@index([language])
+  @@index([cardSet])
+  @@index([rarity])
+  @@index([artist])
+  @@index([categoryId, language, rarity])
+  @@index([categoryId, cardSet])
 }
 
 model ProductVariant {
@@ -276,6 +316,9 @@ model Order {
   shippingFee     Decimal       @default(0) @db.Decimal(10, 2)
   discountAmount  Decimal       @default(0) @db.Decimal(10, 2)
   grandTotal      Decimal       @db.Decimal(10, 2)
+  // Snapshot mã voucher đã dùng — dữ liệu lịch sử không đổi dù voucher bị sửa sau này
+  voucherCode     String?
+  voucher         Voucher?      @relation(fields: [voucherCode], references: [code], onDelete: SetNull, onUpdate: Cascade)
   shippingAddress Json
   trackingNumber  String?
   paymentMethod   PaymentMethod @default(SEPAy)
@@ -292,7 +335,6 @@ model Order {
   payments      Payment[]
   paymentLogs   PaymentLog[]
   statusHistory OrderStatusHistory[]
-  chatRoom      ChatRoom?
 
   @@index([userId])
   @@index([status])
@@ -376,63 +418,66 @@ model OrderStatusHistory {
   @@index([orderId])
 }
 
-model ChatRoom {
-  id        String         @id @default(uuid())
-  userId    String
-  user      User           @relation(fields: [userId], references: [id], onDelete: Restrict)
-  orderId   String?        @unique
-  order     Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  subject   String
-  status    ChatRoomStatus @default(OPEN)
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+// ==================== VOUCHERS / DISCOUNTS ====================
 
-  messages     ChatMessage[]
-  participants ChatParticipant[]
+// Mã giảm giá do admin tạo. Đơn hàng lưu `voucherCode` snapshot nên chỉnh sửa
+// voucher sau này không làm thay đổi dữ liệu lịch sử của đơn đã dùng nó.
+model Voucher {
+  id                String       @id @default(uuid())
+  code              String       @unique
+  title             String
+  discountType      DiscountType @default(PERCENT)
+  discountValue     Decimal      @db.Decimal(10, 2)
+  // Chỉ áp dụng cho PERCENT: giảm tối đa bao nhiêu (VND)
+  maxDiscountAmount Decimal?     @db.Decimal(10, 2)
+  minOrderAmount    Decimal      @default(0) @db.Decimal(10, 2)
+  // Giới hạn phát hành: tổng lượt dùng toàn hệ thống (null = không giới hạn)
+  totalQuantity     Int?
+  usedQuantity      Int          @default(0)
+  // Giới hạn số lượt dùng của một user
+  limitPerUser      Int          @default(1)
+  startAt           DateTime?
+  endAt             DateTime?
+  isActive          Boolean      @default(true)
+  scope             VoucherScope @default(ALL)
+  // Danh sách id Category/Product áp dụng khi scope != ALL (JSON array)
+  scopeIds          Json          @default("[]")
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
-  @@index([userId])
-  @@index([status])
+  users  UserVoucher[]
+  orders Order[]
+
+  @@index([isActive])
+  @@index([endAt])
 }
 
-model ChatParticipant {
-  id         String    @id @default(uuid())
-  roomId     String
-  room       ChatRoom  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+// Ví voucher của user: 1 voucher chỉ có 1 dòng/user, usage_count cộng dồn.
+// `usage_count` tăng khi đơn tạo thành công, hoàn lại khi đơn bị hủy.
+model UserVoucher {
+  id         String   @id @default(uuid())
   userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lastReadAt DateTime?
-  createdAt  DateTime  @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  voucherId  String
+  voucher    Voucher  @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  usageCount Int      @default(0)
+  claimedAt  DateTime @default(now())
 
-  @@index([roomId])
+  @@unique([userId, voucherId])
   @@index([userId])
-}
-
-model ChatMessage {
-  id          String      @id @default(uuid())
-  roomId      String
-  room        ChatRoom    @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  senderId    String
-  sender      User        @relation(fields: [senderId], references: [id], onDelete: Restrict)
-  content     String
-  type        MessageType @default(TEXT)
-  attachments String[]    @default([])
-  isRead      Boolean     @default(false)
-  readAt      DateTime?
-  createdAt   DateTime    @default(now())
-
-  @@index([roomId])
-  @@index([senderId])
-  @@index([createdAt])
+  @@index([voucherId])
 }
 
 // ==================== APP SETTINGS ====================
 
 // Simple key-value store for admin-editable runtime configuration
-// (e.g. SePay gateway settings that seed from .env defaults).
+// (SePay gateway, shop identity, site title/favicon/support chat URL,
+// shipping fee). `value` is VARCHAR(512) so long URLs fit comfortably
+// (512 * 4 bytes utf8mb4 = 2048B < 3072B InnoDB index key limit).
 model AppSetting {
   key        String   @id
-  value      String
-  updatedAt  DateTime @updatedAt
+  value      String   @db.VarChar(512)
+  updatedAt DateTime @updatedAt
 
   @@index([key])
 }

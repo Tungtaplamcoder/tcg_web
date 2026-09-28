@@ -1,29 +1,80 @@
 const prisma = require('../config/prisma');
-const { NotFoundError, AppError } = require('../utils/errors');
+const { NotFoundError } = require('../utils/errors');
 const { PRODUCT_CATEGORIES, resolveProductCategoryKey } = require('../constants/productCategories');
 
-const buildProductWhere = (query) => {
+/* Multi-value query params ("a,b") → string arrays; single values stay
+ * single-element arrays. Empty strings are dropped. */
+const toList = (value) => {
+  if (value === undefined || value === null) return null;
+  const parts = String(value).split(',').map((v) => v.trim()).filter(Boolean);
+  return parts.length > 0 ? parts : null;
+};
+
+/* Resolve a category filter value (semantic key BOX/CARD, any slug at any
+ * level of the tree, or legacy alias) to the list of category ids it
+ * covers — the category itself plus all descendants, so picking a Level 1
+ * or Level 2 node also matches products filed under its children.
+ * Returns null when the value matches nothing (caller treats as no-match). */
+const resolveCategoryTreeIds = async (value) => {
+  const key = resolveProductCategoryKey(value);
+  const slug = key ? PRODUCT_CATEGORIES[key].slug : String(value);
+  const category = await prisma.category.findUnique({ where: { slug }, select: { id: true } });
+  if (!category) return null;
+  const children = await prisma.category.findMany({ where: { parentId: category.id }, select: { id: true } });
+  let grandchildren = [];
+  if (children.length > 0) {
+    grandchildren = await prisma.category.findMany({
+      where: { parentId: { in: children.map((c) => c.id) } },
+      select: { id: true }
+    });
+  }
+  return [category.id, ...children.map((c) => c.id), ...grandchildren.map((c) => c.id)];
+};
+
+/* Shared where-builder for the public catalog and the facet counts —
+ * every filter is combinable: category (hierarchical, descendants
+ * included), set (slug or expansion code), language, rarity, card set,
+ * artist, price, stock. Async because the category tree lookup hits the
+ * database. */
+const buildProductWhere = async (query = {}) => {
   const where = { status: 'ACTIVE' };
 
   if (query.search) {
     where.OR = [
-      { name: { contains: query.search, mode: 'insensitive' } },
-      { shortName: { contains: query.search, mode: 'insensitive' } },
-      { description: { contains: query.search, mode: 'insensitive' } },
-      { cardNumber: { contains: query.search, mode: 'insensitive' } }
+      { name: { contains: query.search } },
+      { shortName: { contains: query.search } },
+      { description: { contains: query.search } },
+      { cardNumber: { contains: query.search } },
+      { cardSet: { contains: query.search } }
     ];
   }
 
+  // Category: semantic key, canonical slug, legacy alias, or any tree
+  // node slug (series/expansion). Unknown values → impossible match.
   if (query.category) {
-    const key = resolveProductCategoryKey(query.category);
-    if (!key) throw new AppError('Category filter must be either "Box" or "Card"', 400, 'VALIDATION_ERROR');
-    where.category = { slug: PRODUCT_CATEGORIES[key].slug };
+    const ids = await resolveCategoryTreeIds(query.category);
+    where.categoryId = ids ? (ids.length > 1 ? { in: ids } : ids[0]) : '__no_match__';
   }
 
+  // Set: slug ("vivid-voltage") or expansion code ("SWSH04") — both
+  // index-backed via the Set.slug unique key + Set.code index.
   if (query.set) {
-    where.sets = { some: { slug: query.set } };
+    where.sets = { some: { OR: [{ slug: query.set }, { code: query.set }] } };
   }
-  if (query.rarity) where.rarity = query.rarity;
+
+  // Dynamic attributes — multi-value aware ("?language=JP,ENG").
+  const languages = toList(query.language);
+  if (languages) where.language = languages.length > 1 ? { in: languages } : languages[0];
+
+  const rarities = toList(query.rarity);
+  if (rarities) where.rarity = rarities.length > 1 ? { in: rarities } : rarities[0];
+
+  // Illustrator facet — exact match per artist name ("Yuka Morii,…")
+  const artists = toList(query.artist);
+  if (artists) where.artist = artists.length > 1 ? { in: artists } : artists[0];
+
+  if (query.cardSet) where.cardSet = { contains: query.cardSet };
+
   if (query.minPrice !== undefined) {
     where.variants = { some: { price: { gte: query.minPrice } } };
   }
@@ -38,7 +89,7 @@ const buildProductWhere = (query) => {
 };
 
 const listProducts = async (query) => {
-  const where = buildProductWhere(query);
+  const where = await buildProductWhere(query);
   const skip = (query.page - 1) * query.limit;
   const take = query.limit;
 
@@ -76,7 +127,7 @@ const getProductById = async (id) => {
     where: { id },
     include: {
       sets: true,
-      category: { select: { id: true, name: true, slug: true } },
+      category: { select: { id: true, name: true, slug: true, parentId: true } },
       variants: {
         where: { status: 'ACTIVE' },
         orderBy: [{ condition: 'asc' }, { variant: 'asc' }]
@@ -97,10 +148,108 @@ const getProductById = async (id) => {
 };
 
 const listSets = async () => {
+  // Dynamic pruning: only Expansion Sets with at least one ACTIVE product
+  // appear in the storefront filter sidebar. Sets whose products have all
+  // been deleted/reassigned drop out automatically — no manual cleanup.
   return prisma.set.findMany({
+    where: { products: { some: { status: 'ACTIVE' } } },
     orderBy: { name: 'asc' },
     include: { _count: { select: { products: { where: { status: 'ACTIVE' } } } } }
   });
+};
+
+/* Facet values for the storefront filter rail. Returns the distinct
+ * languages, rarities, card sets and sets present in ACTIVE products,
+ * each with a product count. The optional `query` carries the currently
+ * applied filters EXCLUDING the facet's own attribute, so each facet
+ * shows sibling counts (classic faceted-search semantics) instead of
+ * collapsing to a single value once one filter is picked. */
+/* Roll each category's direct ACTIVE product count up through its ancestors
+ * so a series/root whose products all live on descendant leaves still owns
+ * a non-zero count — and so any node (and only any node) with zero ACTIVE
+ * products anywhere in its subtree can be pruned. Returns [{...row,
+ * productCount}] with productCount = own + descendants. */
+const withRolledProductCounts = (rows) => {
+  const byId = new Map(rows.map((r) => [r.id, { ...r, productCount: r._count?.products ?? 0 }]));
+  for (const row of rows) {
+    const own = row._count?.products ?? 0;
+    if (own === 0) continue;
+    let cur = row.parentId ? byId.get(row.parentId) : null;
+    let guard = 0;
+    while (cur && guard++ < 20) {
+      cur.productCount += own;
+      cur = cur.parentId ? byId.get(cur.parentId) : null;
+    }
+  }
+  return [...byId.values()];
+};
+
+const getProductFacets = async (query = {}) => {
+  const baseWhere = (facet) => {
+    const partial = { ...query };
+    delete partial[facet];
+    return buildProductWhere(partial);
+  };
+  const [languages, rarities, cardSets, artists, sets, categories] = await Promise.all([
+    prisma.product.groupBy({
+      by: ['language'],
+      where: await baseWhere('language'),
+      _count: { _all: true },
+      orderBy: { _count: { language: 'desc' } }
+    }),
+    prisma.product.groupBy({
+      by: ['rarity'],
+      where: await baseWhere('rarity'),
+      _count: { _all: true },
+      orderBy: { _count: { rarity: 'desc' } }
+    }),
+    prisma.product.groupBy({
+      by: ['cardSet'],
+      where: await baseWhere('cardSet'),
+      _count: { _all: true },
+      orderBy: { _count: { cardSet: 'desc' } }
+    }),
+    prisma.product.groupBy({
+      by: ['artist'],
+      where: await baseWhere('artist'),
+      _count: { _all: true },
+      orderBy: { _count: { artist: 'desc' } }
+    }),
+    prisma.set.findMany({
+      where: { products: { some: await buildProductWhere({ ...query, set: undefined }) } },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, slug: true, code: true, _count: { select: { products: { where: await buildProductWhere({ ...query, set: undefined }) } } } }
+    }),
+    // Full active category tree (roots + children) — the storefront builds
+    // the nested accordion from this flat parent/child list. Every node is
+    // fetched (not just ones with direct products) so ancestors can be
+    // assembled, then counted up through the subtree and zero-product
+    // branches pruned below.
+    prisma.category.findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, slug: true, parentId: true, _count: { select: { products: { where: await buildProductWhere({ ...query, category: undefined }) } } } }
+    })
+  ]);
+
+  const countedCategories = withRolledProductCounts(categories)
+    // Dynamic pruning: a Series / Expansion Set / Sealed Type with zero
+    // ACTIVE products anywhere in its subtree must not be offered as a
+    // storefront filter.
+    .filter((c) => c.productCount > 0);
+
+  return {
+    languages: languages.filter((row) => row.language != null && row.language !== '')
+      .map((row) => ({ value: row.language, count: row._count._all })),
+    rarities: rarities.filter((row) => row.rarity != null && row.rarity !== '')
+      .map((row) => ({ value: row.rarity, count: row._count._all })),
+    cardSets: cardSets.filter((row) => row.cardSet != null && row.cardSet !== '')
+      .map((row) => ({ value: row.cardSet, count: row._count._all })),
+    artists: artists.filter((row) => row.artist != null && row.artist !== '')
+      .map((row) => ({ value: row.artist, count: row._count._all })),
+    sets: sets.map((s) => ({ id: s.id, name: s.name, slug: s.slug, code: s.code, count: s._count.products })),
+    categories: countedCategories.map((c) => ({ id: c.id, name: c.name, slug: c.slug, parentId: c.parentId, count: c.productCount }))
+  };
 };
 
 const getProductStock = async (id) => {
@@ -116,11 +265,25 @@ const getProductStock = async (id) => {
 };
 
 const listCategories = async (activeOnly = false) => {
-  const where = activeOnly ? { isActive: true } : {};
-  return prisma.category.findMany({
-    where,
-    orderBy: { name: 'asc' }
+  // Storefront mode (activeOnly=true, the default): dynamic pruning by
+  // ROLLED-UP product count — a Series/Expansion Set/Sealed Type is kept only
+  // when it has ACTIVE products in its own subtree, and ancestors inherit their
+  // descendants' counts so a category whose cards all live on deeper leaves
+  // still shows up with the right total. Deleting/reassigning the last product
+  // in a branch automatically drops that tag from the filter sidebar.
+  // Admin mode (activeOnly=false): return the full tree unchanged (master data
+  // for the product form's creatable selects).
+  if (!activeOnly) {
+    return prisma.category.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } });
+  }
+  const rows = await prisma.category.findMany({
+    where: { isActive: true },
+    orderBy: { name: 'asc' },
+    include: { _count: { select: { products: { where: { status: 'ACTIVE' } } } } }
   });
+  return withRolledProductCounts(rows)
+    .filter((c) => c.productCount > 0)
+    .map(({ _count, productCount, ...category }) => category);
 };
 
 const listCards = async (query = {}) => {
@@ -156,6 +319,8 @@ module.exports = {
   listSets,
   getProductStock,
   listCategories,
+  getProductFacets,
+  buildProductWhere,
   listCards,
   getCardById
 };

@@ -1,6 +1,7 @@
 const prisma = require('../../config/prisma');
 const { NotFoundError, ConflictError, AppError } = require('../../utils/errors');
 const gachaService = require('../../services/gacha.service');
+const { isDatabaseError, emptyPage, sendDbEmpty, sendDbError } = require('../../utils/dbGuard');
 
 const BOX_SELECT_FIELDS = {
   id: true,
@@ -64,7 +65,14 @@ const listVirtualBoxes = async (req, res, next) => {
       data: { items, meta: { page: Number(page), limit: take, totalItems, totalPages: Math.ceil(totalItems / take) } },
       message: 'Virtual boxes retrieved'
     });
-  } catch (error) { next(error); }
+  } catch (error) {
+    // DB failure on a public storefront list: degrade to an empty page so
+    // the VirtualBoxes page renders its empty state instead of erroring.
+    if (isDatabaseError(error)) {
+      return sendDbEmpty(res, 'gacha.listVirtualBoxes', error, emptyPage(Number(req.query?.page) || 1, Number(req.query?.limit) || 20));
+    }
+    next(error);
+  }
 };
 
 // POST /api/v1/virtual-boxes/:id/open — authenticated gacha opening.
@@ -150,7 +158,14 @@ const openVirtualBox = async (req, res, next) => {
       },
       message: 'Box opened successfully'
     });
-  } catch (error) { next(error); }
+  } catch (error) {
+    // Write path (transactional card grant): a raw DB failure must not 500 —
+    // the transaction rolls back, so a clean 400 tells the user to retry.
+    if (isDatabaseError(error)) {
+      return sendDbError(res, 'gacha.openVirtualBox', error);
+    }
+    next(error);
+  }
 };
 
 module.exports = {

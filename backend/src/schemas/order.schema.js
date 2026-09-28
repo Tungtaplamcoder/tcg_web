@@ -27,7 +27,9 @@ const shippingAddressSchema = z.object({
 const checkoutSchema = z.object({
   items: z.array(checkoutItemSchema).min(1, 'At least one item is required').max(50),
   shippingAddress: shippingAddressSchema,
-  paymentMethod: z.enum(['SEPAY', 'SEPA', 'SEPAy']).default('SEPAY')
+  paymentMethod: z.enum(['SEPAY', 'SEPA', 'SEPAy']).default('SEPAY'),
+  // Mã voucher đã nhận vào ví (optional) — backend tự re-validate trong transaction
+  voucherCode: z.string().trim().max(100).optional()
 });
 
 const orderQuerySchema = z.object({

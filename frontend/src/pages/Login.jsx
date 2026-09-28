@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Mail, LockKeyhole, Eye, EyeOff, Loader2, AlertCircle, ArrowRight, Sparkles } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const { login, isLoading } = useAuthStore();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -17,11 +19,11 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!email || !password) {
-      setError('Email and password are required.');
+    if (!identifier || !password) {
+      setError(t('auth.errRequired'));
       return;
     }
-    const result = await login(email, password);
+    const result = await login(identifier, password);
     if (result.success) {
       // Redirect based on role
       const role = result.user?.role;
@@ -29,7 +31,7 @@ const Login = () => {
       else if (role === 'STAFF') navigate('/staff');
       else navigate(from, { replace: true });
     } else {
-      setError(result.error || 'Login failed');
+      setError(result.error || t('auth.errLoginFailed'));
     }
   };
 
@@ -47,8 +49,8 @@ const Login = () => {
             <div className="mx-auto h-14 w-14 rounded-2xl bg-brand-gradient flex items-center justify-center shadow-glow">
               <Sparkles className="h-7 w-7 text-white" />
             </div>
-            <h1 className="mt-5 heading-display text-2xl">Welcome Back</h1>
-            <p className="text-ink-500 dark:text-ink-300 text-sm mt-1.5">Login to access your collection</p>
+            <h1 className="mt-5 heading-display text-2xl">{t('auth.loginTitle')}</h1>
+            <p className="text-ink-500 dark:text-ink-300 text-sm mt-1.5">{t('auth.loginSubtitle')}</p>
           </div>
 
           {error && (
@@ -60,21 +62,21 @@ const Login = () => {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="label-premium">Email</label>
+              <label className="label-premium">{t('auth.phoneOrEmail')}</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-ink-400 dark:text-ink-300" />
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  type="text"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="you@example.com / 0901234567"
                   required
                   className="input-premium !pl-11"
                 />
               </div>
             </div>
             <div>
-              <label className="label-premium">Password</label>
+              <label className="label-premium">{t('auth.password')}</label>
               <div className="relative">
                 <LockKeyhole className="absolute left-4 top-1/2 -translate-y-1/2 h-[18px] w-[18px] text-ink-400 dark:text-ink-300" />
                 <input
@@ -89,7 +91,7 @@ const Login = () => {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-ink-400 dark:text-ink-300 hover:text-ink-700 dark:text-ink-100 transition-colors"
-                  aria-label="Toggle password visibility"
+                  aria-label={t('common.showPassword')}
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
@@ -99,23 +101,23 @@ const Login = () => {
               {isLoading ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  Logging in...
+                  {t('auth.loggingIn')}
                 </>
               ) : (
                 <>
-                  Login <ArrowRight className="h-5 w-5" />
+                  {t('auth.loginBtn')} <ArrowRight className="h-5 w-5" />
                 </>
               )}
             </button>
           </form>
 
           <div className="mt-7 text-center text-sm text-ink-500 dark:text-ink-300">
-            Don't have an account?{' '}
+            {t('auth.noAccount')}{' '}
             <Link
               to="/register"
               className="font-semibold bg-gradient-to-r from-primary-600 to-fuchsia-600 bg-clip-text text-transparent hover:from-primary-700 hover:to-fuchsia-700"
             >
-              Register
+              {t('auth.registerBtn')}
             </Link>
           </div>
         </div>

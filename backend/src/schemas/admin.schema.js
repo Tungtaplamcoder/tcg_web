@@ -1,5 +1,4 @@
 const { z } = require('zod');
-const { PRODUCT_CATEGORY_ENUM } = require('../constants/productCategories');
 
 // ==================== USER SCHEMAS ====================
 
@@ -13,8 +12,7 @@ const updateUserStatusSchema = z.object({
 
 const updateUserPermissionsSchema = z.object({
   canManageInventory: z.boolean().optional(),
-  canManagePosts: z.boolean().optional(),
-  canAccessChat: z.boolean().optional()
+  canManagePosts: z.boolean().optional()
 });
 
 const changeUserPasswordSchema = z.object({
@@ -35,29 +33,48 @@ const cardConditionEnum = z.enum([
   'POOR'
 ]);
 
-// Mỗi biến thể (variant) của sản phẩm — lưu giá và tồn kho theo condition
+// Mỗi biến thể (variant) của sản phẩm — lưu giá và tồn kho theo condition.
+// `condition` is optional/nullable: Sealed Products (BOX) submit an empty
+// string for condition and the controller falls back to 'NEAR_MINT' when
+// saving, so the enum must accept '', null, and undefined without throwing.
 const productVariantSchema = z.object({
   id: z.string().uuid().optional(),
-  condition: cardConditionEnum.default('NEAR_MINT'),
+  condition: cardConditionEnum.optional().nullable().or(z.literal('')),
   variant: z.string().max(100).optional().default('Normal'),
   price: z.coerce.number().min(0, 'Giá phải là số >= 0'),
   stockQuantity: z.coerce.number().int().min(0, 'Tồn kho phải là số nguyên >= 0').default(0)
 });
 
-// Every product is strictly binary: Box (Sealed Boxes) or Card (Single Cards)
-const productCategoryEnum = z.enum(PRODUCT_CATEGORY_ENUM, {
-  errorMap: () => ({ message: 'Category must be either "Box" (Sealed Boxes) or "Card" (Single Cards)' })
-});
+// A free-form category reference resolved by the controller: a semantic
+// bucket key (BOX/CARD), an existing category id/slug/name at any level
+// of the tree, or a brand-new category name (creatable-select flow) which
+// the controller creates on the fly.
+const productCategoryRef = z.string().trim().min(2).max(200);
 
 const createProductSchema = z.object({
   name: z.string().min(2).max(200),
   shortName: z.string().max(100).optional().nullable(), // Cho phép rỗng/null
   slug: z.string().min(2).max(200).optional(),
   description: z.string().optional(),
-  category: productCategoryEnum, // Required: Box or Card only
-  setIds: z.array(z.string().uuid()).optional(),
+  category: productCategoryRef,
+  // Cascading path from the product form's creatable selects — e.g.
+  // ["CARD", "TempSeries123", "TempSet123"] — each segment a bucket key or
+  // category name/slug. The server creates and CORRECTLY NESTS any missing
+  // segments so the tree, the pruning rollups and edit-hydration all work.
+  categoryPath: z.array(z.string().trim().min(2).max(200)).max(3).optional(),
+  // Creatable-set flow: when the admin types a new expansion set name that
+  // does not exist yet, it is created and linked automatically.
+  newSetName: z.string().trim().min(2).max(200).optional().nullable(),
+  // TCG illustrator name, e.g. "Yuka Morii"
+  artist: z.string().trim().max(200).optional().nullable(),
+  setIds: z.array(z.string().trim().min(1)).optional(),
   cardNumber: z.string().optional(),
-  rarity: z.string().optional(),
+  // TCG rarity — nullable so Box products (no rarity) can explicitly clear it
+  rarity: z.string().trim().max(100).optional().nullable(),
+  // TCG metadata (single cards): language of the print (JP, ENG, …)
+  language: z.string().trim().max(32).optional().nullable(),
+  // TCG metadata (single cards): card set / expansion name
+  cardSet: z.string().trim().max(200).optional().nullable(),
   images: z.array(z.string().url()).max(10).optional(),
   backImage: z.string().url().optional().nullable(),
   attributes: z.record(z.any()).optional(),
@@ -65,7 +82,9 @@ const createProductSchema = z.object({
   variants: z.array(productVariantSchema).optional()
 });
 
-const updateProductSchema = createProductSchema.partial();
+const updateProductSchema = createProductSchema.partial().extend({
+  status: z.enum(['ACTIVE', 'INACTIVE', 'DRAFT', 'DELETED']).optional()
+});
 
 // ==================== CATEGORY SCHEMAS ====================
 const categorySchema = z.object({
@@ -73,7 +92,11 @@ const categorySchema = z.object({
   slug: z.string().min(2).max(100).optional(),
   description: z.string().optional(),
   imageUrl: z.string().url().optional().nullable(),
-  isActive: z.boolean().optional()
+  isActive: z.boolean().optional(),
+  // Hierarchical tree: null/omitted = root level (Single Cards, …).
+  // Note: rows may use dashless UUIDs (MariaDB dumps), so don't enforce
+  // strict UUID formatting here.
+  parentId: z.string().trim().min(1).optional().nullable()
 });
 
 const updateCategorySchema = categorySchema.partial();
@@ -97,7 +120,10 @@ const updateCardSchema = z.object({
 // ==================== SET SCHEMAS (Sản phẩm) ====================
 
 const createSetSchema = z.object({
-  name: z.string().min(2).max(200)
+  name: z.string().min(2).max(200),
+  // Short expansion code, e.g. "S12a", "SVI" — powers ?set=<code>
+  // filtering. Optional; uniqueness is enforced by the controller.
+  code: z.string().trim().min(1).max(32).optional().nullable()
 });
 
 const updateSetSchema = createSetSchema.partial();
@@ -254,10 +280,128 @@ const sepaySettingsSchema = z.object({
   accountName: z.string().min(1, 'Account name is required')
 });
 
+// ==================== SHOP SETTINGS SCHEMA ====================
+
+const shopSettingsSchema = z.object({
+  shop_name: z.string().trim().min(1, 'Shop name is required').max(200),
+  // Logo accepts an absolute URL (ImgBB) or a relative path (/uploads/<file>), same as virtual box images
+  shop_logo_url: z.string().trim().max(2048).refine(
+    (v) => v === '' || /^(https?:\/\/|\/)/i.test(v),
+    'Shop logo must be an absolute http(s) URL or a relative path starting with "/"'
+  ).optional().default(''),
+  support_email: z.string().trim().email('Support email must be a valid email address').max(255),
+  support_phone: z.string().trim().min(1, 'Support phone is required').max(50),
+  support_address: z.string().trim().min(1, 'Support address is required').max(500)
+});
+
+// ==================== SHIPPING SETTINGS SCHEMA ====================
+
+// Phí vận chuyển mặc định (VND): số nguyên >= 0 — 0 là hợp lệ (miễn phí ship)
+const shippingSettingsSchema = z.object({
+  defaultShippingFee: z.number({ invalid_type_error: 'Shipping fee must be a number' })
+    .int('Shipping fee must be an integer (VND)')
+    .min(0, 'Shipping fee must be >= 0')
+    .max(1000000000, 'Shipping fee is unreasonably large')
+});
+
+// ==================== SITE SETTINGS SCHEMA ====================
+
+// Site identity & support chat config (site title, favicon, support chat URL).
+// All fields optional on update so the admin can patch a single key; the
+// service applies defaults for anything missing.
+const siteSettingsSchema = z.object({
+  site_title: z.string().trim().min(1, 'Site title is required').max(200),
+  site_favicon_url: z.string().trim().max(2048).refine(
+    (v) => v === '' || /^(https?:\/\/|\/)/i.test(v),
+    'Favicon must be an absolute http(s) URL or a relative path starting with "/"'
+  ).optional().default(''),
+  support_chat_url: z.string().trim().max(2048).refine(
+    (v) => v === '' || /^(https?:\/\/|\/)/i.test(v),
+    'Support chat URL must be an absolute http(s) URL or a relative path starting with "/"'
+  ).optional().default('')
+});
+
+// ==================== VOUCHER SCHEMAS ====================
+
+const voucherDiscountValueSchema = z.coerce.number().min(0, 'Giá trị giảm phải >= 0')
+  .refine((v) => v === 0 || v > 0, 'Giá trị giảm phải lớn hơn 0');
+
+const baseVoucherSchema = z.object({
+  code: z.string().trim().min(3, 'Mã voucher tối thiểu 3 ký tự').max(50)
+    .transform((v) => v.toUpperCase()),
+  title: z.string().trim().min(2, 'Tên voucher tối thiểu 2 ký tự').max(200),
+  discountType: z.enum(['PERCENT', 'FIXED']),
+  discountValue: voucherDiscountValueSchema,
+  maxDiscountAmount: z.coerce.number().min(0).nullable().optional(),
+  minOrderAmount: z.coerce.number().min(0).default(0),
+  totalQuantity: z.coerce.number().int().min(1).nullable().optional(),
+  limitPerUser: z.coerce.number().int().min(1).default(1),
+  startAt: z.string().datetime({ offset: true }).nullable().optional()
+    .or(z.literal(null)).transform((v) => (v ? new Date(v) : null)),
+  endAt: z.string().datetime({ offset: true }).nullable().optional()
+    .or(z.literal(null)).transform((v) => (v ? new Date(v) : null)),
+  isActive: z.boolean().optional().default(true),
+  scope: z.enum(['ALL', 'CATEGORY', 'PRODUCT']).default('ALL'),
+  scopeIds: z.array(z.string().uuid()).max(200).optional().default([])
+});
+
+const createVoucherSchema = baseVoucherSchema.refine(
+  (data) => data.discountType !== 'PERCENT' || (data.discountValue >= 0 && data.discountValue <= 100),
+  { message: 'Giá trị PERCENT phải từ 0 đến 100', path: ['discountValue'] }
+).refine(
+  (data) => data.scope === 'ALL' || (data.scopeIds && data.scopeIds.length > 0),
+  { message: 'Cần chọn ít nhất một danh mục/sản phẩm khi scope khác ALL', path: ['scopeIds'] }
+).refine(
+  (data) => !data.startAt || !data.endAt || data.startAt < data.endAt,
+  { message: 'Ngày bắt đầu phải trước ngày kết thúc', path: ['startAt'] }
+);
+
+const updateVoucherSchema = z.object({
+  title: z.string().trim().min(2).max(200).optional(),
+  discountType: z.enum(['PERCENT', 'FIXED']).optional(),
+  discountValue: z.coerce.number().min(0).optional(),
+  maxDiscountAmount: z.coerce.number().min(0).nullable().optional(),
+  minOrderAmount: z.coerce.number().min(0).optional(),
+  totalQuantity: z.coerce.number().int().min(1).nullable().optional(),
+  limitPerUser: z.coerce.number().int().min(1).optional(),
+  startAt: z.string().datetime({ offset: true }).nullable().optional()
+    .or(z.literal(null)).transform((v) => (v ? new Date(v) : null)).optional(),
+  endAt: z.string().datetime({ offset: true }).nullable().optional()
+    .or(z.literal(null)).transform((v) => (v ? new Date(v) : null)).optional(),
+  isActive: z.boolean().optional(),
+  scope: z.enum(['ALL', 'CATEGORY', 'PRODUCT']).optional(),
+  scopeIds: z.array(z.string().uuid()).max(200).optional()
+}).refine(
+  (data) => !data.startAt || !data.endAt || data.startAt < data.endAt,
+  { message: 'Ngày bắt đầu phải trước ngày kết thúc', path: ['startAt'] }
+);
+
+const listVouchersQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  search: z.string().optional(),
+  isActive: z.enum(['true', 'false']).optional()
+});
+
+const toggleVoucherSchema = z.object({
+  isActive: z.boolean()
+});
+
+// Cấp voucher trực tiếp: danh sách user id cụ thể, hoặc ALL_USERS
+const allocateVoucherSchema = z.object({
+  voucherId: z.string().uuid('voucherId phải là UUID'),
+  userIds: z.array(z.string().uuid()).max(1000).optional(),
+  allUsers: z.boolean().optional()
+}).refine((data) => data.allUsers || (data.userIds && data.userIds.length > 0), {
+  message: 'Cần cung cấp userIds hoặc allUsers = true',
+  path: ['userIds']
+});
+
 // ==================== EXPORTS ====================
 
 module.exports = {
-  productCategoryEnum,
+  productCategoryRef,
+  productCategoryEnum: productCategoryRef, // backwards-compatible alias
   updateUserRoleSchema,
   updateUserStatusSchema,
   updateUserPermissionsSchema,
@@ -282,5 +426,13 @@ module.exports = {
   createVirtualBoxSchema,
   updateVirtualBoxSchema,
   listVirtualBoxesQuerySchema,
-  sepaySettingsSchema
+  sepaySettingsSchema,
+  shopSettingsSchema,
+  shippingSettingsSchema,
+  siteSettingsSchema,
+  createVoucherSchema,
+  updateVoucherSchema,
+  listVouchersQuerySchema,
+  toggleVoucherSchema,
+  allocateVoucherSchema
 };

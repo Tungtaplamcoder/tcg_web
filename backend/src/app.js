@@ -13,8 +13,9 @@ const authRoutes = require('./routes/auth.routes');
 const productRoutes = require('./routes/product.routes');
 const orderRoutes = require('./routes/order.routes');
 const webhookRoutes = require('./routes/webhook.routes');
-const chatRoutes = require('./routes/chat.routes');
 const adminRoutes = require('./routes/admin.routes');
+const settingsRoutes = require('./routes/settings.routes');
+const voucherRoutes = require('./routes/voucher.routes');
 const { router: postRoutes, adminRouter: adminPostRoutes } = require('./routes/post.routes');
 const tcgplayerRoutes = require('./routes/tcgplayer.routes');
 const gachaRoutes = require('./routes/gacha.routes');
@@ -76,8 +77,20 @@ if (nodeEnv !== 'test') {
   app.use(morgan('combined'));
 }
 
-// Body parsing with size limits
-app.use(express.json({ limit: '10mb' }));
+// Body parsing with size limits.
+// `verify` gắn raw body (Buffer byte-gốc) vào req.rawBody TRƯỚC khi parse —
+// bắt buộc để verify chữ ký HMAC-SHA256 của webhook SePay: ký hiệu được tính
+// trên đúng byte gốc, không thể dựng lại từ JSON đã parse (thứ tự key/whitespace
+// sẽ khác). Xem src/controllers/webhook.controller.js.
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, res, buf, encoding) => {
+    // Chỉ giữ raw body cho các route cần verify chữ ký (webhook IPN)
+    if (req.originalUrl && req.originalUrl.startsWith('/api/v1/webhooks/')) {
+      req.rawBody = buf;
+    }
+  }
+}));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
@@ -98,8 +111,9 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1', productRoutes); // products, categories, sets, cards
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/webhooks', webhookRoutes);
-app.use('/api/v1/chat', chatRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1', settingsRoutes); // public site settings
+app.use('/api/v1/vouchers', voucherRoutes);
 app.use('/api/v1', postRoutes); // public news routes
 app.use('/api/v1/admin/posts', adminPostRoutes); // admin post management
 app.use('/api/v1/tcgplayer', tcgplayerRoutes);

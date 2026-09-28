@@ -13,9 +13,12 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 const PostEditor = () => {
+  const { t } = useLanguage();
   const { user } = useAuthStore();
+  const isAdmin = user?.role === 'ADMIN';
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -76,11 +79,13 @@ const PostEditor = () => {
     e.preventDefault();
     setSaving(true);
     setError('');
+    const payload = { ...formData };
+    if (!payload.thumbnailUrl) delete payload.thumbnailUrl; // backend rejects '' as invalid url
     try {
       if (isCreating) {
-        await api.post('/admin/posts', formData);
+        await api.post('/admin/posts', payload);
       } else if (editingPost) {
-        await api.patch(`/admin/posts/${editingPost.id}`, formData);
+        await api.patch(`/admin/posts/${editingPost.id}`, payload);
       }
       handleCancel();
       fetchPosts();
@@ -112,8 +117,8 @@ const PostEditor = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Posts & Articles</h2>
-          <p className="text-gray-500">Create and manage news posts</p>
+          <h2 className="text-2xl font-bold text-gray-800">{t('staff.posts.title')}</h2>
+          <p className="text-gray-500">{t('staff.posts.subtitle')}</p>
         </div>
         {!isCreating && !editingPost && (
           <button
@@ -121,7 +126,7 @@ const PostEditor = () => {
             className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
           >
             <Plus className="h-5 w-5 mr-2" />
-            New Post
+            {t('staff.posts.newPost')}
           </button>
         )}
       </div>
@@ -137,14 +142,14 @@ const PostEditor = () => {
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">
-              {isCreating ? 'Create New Post' : `Edit Post: ${editingPost?.title}`}
+              {isCreating ? t('staff.posts.newPost') : `Edit Post: ${editingPost?.title}`}
             </h3>
             <button type="button" onClick={handleCancel} className="text-gray-500 hover:text-gray-700">
               <X className="h-5 w-5" />
             </button>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Title *</label>
+            <label className="block text-sm font-medium text-gray-700">{t('staff.posts.titleLabel')}</label>
             <input
               type="text"
               name="title"
@@ -155,7 +160,7 @@ const PostEditor = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Excerpt</label>
+            <label className="block text-sm font-medium text-gray-700">{t('staff.posts.excerptLabel')}</label>
             <input
               type="text"
               name="excerpt"
@@ -165,7 +170,7 @@ const PostEditor = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Thumbnail URL</label>
+            <label className="block text-sm font-medium text-gray-700">{t('staff.posts.thumbnailLabel')}</label>
             <input
               type="url"
               name="thumbnailUrl"
@@ -176,7 +181,7 @@ const PostEditor = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Content *</label>
+            <label className="block text-sm font-medium text-gray-700">{t('staff.posts.contentLabel')}</label>
             <textarea
               name="content"
               value={formData.content}
@@ -192,7 +197,7 @@ const PostEditor = () => {
               onClick={handleCancel}
               className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
             >
-              Cancel
+              {t('staff.posts.cancel')}
             </button>
             <button
               type="submit"
@@ -212,15 +217,15 @@ const PostEditor = () => {
             <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
           </div>
         ) : posts.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">No posts found.</div>
+          <div className="text-center py-12 text-gray-500">{t('staff.posts.empty')}</div>
         ) : (
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Excerpt</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('staff.posts.colTitle')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('staff.posts.excerptLabel')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('staff.posts.colCreated')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('staff.posts.colActions')}</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -247,24 +252,26 @@ const PostEditor = () => {
                       <button
                         onClick={() => handleEdit(post)}
                         className="p-1 text-blue-600 hover:text-blue-800"
-                        title="Edit"
+                        title={t('staff.posts.edit')}
                       >
                         <Pencil className="h-5 w-5" />
                       </button>
                       <Link
                         to={`/news/${post.id}`}
                         className="p-1 text-gray-500 hover:text-gray-700"
-                        title="View"
+                        title={t('staff.posts.view')}
                       >
                         <Eye className="h-5 w-5" />
                       </Link>
-                      <button
-                        onClick={() => handleDelete(post.id)}
-                        className="p-1 text-red-500 hover:text-red-700"
-                        title="Delete"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleDelete(post.id)}
+                          className="p-1 text-red-500 hover:text-red-700"
+                          title={t('staff.posts.delete')}
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -282,15 +289,15 @@ const PostEditor = () => {
             disabled={page <= 1}
             className="px-3 py-2 border border-gray-300 rounded-lg text-gray-700 disabled:opacity-50 hover:bg-gray-50"
           >
-            Previous
+            {t('common.previous')}
           </button>
-          <span className="text-gray-700">Page {page} of {meta.totalPages}</span>
+          <span className="text-gray-700">{t('news.pageOf', { page, total: meta.totalPages })}</span>
           <button
             onClick={() => setPage(Math.min(meta.totalPages, page + 1))}
             disabled={page >= meta.totalPages}
             className="px-3 py-2 border border-gray-300 rounded-lg text-gray-700 disabled:opacity-50 hover:bg-gray-50"
           >
-            Next
+            {t('common.next')}
           </button>
         </div>
       )}

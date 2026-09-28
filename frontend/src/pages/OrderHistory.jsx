@@ -4,14 +4,15 @@ import {
   Package, AlertCircle, ChevronDown, MapPin, ExternalLink, Truck, Loader2
 } from 'lucide-react';
 import api from '../services/api';
-import { onSocketEvent } from '../services/socket';
 import { useAuthStore } from '../store/useAuthStore';
+import { useLanguage } from '../i18n/LanguageContext';
 import { STATUS_MAP, TIMELINE_STEPS } from '../constants/orderStatus';
 import { formatVND } from '../utils/format';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 const OrderHistory = () => {
   const { user } = useAuthStore();
+  const { t } = useLanguage();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -32,11 +33,11 @@ const OrderHistory = () => {
       setMeta(response.data.data.meta || { totalPages: 1 });
     } catch (err) {
       console.error('Failed to fetch orders:', err.response?.status, err.response?.data?.error?.message || err.message);
-      setError('Failed to load orders. Please try again.');
+      setError(t('orders.errLoad'));
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  }, [page, t]);
 
   useEffect(() => {
     if (user) {
@@ -44,28 +45,8 @@ const OrderHistory = () => {
     }
   }, [user, fetchOrders]);
 
-  // ── Real-time updates: Socket.IO events from the payment webhook ──────────
-  // Backend emits `order:paid` / `order:status_changed` / `order:cancelled`
-  // when SePay IPN (or admin) updates the order — refresh the list instantly.
-  useEffect(() => {
-    if (!user) return undefined;
-
-    const handleOrderEvent = (data) => {
-      console.log('Order socket event:', data);
-      fetchOrders();
-    };
-
-    const cleanups = [
-      onSocketEvent('order:paid', handleOrderEvent),
-      onSocketEvent('order:status_changed', handleOrderEvent),
-      onSocketEvent('order:cancelled', handleOrderEvent)
-    ];
-
-    return () => cleanups.forEach((cleanup) => cleanup && cleanup());
-  }, [user, fetchOrders]);
-
   // ── Polling fallback: re-fetch every 15s while a PENDING order exists ────
-  // (covers cases where the socket connection drops or the user has multiple tabs)
+  // (covers payment webhook latency and multi-tab usage)
   const hasPendingOrder = orders.some((o) => o.status === 'PENDING');
   useEffect(() => {
     if (!user || !hasPendingOrder) return undefined;
@@ -124,7 +105,7 @@ const OrderHistory = () => {
       fetchOrders();
     } catch (err) {
       console.error('Failed to cancel order:', err.response?.status, err.response?.data?.error?.message || err.message);
-      setError(err.response?.data?.error?.message || 'Không thể hủy đơn hàng.');
+      setError(err.response?.data?.error?.message || t('orders.errCancel'));
     } finally {
       setCancellingId(null);
     }
@@ -160,13 +141,14 @@ const OrderHistory = () => {
       form.submit();
     } catch (err) {
       console.error('Failed to retry payment:', err.response?.status, err.response?.data?.error?.message || err.message);
-      setError(err.response?.data?.error?.message || 'Không thể tạo phiên thanh toán. Vui lòng thử lại.');
+      setError(err.response?.data?.error?.message || t('orders.errRepay'));
       setRepayingId(null);
     }
   };
 
   const getStatusBadge = (status) => {
     const config = STATUS_MAP[status] || {
+      labelKey: null,
       label: status,
       icon: Package,
       badgeClass: 'bg-gray-50 text-gray-700 border-gray-200'
@@ -175,7 +157,7 @@ const OrderHistory = () => {
     return (
       <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold border ${config.badgeClass}`}>
         <Icon className="h-3.5 w-3.5 mr-1.5" />
-        {config.label}
+        {config.labelKey ? t(config.labelKey) : config.label}
       </span>
     );
   };
@@ -206,8 +188,8 @@ const OrderHistory = () => {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 sm:px-6 lg:px-8 animate-tcg-reveal">
       <div className="mb-7">
-        <p className="section-eyebrow">Purchase History</p>
-        <h1 className="heading-display text-3xl mt-1">Đơn hàng của tôi</h1>
+        <p className="section-eyebrow">{t('orders.historyEyebrow')}</p>
+        <h1 className="heading-display text-3xl mt-1">{t('orders.myOrders')}</h1>
       </div>
 
       {error && (
@@ -224,9 +206,9 @@ const OrderHistory = () => {
             <div className="mx-auto h-16 w-16 rounded-2xl bg-ink-50 dark:bg-white/5 ring-1 ring-ink-100 dark:ring-white/10 flex items-center justify-center">
               <Package className="h-8 w-8 text-ink-300" />
             </div>
-            <p className="mt-5 text-ink-600 dark:text-ink-200 font-medium">Bạn chưa có đơn hàng nào.</p>
+            <p className="mt-5 text-ink-600 dark:text-ink-200 font-medium">{t('orders.empty')}</p>
             <Link to="/catalog" className="btn-primary mt-6">
-              Bắt đầu mua sắm
+              {t('orders.startShopping')}
             </Link>
           </div>
         </div>
@@ -254,7 +236,7 @@ const OrderHistory = () => {
                         <p className="text-xs text-ink-400 dark:text-ink-300 mt-1">
                           {new Date(order.createdAt).toLocaleDateString()} at {new Date(order.createdAt).toLocaleTimeString()}
                         </p>
-                        <p className="text-xs text-ink-400 dark:text-ink-300">{order.items?.length || 0} sản phẩm</p>
+                        <p className="text-xs text-ink-400 dark:text-ink-300">{t('orders.itemsCount', { count: order.items?.length || 0 })}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
@@ -299,7 +281,7 @@ const OrderHistory = () => {
                                     status === 'current' ? 'text-primary-700' :
                                     'text-ink-400 dark:text-ink-300'
                                   }`}>
-                                    {step.label}
+                                    {t(step.labelKey)}
                                   </span>
                                 </div>
                                 {idx < TIMELINE_STEPS.length - 1 && (
@@ -318,27 +300,40 @@ const OrderHistory = () => {
                         {order.items.map((item, idx) => (
                           <div key={idx} className="flex justify-between gap-3 text-sm bg-white dark:bg-white/5 p-3.5 rounded-xl border border-ink-100 dark:border-white/10">
                             <span className="text-ink-700 dark:text-ink-100 truncate">
-                              {item.product?.name || item.card?.sku || 'Sản phẩm'} <span className="text-ink-400 dark:text-ink-300">x {item.quantity}</span>
+                              {item.product?.name || item.card?.sku || t('orders.product')} <span className="text-ink-400 dark:text-ink-300">x {item.quantity}</span>
                             </span>
                             <span className="font-semibold text-ink-900 dark:text-white flex-shrink-0">{formatVND(item.totalPrice)}</span>
                           </div>
                         ))}
                       </div>
 
+                      {/* Voucher discount line */}
+                      {Number(order.discountAmount) > 0 && (
+                        <div className="mt-3 flex items-center justify-between gap-3 text-sm bg-emerald-50 dark:bg-emerald-400/10 p-3.5 rounded-xl border border-emerald-100 dark:border-emerald-400/20">
+                          <span className="text-emerald-700 dark:text-emerald-300 font-medium">
+                            {order.voucherCode
+                              ? <>{t('orders.voucherLine', { code: order.voucherCode })}</>
+                              : t('checkout.discount')}
+                          </span>
+                          <span className="font-semibold text-emerald-600 dark:text-emerald-300">-{formatVND(order.discountAmount)}</span>
+                        </div>
+                      )}
+
                       {/* Tracking number (visible once the order ships) */}
                       {order.trackingNumber && ['SHIPPING', 'DELIVERED'].includes(order.status) && (
                         <div className="mt-4 text-sm bg-white dark:bg-white/5 p-4 rounded-xl border border-indigo-100 dark:border-indigo-400/20 flex items-center gap-2.5">
                           <Truck className="h-4 w-4 text-indigo-600 flex-shrink-0" />
                           <span className="text-ink-600 dark:text-ink-200">
-                            Mã vận đơn: <span className="font-mono font-semibold text-ink-900 dark:text-white">{order.trackingNumber}</span>
+                            {t('orders.trackingNumber', { code: order.trackingNumber })}
                           </span>
+                          <span className="font-mono font-semibold text-ink-900 dark:text-white">{order.trackingNumber}</span>
                         </div>
                       )}
 
                       {/* Shipping address */}
                       <div className="mt-4 text-sm text-ink-600 dark:text-ink-200 bg-white dark:bg-white/5 p-4 rounded-xl border border-ink-100 dark:border-white/10">
                         <p className="font-semibold flex items-center text-ink-800 dark:text-white mb-1.5">
-                          <MapPin className="h-4 w-4 mr-1.5 text-primary-600" /> Địa chỉ giao hàng
+                          <MapPin className="h-4 w-4 mr-1.5 text-primary-600" /> {t('checkout.shippingAddress')}
                         </p>
                         <p>{order.shippingAddress?.fullName} - {order.shippingAddress?.phone}</p>
                         <p className="text-ink-500 dark:text-ink-300">{order.shippingAddress?.addressLine1}</p>
@@ -356,12 +351,12 @@ const OrderHistory = () => {
                             {repayingId === order.id ? (
                               <>
                                 <Loader2 className="h-4 w-4 animate-spin" />
-                                Đang chuyển hướng...
+                                {t('orders.repaying')}
                               </>
                             ) : (
                               <>
                                 <ExternalLink className="h-4 w-4" />
-                                Thanh toán ngay
+                                {t('orders.payNow')}
                               </>
                             )}
                           </button>
@@ -370,7 +365,7 @@ const OrderHistory = () => {
                             disabled={cancellingId === order.id}
                             className="btn-danger !py-2.5 text-sm"
                           >
-                            {cancellingId === order.id ? 'Đang hủy...' : 'Hủy đơn hàng'}
+                            {cancellingId === order.id ? t('orders.cancelling') : t('orders.cancelOrder')}
                           </button>
                         </div>
                       )}
@@ -391,24 +386,24 @@ const OrderHistory = () => {
             disabled={page <= 1}
             className="btn-secondary !px-5 !py-2 text-sm"
           >
-            Trước
+            {t('common.previous')}
           </button>
-          <span className="px-3 text-sm font-semibold text-ink-600 dark:text-ink-200">Trang {page} / {meta.totalPages}</span>
+          <span className="px-3 text-sm font-semibold text-ink-600 dark:text-ink-200">{t('common.page', { page, total: meta.totalPages })}</span>
           <button
             onClick={() => setPage(Math.min(meta.totalPages, page + 1))}
             disabled={page >= meta.totalPages}
             className="btn-secondary !px-5 !py-2 text-sm"
           >
-            Sau
+            {t('common.next')}
           </button>
         </div>
       )}
 
       <ConfirmDialog
         isOpen={cancelTargetId !== null}
-        title="Hủy đơn hàng"
-        message="Bạn chắc chắn muốn hủy đơn hàng này? Hành động này không thể hoàn tác."
-        confirmLabel="Hủy đơn"
+        title={t('orders.cancelTitle')}
+        message={t('orders.cancelMessage')}
+        confirmLabel={t('orders.cancelConfirm')}
         variant="danger"
         onConfirm={() => handleCancelOrder(cancelTargetId)}
         onCancel={() => setCancelTargetId(null)}

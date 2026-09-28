@@ -610,6 +610,33 @@ html.theme-boot *::after {
     50% { background-position: -60% 0; }
   }
 
+  /* ── Neutral fallback art for sealed products (never a card-back) ──
+     A calm, packaging-like surface so a box/pack with a missing image
+     reads as a sealed product rather than a Pokémon trading card. */
+  .img-fallback-box {
+    position: relative;
+    isolation: isolate;
+    border-radius: inherit;
+    background:
+      radial-gradient(120% 90% at 18% 12%, rgba(255, 255, 255, 0.6), transparent 45%),
+      linear-gradient(150deg, #e2e8f0 0%, #cbd5e1 55%, #b6c2d1 100%);
+    overflow: hidden;
+  }
+  .dark .img-fallback-box {
+    background:
+      radial-gradient(120% 90% at 18% 12%, rgba(255, 255, 255, 0.08), transparent 45%),
+      linear-gradient(150deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.92) 60%, rgba(30, 41, 59, 0.9) 100%);
+  }
+  /* faint box-edge hatching to read as packaging, not a card face */
+  .img-fallback-box::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(135deg, rgba(100, 116, 139, 0.14) 0 1px, transparent 1px 14px);
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
   /* ── 3D booster-box scene ───────────────────────────────── */
   .box3d-stage {
     perspective: 1400px;
@@ -820,6 +847,14 @@ html.theme-boot *::after {
     to { opacity: 1; }
   }
   .animate-tcg-fade-in { animation: tcg-fade-in 0.2s ease-out both; }
+
+  /* Clean card reveal — zoom-up entrance that replaced the buggy
+     manual 3D flip DOM states in the unboxing modal. */
+  @keyframes tcg-zoom-in {
+    from { opacity: 0; transform: scale(0.85); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .animate-tcg-zoom-in { animation: tcg-zoom-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
   @keyframes tcg-pulse-ring {
     0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.45); }
@@ -1040,35 +1075,15 @@ html.theme-boot *::after {
   animation: gacha-ripple-ring 0.85s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* ── Card flip: back shows first, then a full Y-axis spin reveals the front ──
-    The front face lives at 180°; 540° = one full 360° tour + the 180°
-    swap, so the card whirls all the way around yet lands face-up.
-    Scene scaled ~40% vs the original so the revealed pull feels big
-    and impactful. */
-.gacha-flip-scene {
-  perspective: 1200px;
-  width: 21rem;
-  aspect-ratio: 3 / 4;
+/* ── Clean reveal entrance (replaces the old 3D flip DOM states):
+    the card scales up from 55% with a springy overshoot as the pull
+    lands face-up. No backface/preserve-3d edge cases. ── */
+@keyframes gacha-zoom-in {
+  0% { opacity: 0; transform: scale(0.55); }
+  60% { opacity: 1; transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
 }
-@media (min-width: 640px) { .gacha-flip-scene { width: 22rem; } }
-.gacha-flipper {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  transform-style: preserve-3d;
-  transition: transform 1.15s cubic-bezier(0.3, 0.9, 0.28, 1.01);
-  will-change: transform;
-}
-.gacha-flipper.is-flipped { transform: rotateY(540deg); }
-.gacha-flip-face {
-  position: absolute;
-  inset: 0;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  border-radius: 1.4rem;
-}
-.gacha-flip-back { transform: rotateY(0deg); }
-.gacha-flip-front { transform: rotateY(180deg); }
+.gacha-zoom-in { animation: gacha-zoom-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
 /* ── Rarity badge celebration after the flip lands ── */
 
@@ -1797,6 +1812,274 @@ html.theme-boot *::after {
 .dark .pd-price-chip {
   background: linear-gradient(135deg, rgba(139, 92, 246, 0.16), rgba(217, 70, 239, 0.12));
   border-color: rgba(139, 92, 246, 0.4);
+}
+
+/* ════════════════════════════════════════════════════════════
+   VIRTUAL BOX STOREFRONT — vb-* scoped styles
+   Clean Light Glassmorphic Arcade: white/80 glass cards,
+   standalone floating booster art, sleek segmented drop-rate bar
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Floating 3D booster pack — the artwork stands alone at the
+    center of the light glass card (no inner box frames behind
+    it). A soft violet drop-shadow gives it floating depth; on
+    card hover the pack lifts gently and the shadow deepens. ── */
+.vb-pack {
+  filter: drop-shadow(0 16px 24px rgba(124, 58, 237, 0.18));
+  transform: translateY(0) scale(1);
+  transition:
+    transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, filter;
+}
+.group:hover .vb-pack {
+  transform: translateY(-6px) scale(1.03);
+  filter: drop-shadow(0 24px 32px rgba(124, 58, 237, 0.26));
+}
+
+/* ── Sleek 4-segment drop-rate bar — one gradient strip
+   (Slate → Blue → Purple → Gold) with white hairline dividers;
+   each segment carries a clean light-glass percentage tooltip
+   shown on hover/focus below. ── */
+.vb-seg {
+  position: relative;
+  height: 100%;
+  cursor: default;
+  transition: filter 0.3s ease;
+}
+.vb-seg + .vb-seg { box-shadow: -1px 0 0 rgba(255, 255, 255, 0.9); }
+.dark .vb-seg + .vb-seg { box-shadow: -1px 0 0 rgba(10, 10, 15, 0.9); }
+.vb-seg:hover { filter: brightness(1.1) saturate(1.12); }
+.vb-seg:focus-visible { outline: 2px solid rgba(124, 58, 237, 0.55); outline-offset: 2px; }
+.vb-seg-tip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translate(-50%, 4px);
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(233, 213, 255, 0.9);
+  box-shadow: 0 8px 24px -8px rgba(124, 58, 237, 0.25);
+  color: #3f3f56;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 30;
+}
+.dark .vb-seg-tip {
+  background: rgba(18, 18, 26, 0.92);
+  border: 1px solid rgba(124, 58, 237, 0.35);
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.6);
+  color: #e4e4f4;
+}
+.vb-seg:hover .vb-seg-tip,
+.vb-seg:focus-visible .vb-seg-tip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+/* clamp the tooltip inside the card on the outermost segments */
+.vb-seg:first-child .vb-seg-tip { left: 0; transform: translate(0, 4px); }
+.vb-seg:first-child:hover .vb-seg-tip,
+.vb-seg:first-child:focus-visible .vb-seg-tip { transform: translate(0, 0); }
+.vb-seg:last-child .vb-seg-tip { left: auto; right: 0; transform: translate(0, 4px); }
+.vb-seg:last-child:hover .vb-seg-tip,
+.vb-seg:last-child:focus-visible .vb-seg-tip { transform: translate(0, 0); }
+.vb-seg-tip .vb-seg-tip-dot {
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 9999px;
+  margin-right: 0.4rem;
+  vertical-align: 1px;
+}
+
+/* Legacy float recipe retained for GachaOpeningModal's sealed pack */
+.vb-pack-float {
+  filter:
+    drop-shadow(0 20px 30px rgba(0, 0, 0, 0.5))
+    drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35))
+    drop-shadow(0 0 22px var(--vb-glow, rgba(139, 92, 246, 0.35)));
+  transition: filter 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: filter;
+}
+.group:hover .vb-pack-float {
+  filter:
+    drop-shadow(0 30px 38px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 8px 14px rgba(0, 0, 0, 0.4))
+    drop-shadow(0 0 34px var(--vb-glow, rgba(139, 92, 246, 0.5)));
+}
+
+/* ── Reusable gacha + glass utilities (dedupe vb- and gacha- classes) ──
+    glass-dark: one dark glassmorphism recipe — backdrop-blur + 1px
+    border glow — shared by GachaOpeningModal chips and controls. */
+.glass-dark {
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+.glass-pill {
+  border-radius: 9999px;
+  color: #fff;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+
+/* pb-blur: phase-keyed backdrop blur — replaces the inline blur
+   tuple duplicated in PackReveal + GachaOpeningModal backdrops. */
+.pb-blur-1 { backdrop-filter: blur(10px) saturate(120%); -webkit-backdrop-filter: blur(10px) saturate(120%); }
+.pb-blur-2 { backdrop-filter: blur(14px) saturate(120%); -webkit-backdrop-filter: blur(14px) saturate(120%); }
+.pb-blur-3 { backdrop-filter: blur(18px) saturate(120%); -webkit-backdrop-filter: blur(18px) saturate(120%); }
+
+/* Gacha modal ghost CTA — glass-pill recipe + vb-cta-style motion.
+   Hover/active states follow in the gacha CTA block below. */
+.gacha-cta-ghost {
+  position: relative;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  overflow: hidden;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    box-shadow 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.gacha-cta-ghost:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 26px -4px rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
+}
+.gacha-cta-ghost:active { transform: translateY(0) scale(0.97); }
+
+/* ── GPU motion discipline: any element in a sustained animation
+    or spring transition opts into its own compositor layer so the
+    60fps runloop never stalls on repaint. Shared by pack float,
+    aura breathe, flipper, motes, orbits, ripples, and CTA lifts. */
+.gpu-motion { will-change: transform, opacity, filter; }
+.gacha-ambient-mote, .gacha-orbit, .gacha-ripple,
+.pack-card-rise, .pack-god-rays, .gacha-light-burst, .gacha-zoom-in {
+  will-change: transform, opacity;
+}
+
+/* ════════════════════════════════════════════════════════════
+   MOBILE GPU FAST PATH (≤768px) — Virtual Box & Catalog cards
+   ════════════════════════════════════════════════════════════ */
+
+/* 1. Backdrop blur demotion — heavy blur(14–28px) saturate() glass
+      layers are the #1 mobile GPU stall during scroll/fling. On
+      phones/tablets the shared recipes collapse to a near-solid
+      backdrop (slate-900/90 on dark, white/90 on light); Tailwind
+      utilities above already swapped per-card backdrop-blur-* to
+      -sm, this catches the CSS recipe classes the JSX reuses. */
+@media (max-width: 768px) {
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.90);               /* bg-white/90 */
+    backdrop-filter: blur(4px);                          /* ≈ backdrop-blur-sm */
+    -webkit-backdrop-filter: blur(4px);
+  }
+  .dark .glass-panel {
+    background: rgba(15, 23, 42, 0.90);                  /* bg-slate-900/90 */
+  }
+  .glass-panel-strong {
+    background: rgba(255, 255, 255, 0.90);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  .dark .glass-panel-strong {
+    background: rgba(15, 23, 42, 0.90);
+  }
+  .dash-scope .bg-white {
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  .pd-attack-card,
+  .pd-trust-pill,
+  .vb-seg-tip,
+  .gacha-cta-ghost,
+  .glass-dark,
+  .glass-pill,
+  .pb-blur-1, .pb-blur-2, .pb-blur-3 {
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  .dark .pb-blur-1, .dark .pb-blur-2, .dark .pb-blur-3 {
+    background: rgba(15, 23, 42, 0.90);                  /* solid-ish dark scrim */
+  }
+}
+
+/* 2. Forced GPU layer acceleration on all card hover/animation
+       wrappers. The classic `transform: translateZ(0)` hack would
+       clobber every transform already living on these wrappers —
+       Tailwind's hover:-translate-y-*, the rotate / scale /
+       translate-x fan-card slots, and the unlayered CSS recipe
+       hovers — because an unlayered transform declaration outranks
+       every layered utility regardless of specificity. The layer
+       is instead forced through the independent `translate`
+       property: translateZ(1px) with no ancestor perspective is a
+       zero-visual-shift 3D transform the compositor must promote,
+       and it composes with — never replaces — any transform on
+       the same element. will-change hints the sustained/spring
+       motion wrappers; backface-visibility closes repaints. */
+.will-change-transform { will-change: transform; }
+.translate-z-0,
+.gpu-motion,
+.gacha-zoom-in,
+.holo-card,
+.vb-lift,
+.group.vb-lift,
+.vb-pack,
+.vb-pack-float,
+.gacha-cta-ghost,
+.card-premium,
+.pd-attack-card,
+.pd-trust-pill,
+.animate-tcg-reveal,
+.animate-tcg-scale-in,
+.animate-tcg-fade-in {
+  translate: 0 0 1px;
+  backface-visibility: hidden;
+}
+.group.vb-lift:hover,
+.group:hover .vb-pack,
+.group:hover .vb-pack-float { will-change: transform; }
+
+/* 3. Instant tap response — kills the 300ms double-tap-zoom wait
+      and synthetic click delay on every interactive control and
+      modal trigger without disabling pinch-zoom. Global sweep for
+      Tailwind's touch-manipulation utility plus the button/
+      modal-trigger surfaces defined in CSS recipes. */
+button, [role='button'], [role='tab'], [role='menuitem'],
+[role='option'], [role='switch'], [role='checkbox'],
+[role='radio'], [role='slider'], summary, label:has(input),
+.touch-manipulation, .btn-primary, .btn-aura, .btn-secondary,
+.btn-ghost, .btn-danger, .gacha-cta-ghost, .vb-seg {
+  touch-action: manipulation;
+}
+/* Range inputs keep native horizontal pan-then-slide; buttons never pan */
+input[type='range'] { touch-action: pan-y; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gacha-cta-ghost, .vb-pack-float, .vb-pack { transition: none; }
+  .gacha-cta-ghost:hover { transform: none; }
+  .group:hover .vb-pack { transform: none; }
+  .vb-seg { transition: none; }
+  .gpu-motion, .gacha-ambient-mote, .gacha-orbit,
+  .gacha-ripple, .pack-card-rise, .gacha-zoom-in { will-change: auto; }
+  .gacha-zoom-in, .animate-tcg-zoom-in { animation-duration: 0.01ms; animation-iteration-count: 1; }
 }
 
 /* ── Reduced motion: calm the cards ─────────────────────────── */

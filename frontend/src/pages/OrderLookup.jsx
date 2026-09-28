@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Search, Package, AlertCircle, ShieldCheck, MapPin, Truck } from 'lucide-react';
 import api from '../services/api';
+import { useLanguage } from '../i18n/LanguageContext';
 import { STATUS_MAP, TIMELINE_STEPS } from '../constants/orderStatus';
-import { detectIdentifier, IDENTIFIER_LABELS } from '../utils/orderId';
+import { detectIdentifier, IDENTIFIER_LABEL_KEYS } from '../utils/orderId';
 import { formatVND } from '../utils/format';
 
 /* ── detection chip shown live inside the search field ─────────────────── */
@@ -14,12 +15,13 @@ const DETECTION_STYLE = {
 };
 
 const DetectionChip = ({ type }) => {
+  const { t } = useLanguage();
   if (type === 'empty') return null;
   return (
     <span
       className={`absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 animate-tcg-scale-in ${DETECTION_STYLE[type] || DETECTION_STYLE.unknown}`}
     >
-      {IDENTIFIER_LABELS[type] || IDENTIFIER_LABELS.unknown}
+      {t(IDENTIFIER_LABEL_KEYS[type] || IDENTIFIER_LABEL_KEYS.unknown)}
     </span>
   );
 };
@@ -35,7 +37,9 @@ const getStepStatus = (orderStatus, stepKey) => {
   return 'upcoming';
 };
 
-const ProgressBar = ({ status }) => (
+const ProgressBar = ({ status }) => {
+  const { t } = useLanguage();
+  return (
   <div className="rounded-2xl bg-white dark:bg-white/5 ring-1 ring-ink-100 dark:ring-white/10 p-5">
     <div className="flex items-center justify-between">
       {TIMELINE_STEPS.map((step, idx) => {
@@ -58,7 +62,7 @@ const ProgressBar = ({ status }) => (
                 stepStatus === 'current' ? 'text-primary-700' :
                 'text-ink-400 dark:text-ink-300'
               }`}>
-                {step.label}
+                {t(step.labelKey)}
               </span>
             </div>
             {idx < TIMELINE_STEPS.length - 1 && (
@@ -71,7 +75,8 @@ const ProgressBar = ({ status }) => (
       })}
     </div>
   </div>
-);
+  );
+};
 
 /* ── skeleton loader mirroring the result card layout ──────────────────── */
 const LookupSkeleton = () => (
@@ -102,7 +107,9 @@ const LookupSkeleton = () => (
 
 /* ── order result card ─────────────────────────────────────────────────── */
 const OrderResult = ({ order }) => {
+  const { t } = useLanguage();
   const config = STATUS_MAP[order.status] || {
+    labelKey: null,
     label: order.status,
     icon: Package,
     badgeClass: 'bg-gray-50 text-gray-700 border-gray-200'
@@ -113,12 +120,12 @@ const OrderResult = ({ order }) => {
     <div className="mt-8 rounded-3xl bg-white/85 dark:bg-[#12121a]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-8 animate-tcg-reveal">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-wider text-ink-400 dark:text-ink-300">Mã đơn hàng</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-ink-400 dark:text-ink-300">{t('checkout.orderCode')}</p>
           <p className="font-mono text-lg font-semibold text-ink-900 dark:text-white truncate">{order.orderCode}</p>
         </div>
         <span className={`self-start inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-semibold border ${config.badgeClass}`}>
           <StatusIcon className="h-3.5 w-3.5 mr-1.5" />
-          {config.label}
+          {config.labelKey ? t(config.labelKey) : config.label}
         </span>
       </div>
 
@@ -126,32 +133,32 @@ const OrderResult = ({ order }) => {
       {order.status === 'CANCELLED' && (
         <div className="rounded-2xl bg-rose-50 ring-1 ring-rose-200 p-4 text-sm font-medium text-rose-700 flex items-center gap-2.5">
           <AlertCircle className="h-4 w-4 flex-shrink-0" />
-          Đơn hàng này đã được hủy.
+          {t('lookup.orderCancelled')}
         </div>
       )}
 
       {/* summary metrics */}
       <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="rounded-xl bg-ink-50/70 ring-1 ring-ink-100 dark:ring-white/10 p-3.5">
-          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">Tổng tiền</p>
+          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">{t('lookup.totalAmount')}</p>
           <p className="font-display font-bold text-gradient-brand mt-1">
             {formatVND(order.grandTotal)}
           </p>
         </div>
         <div className="rounded-xl bg-ink-50/70 ring-1 ring-ink-100 dark:ring-white/10 p-3.5">
-          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">Sản phẩm</p>
-          <p className="font-bold text-ink-800 dark:text-white mt-1">{order.items?.length || 0} mặt hàng</p>
+          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">{t('lookup.items')}</p>
+          <p className="font-bold text-ink-800 dark:text-white mt-1">{t('lookup.itemsCountShort', { count: order.items?.length || 0 })}</p>
         </div>
         <div className="rounded-xl bg-ink-50/70 ring-1 ring-ink-100 dark:ring-white/10 p-3.5">
-          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">Ngày tạo</p>
+          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">{t('lookup.createdAt')}</p>
           <p className="font-semibold text-ink-800 dark:text-white mt-1 text-sm">
             {new Date(order.createdAt).toLocaleDateString()}
           </p>
         </div>
         <div className="rounded-xl bg-ink-50/70 ring-1 ring-ink-100 dark:ring-white/10 p-3.5">
-          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">Thanh toán</p>
+          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">{t('lookup.payment')}</p>
           <p className="font-semibold text-ink-800 dark:text-white mt-1 text-sm">
-            {order.paidAt ? new Date(order.paidAt).toLocaleDateString() : 'Chưa thanh toán'}
+            {order.paidAt ? new Date(order.paidAt).toLocaleDateString() : t('lookup.notPaidYet')}
           </p>
         </div>
       </div>
@@ -159,12 +166,12 @@ const OrderResult = ({ order }) => {
       {/* items */}
       {order.items && order.items.length > 0 && (
         <div className="mt-5">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-3">Sản phẩm</h3>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-3">{t('lookup.items')}</h3>
           <ul className="space-y-2.5">
             {order.items.map((item, idx) => (
               <li key={idx} className="flex justify-between gap-3 items-center text-sm p-3.5 rounded-xl bg-white dark:bg-white/5 ring-1 ring-ink-100 dark:ring-white/10">
                 <span className="text-ink-700 dark:text-ink-100 truncate">
-                  {item.product?.shortName || item.product?.name || item.card?.sku || 'Sản phẩm'}{' '}
+                  {item.product?.shortName || item.product?.name || item.card?.sku || t('orders.product')}{' '}
                   <span className="text-ink-400 dark:text-ink-300">x {item.quantity}</span>
                 </span>
                 <span className="font-semibold text-ink-900 dark:text-white flex-shrink-0">
@@ -181,7 +188,7 @@ const OrderResult = ({ order }) => {
         <div className="mt-5 text-sm bg-white dark:bg-white/5 p-4 rounded-xl border border-indigo-100 dark:border-indigo-400/20 flex items-center gap-2.5">
           <Truck className="h-4 w-4 text-indigo-600 flex-shrink-0" />
           <span className="text-ink-600 dark:text-ink-200">
-            Mã vận đơn: <span className="font-mono font-semibold text-ink-900 dark:text-white">{order.trackingNumber}</span>
+            {t('orders.trackingNumber', { code: order.trackingNumber })}
           </span>
         </div>
       )}
@@ -190,7 +197,7 @@ const OrderResult = ({ order }) => {
       {order.shippingAddress && (
         <div className="mt-5 text-sm text-ink-600 dark:text-ink-200 bg-white dark:bg-white/5 p-4 rounded-xl border border-ink-100 dark:border-white/10">
           <p className="font-semibold flex items-center text-ink-800 dark:text-white mb-1.5">
-            <MapPin className="h-4 w-4 mr-1.5 text-primary-600" /> Nơi nhận
+            <MapPin className="h-4 w-4 mr-1.5 text-primary-600" /> {t('lookup.deliveryTo')}
           </p>
           <p>
             {order.shippingAddress.fullName}
@@ -202,7 +209,7 @@ const OrderResult = ({ order }) => {
 
       <p className="mt-5 flex items-center justify-center gap-1.5 text-xs text-ink-400 dark:text-ink-300">
         <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-        Thông tin cá nhân được ẩn để bảo vệ quyền riêng tư
+        {t('lookup.privacyMasked')}
       </p>
     </div>
   );
@@ -215,6 +222,7 @@ const OrderLookup = () => {
   const [error, setError] = useState('');
   const [validationError, setValidationError] = useState('');
   const [order, setOrder] = useState(null);
+  const { t } = useLanguage();
 
   const detected = detectIdentifier(query);
 
@@ -223,11 +231,11 @@ const OrderLookup = () => {
     if (loading) return;
 
     if (detected.type === 'empty') {
-      setValidationError('Vui lòng nhập mã đơn hàng, email hoặc số điện thoại.');
+      setValidationError(t('lookup.errEmpty'));
       return;
     }
     if (detected.type === 'unknown') {
-      setValidationError('Thông tin không hợp lệ. Vui lòng nhập mã đơn (TCG-...), email hoặc số điện thoại.');
+      setValidationError(t('lookup.errInvalid'));
       return;
     }
 
@@ -243,13 +251,13 @@ const OrderLookup = () => {
       console.error('Order lookup failed:', err.response?.status, err.response?.data?.error?.message || err.message);
       const status = err.response?.status;
       if (status === 404) {
-        setError('Không tìm thấy đơn hàng đang hoạt động khớp với thông tin bạn cung cấp.');
+        setError(t('lookup.errNotFound'));
       } else if (status === 429) {
-        setError('Quá nhiều lượt tra cứu. Vui lòng thử lại sau ít phút.');
+        setError(t('lookup.errRateLimit'));
       } else if (status === 400) {
-        setError(err.response?.data?.error?.message || 'Thông tin tra cứu không hợp lệ.');
+        setError(err.response?.data?.error?.message || t('lookup.errInvalid'));
       } else {
-        setError('Không thể tra cứu đơn hàng. Vui lòng kiểm tra kết nối và thử lại.');
+        setError(t('lookup.errGeneric'));
       }
     } finally {
       setLoading(false);
@@ -268,12 +276,12 @@ const OrderLookup = () => {
           <div className="mx-auto h-16 w-16 rounded-2xl bg-brand-gradient flex items-center justify-center shadow-glow">
             <Package className="h-8 w-8 text-white" />
           </div>
-          <p className="section-eyebrow mt-5">Guest Tracking</p>
-          <h1 className="heading-display text-3xl mt-1.5">Tra cứu đơn hàng</h1>
+          <p className="section-eyebrow mt-5">{t('lookup.eyebrow')}</p>
+          <h1 className="heading-display text-3xl mt-1.5">{t('lookup.title')}</h1>
           <p className="mt-2 text-ink-500 dark:text-ink-300 max-w-md mx-auto">
-            Không cần đăng nhập — nhập <strong className="text-ink-700 dark:text-ink-100 font-semibold">mã đơn hàng</strong>,{' '}
-            <strong className="text-ink-700 dark:text-ink-100 font-semibold">email</strong> hoặc{' '}
-            <strong className="text-ink-700 dark:text-ink-100 font-semibold">số điện thoại</strong> để xem trạng thái ngay lập tức.
+            {t('lookup.introPrefix')} <strong className="text-ink-700 dark:text-ink-100 font-semibold">{t('lookup.orderCode')}</strong>,{' '}
+            <strong className="text-ink-700 dark:text-ink-100 font-semibold">{t('lookup.email')}</strong> {t('lookup.or')}{' '}
+            <strong className="text-ink-700 dark:text-ink-100 font-semibold">{t('lookup.phone')}</strong> {t('lookup.introSuffix')}
           </p>
         </div>
 
@@ -283,7 +291,7 @@ const OrderLookup = () => {
           style={{ animationDelay: '0.08s' }}
         >
           <label htmlFor="lookup-input" className="label-premium">
-            Mã đơn hàng, email hoặc số điện thoại *
+            {t('lookup.inputLabel')} *
           </label>
           <div className="relative flex items-center">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-ink-400 dark:text-ink-300 pointer-events-none" />
@@ -295,7 +303,7 @@ const OrderLookup = () => {
                 setQuery(e.target.value);
                 setValidationError('');
               }}
-              placeholder="VD: TCG-20260101-A1B2C3D4, you@email.com, 0987654321"
+              placeholder={t('lookup.inputPlaceholder')}
               autoComplete="off"
               className={`input-premium !pl-11 ${detected.type !== 'empty' ? '!pr-32' : ''} font-mono tracking-wide`}
             />
@@ -313,19 +321,19 @@ const OrderLookup = () => {
             {loading ? (
               <>
                 <Search className="h-5 w-5 animate-spin" />
-                Đang tra cứu...
+                {t('lookup.searching')}
               </>
             ) : (
               <>
                 <Search className="h-5 w-5" />
-                Tra cứu ngay
+                {t('lookup.searchNow')}
               </>
             )}
           </button>
 
           <p className="mt-4 text-center text-xs text-ink-400 dark:text-ink-300 flex items-center justify-center gap-1.5">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-            Tra cứu công khai, an toàn — thông tin nhạy cảm luôn được ẩn
+            {t('lookup.privacyNote')}
           </p>
         </form>
 
@@ -339,10 +347,10 @@ const OrderLookup = () => {
               <div className="mx-auto h-14 w-14 rounded-2xl bg-rose-50 ring-1 ring-rose-200 flex items-center justify-center">
                 <Package className="h-7 w-7 text-rose-500" />
               </div>
-              <h2 className="heading-display text-lg mt-4">No active shipment found</h2>
+              <h2 className="heading-display text-lg mt-4">{t('lookup.noShipment')}</h2>
               <p className="mt-2 text-sm text-ink-500 dark:text-ink-300 max-w-md mx-auto">{error}</p>
               <button onClick={() => { setQuery(''); setOrder(null); setError(''); }} className="btn-secondary !py-2 text-sm mt-5">
-                Thử lại với thông tin khác
+                {t('lookup.tryOther')}
               </button>
             </div>
           </div>

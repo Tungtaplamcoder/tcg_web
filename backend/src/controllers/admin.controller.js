@@ -7,20 +7,154 @@ const { PRODUCT_CATEGORIES, resolveProductCategoryKey } = require('../constants/
 
 const slugify = (text) => text.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-// Resolve the binary product category (BOX | CARD) to a Category row id,
-// creating the canonical Box/Card category if it does not exist yet.
-const resolveCategoryId = async (categoryKey) => {
-  const key = resolveProductCategoryKey(categoryKey);
-  if (!key) {
-    throw new AppError('Category must be either "Box" (Sealed Boxes) or "Card" (Single Cards)', 400, 'VALIDATION_ERROR');
-  }
-  const def = PRODUCT_CATEGORIES[key];
-  const category = await prisma.category.upsert({
-    where: { slug: def.slug },
-    update: {},
-    create: { name: def.name, slug: def.slug, description: def.description, isActive: true }
+// Resolve a category by slug, name or id (exact match, case-insensitive
+// collation). Used for both category refs and parent refs.
+const findCategoryRef = async (ref) => {
+  const input = String(ref).trim();
+  if (!input) return null;
+  return prisma.category.findFirst({
+    where: { OR: [{ id: input }, { slug: input }, { name: input }] }
   });
-  return category.id;
+};
+
+
+// Resolve a category reference to a Category row id. Accepts, in order:
+//  1. A semantic merchandising bucket (BOX | CARD) — upserted by slug;
+//  2. An existing category id, slug or name at ANY level of the tree
+//     (Level 1 root, Level 2 series, Level 3 expansion set);
+//  3. A brand-new name from the admin's creatable-select — created on the
+//     fly AS A CHILD of `parentRef` when one is supplied, so the tree stays
+//     navigable: Expansion Sets nest under their Series, Sealed Types under
+//     "Sealed Products". Without the link, the storefront accordion can't
+//     roll counts up to parents and the edit form can't re-derive the
+//     cascading selection (the "Series resets" hydration bug).
+// The DB is the source of truth for the whole tree.
+const resolveCategoryId = async (categoryInput, parentRef = null) => {
+  if (categoryInput === undefined || categoryInput === null) return null;
+  const key = resolveProductCategoryKey(categoryInput);
+  if (key) {
+    const def = PRODUCT_CATEGORIES[key];
+    const category = await prisma.category.upsert({
+      where: { slug: def.slug },
+      update: {},
+      create: { name: def.name, slug: def.slug, description: def.description, isActive: true }
+    });
+    return category.id;
+  }
+
+  const input = String(categoryInput).trim();
+  const existing = await findCategoryRef(input);
+  if (existing) return existing.id;
+
+  // Creatable select: admin typed a brand-new category name.
+  const baseSlug = slugify(input) || `category-${Date.now()}`;
+  const slugTaken = await prisma.category.findUnique({ where: { slug: baseSlug } });
+  const finalSlug = slugTaken ? `${baseSlug}-${Date.now()}` : baseSlug;
+  const parent = parentRef ? await findCategoryRef(parentRef) : null;
+  const created = await prisma.category.create({
+    data: { name: input, slug: finalSlug, isActive: true, parentId: parent ? parent.id : null }
+  });
+  return created.id;
+};
+
+// Find-or-create ONE tree segment under `parentId`. Bucket keys
+// (CARD/BOX and their slugs) always resolve to the canonical root rows.
+// An existing row that is still detached (parentId null from the old
+// root-creation behaviour) is healed onto the given parent, so the
+// hierarchy repairs itself on the next product save.
+const ensureCategorySegment = async (input, parentId) => {
+  const key = resolveProductCategoryKey(input);
+  if (key) {
+    const def = PRODUCT_CATEGORIES[key];
+    return prisma.category.upsert({
+      where: { slug: def.slug },
+      update: {},
+      create: { name: def.name, slug: def.slug, description: def.description, isActive: true }
+    });
+  }
+  const value = String(input).trim();
+  if (!value) return null;
+  const existing = await findCategoryRef(value);
+  if (existing) {
+    if (parentId && !existing.parentId) {
+      return prisma.category.update({ where: { id: existing.id }, data: { parentId } });
+    }
+    return existing;
+  }
+  const baseSlug = slugify(value) || `category-${Date.now()}`;
+  const slugTaken = await prisma.category.findUnique({ where: { slug: baseSlug } });
+  return prisma.category.create({
+    data: { name: value, slug: slugTaken ? `${baseSlug}-${Date.now()}` : baseSlug, isActive: true, parentId: parentId || null }
+  });
+};
+
+// Resolve a `categoryPath` — [bucket | series, expansion?] name/slug/id
+// segments top-down — into the leaf Category. Guarantees the whole chain
+// exists and is correctly nested, which is what the storefront accordion
+// (roll-up counts) and the admin cascading form (edit hydration) both need.
+const resolveCategoryPath = async (path) => {
+  const segments = (Array.isArray(path) ? path : [path])
+    .map((s) => (s === undefined || s === null ? '' : String(s).trim()))
+    .filter(Boolean);
+  if (segments.length === 0) return null;
+  let parentId = null;
+  let leaf = null;
+  for (const seg of segments) {
+    leaf = await ensureCategorySegment(seg, parentId);
+    if (!leaf) return null;
+    parentId = leaf.id;
+  }
+  return leaf;
+};
+
+// Resolve the "create new set on the fly" flow: find an existing Set by
+// slug/name (case-insensitive collation) or create it. Returns the Set id.
+const resolveOrCreateSetId = async (setName) => {
+  const name = String(setName).trim();
+  const slug = slugify(name);
+  const existing = await prisma.set.findFirst({ where: { OR: [{ slug }, { name }] } });
+  if (existing) return existing.id;
+  const baseSlug = slug || `set-${Date.now()}`;
+  const slugTaken = await prisma.set.findUnique({ where: { slug: baseSlug } });
+  const created = await prisma.set.create({
+    data: { name, slug: slugTaken ? `${baseSlug}-${Date.now()}` : baseSlug }
+  });
+  return created.id;
+};
+
+// Resolve any client-supplied category value (semantic key, canonical
+// slug or legacy alias like `box`/`card`) to the canonical Category row.
+// Returns null when the value doesn't match the taxonomy so callers can
+// decide between "empty result" (filter) and a 400 (payload).
+const resolveCategoryRow = async (categoryInput) => {
+  const key = resolveProductCategoryKey(categoryInput);
+  if (!key) return null;
+  return prisma.category.upsert({
+    where: { slug: PRODUCT_CATEGORIES[key].slug },
+    update: {},
+    create: { name: PRODUCT_CATEGORIES[key].name, slug: PRODUCT_CATEGORIES[key].slug, description: PRODUCT_CATEGORIES[key].description, isActive: true }
+  });
+};
+
+// Resolve a category filter value (semantic key BOX/CARD, any slug
+// at any level of the tree, or legacy alias) to the list of category
+// ids it covers — the category itself plus all descendants, so picking
+// a Level 1 or Level 2 node also matches products filed under its
+// children. Returns null when the value matches nothing.
+const resolveCategoryTreeIds = async (value) => {
+  const key = resolveProductCategoryKey(value);
+  const slug = key ? PRODUCT_CATEGORIES[key].slug : String(value);
+  const category = await prisma.category.findUnique({ where: { slug }, select: { id: true } });
+  if (!category) return null;
+  const children = await prisma.category.findMany({ where: { parentId: category.id }, select: { id: true } });
+  let grandchildren = [];
+  if (children.length > 0) {
+    grandchildren = await prisma.category.findMany({
+      where: { parentId: { in: children.map((c) => c.id) } },
+      select: { id: true }
+    });
+  }
+  return [category.id, ...children.map((c) => c.id), ...grandchildren.map((c) => c.id)];
 };
 
 // ==================== USER MANAGEMENT ====================
@@ -34,16 +168,16 @@ const listUsers = async (req, res, next) => {
     if (role) where.role = role;
     if (status) where.status = status;
     if (search) where.OR = [
-      { email: { contains: search, mode: 'insensitive' } },
-      { fullName: { contains: search, mode: 'insensitive' } },
-      { phone: { contains: search, mode: 'insensitive' } }
+      { email: { contains: search } },
+      { fullName: { contains: search } },
+      { phone: { contains: search } }
     ];
 
     const [items, totalItems] = await Promise.all([
       prisma.user.findMany({
         where, skip, take, orderBy: { createdAt: 'desc' },
         select: { id: true, email: true, fullName: true, phone: true, avatarUrl: true, role: true,
-          status: true, canManageInventory: true, canManagePosts: true, canAccessChat: true,
+          status: true, canManageInventory: true, canManagePosts: true,
           createdAt: true, updatedAt: true }
       }),
       prisma.user.count({ where })
@@ -59,7 +193,7 @@ const updateUserRole = async (req, res, next) => {
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundError('User not found');
     const updated = await prisma.user.update({ where: { id }, data: { role },
-      select: { id: true, email: true, fullName: true, role: true, status: true, canManageInventory: true, canManagePosts: true, canAccessChat: true, updatedAt: true } });
+      select: { id: true, email: true, fullName: true, role: true, status: true, canManageInventory: true, canManagePosts: true, updatedAt: true } });
     res.status(200).json({ success: true, data: updated, message: 'User role updated' });
   } catch (error) { next(error); }
 };
@@ -71,19 +205,19 @@ const updateUserStatus = async (req, res, next) => {
     if (!user) throw new NotFoundError('User not found');
     if (user.role === 'ADMIN' && status !== 'ACTIVE') throw new ConflictError('Cannot ban or delete an admin user');
     const updated = await prisma.user.update({ where: { id }, data: { status },
-      select: { id: true, email: true, fullName: true, role: true, status: true, canManageInventory: true, canManagePosts: true, canAccessChat: true, updatedAt: true } });
+      select: { id: true, email: true, fullName: true, role: true, status: true, canManageInventory: true, canManagePosts: true, updatedAt: true } });
     res.status(200).json({ success: true, data: updated, message: 'User status updated' });
   } catch (error) { next(error); }
 };
 
 const updateUserPermissions = async (req, res, next) => {
   try {
-    const { id } = req.params; const { canManageInventory, canManagePosts, canAccessChat } = req.body;
+    const { id } = req.params; const { canManageInventory, canManagePosts } = req.body;
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundError('User not found');
     const updated = await prisma.user.update({ where: { id },
-      data: { canManageInventory: !!canManageInventory, canManagePosts: !!canManagePosts, canAccessChat: !!canAccessChat },
-      select: { id: true, email: true, fullName: true, role: true, canManageInventory: true, canManagePosts: true, canAccessChat: true } });
+      data: { canManageInventory: !!canManageInventory, canManagePosts: !!canManagePosts },
+      select: { id: true, email: true, fullName: true, role: true, canManageInventory: true, canManagePosts: true } });
     res.status(200).json({ success: true, data: updated, message: 'User permissions updated' });
   } catch (error) { next(error); }
 };
@@ -105,32 +239,32 @@ const changeUserPassword = async (req, res, next) => {
 
 const listProducts = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, search, status, setId, categoryId, category } = req.query;
+    const { page = 1, limit = 20, search, status, setId, categoryId, category, language, rarity, cardSet } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
     const take = Number(limit);
     const where = {};
     if (status) where.status = status;
     if (setId) where.sets = { some: { id: setId } };
     if (category) {
-      const key = resolveProductCategoryKey(category);
-      if (!key) throw new AppError('Category filter must be either "Box" or "Card"', 400, 'VALIDATION_ERROR');
-      const existing = await prisma.category.findUnique({ where: { slug: PRODUCT_CATEGORIES[key].slug }, select: { id: true } });
-      if (!existing) {
-        return res.status(200).json({
-          success: true,
-          data: { items: [], meta: { page: Number(page), limit: take, totalItems: 0, totalPages: 0 } },
-          message: 'Products retrieved'
-        });
+      const ids = await resolveCategoryTreeIds(category);
+      if (!ids) {
+        where.categoryId = '__no_match__';
+      } else {
+        where.categoryId = ids.length > 1 ? { in: ids } : ids[0];
       }
-      where.categoryId = existing.id;
     } else if (categoryId) {
       where.categoryId = categoryId;
     }
+    // Dynamic TCG attribute filters (single cards) — any combination
+    if (language) where.language = language;
+    if (rarity) where.rarity = rarity;
+    if (cardSet) where.cardSet = { contains: cardSet };
     if (search) where.OR = [
-      { name: { contains: search, mode: 'insensitive' } },
-      { shortName: { contains: search, mode: 'insensitive' } },
-      { slug: { contains: search, mode: 'insensitive' } },
-      { cardNumber: { contains: search, mode: 'insensitive' } }
+      { name: { contains: search } },
+      { shortName: { contains: search } },
+      { slug: { contains: search } },
+      { cardNumber: { contains: search } },
+      { cardSet: { contains: search } }
     ];
 
     const [items, totalItems] = await Promise.all([
@@ -152,23 +286,45 @@ const createProduct = async (req, res, next) => {
     const existing = await prisma.product.findUnique({ where: { slug } });
     if (existing) throw new ConflictError('Slug already exists');
 
-    // Resolve the binary category (Box | Card) to its Category row
-    const { variants, setIds, shortName, backImage, tcgplayerId, category, ...restData } = data;
-    const resolvedCategoryId = await resolveCategoryId(category);
+    // Resolve the category reference. When the frontend sends a `categoryPath`
+    // (cascading series → expansion from the creatable selects) the whole
+    // nested chain is created/healed and the leaf row is used; otherwise the
+    // single free-form `category` value is resolved as before.
+    const { variants, setIds, newSetName, shortName, backImage, tcgplayerId, category, categoryPath, images, language, cardSet, artist, ...restData } = data;
+    const leafCategory = categoryPath?.length
+      ? await resolveCategoryPath(categoryPath)
+      : null;
+    const resolvedCategoryId = leafCategory
+      ? leafCategory.id
+      : await resolveCategoryId(category);
+
+    // Creatable Expansion Set — create/link the Set row before connecting
+    const finalSetIds = [...(setIds || [])];
+    if (newSetName && String(newSetName).trim()) {
+      finalSetIds.push(await resolveOrCreateSetId(newSetName));
+    }
 
     const product = await prisma.product.create({
       data: {
         ...restData,
         slug,
         categoryId: resolvedCategoryId,
+        // MariaDB: images là JSON — ép về mảng (mặc định rỗng)
+        images: Array.isArray(images) ? images : [],
         shortName: shortName || null,
         backImage: backImage || null,
         tcgplayerId: tcgplayerId || null,
-        ...(setIds && setIds.length > 0 && { sets: { connect: setIds.map(id => ({ id })) } }),
+        // TCG metadata (single cards)
+        language: language || null,
+        cardSet: cardSet || null,
+        artist: artist || null,
+        ...(finalSetIds.length > 0 && { sets: { connect: finalSetIds.map(id => ({ id })) } }),
         ...(variants && variants.length > 0 && {
           variants: {
             create: variants.map(v => ({
-              condition: v.condition || 'NEAR_MINT',
+              condition: (v.condition === '' || v.condition === null || v.condition === undefined)
+                ? 'NEAR_MINT'
+                : v.condition,
               variant: v.variant || 'Normal',
               price: Number(v.price),
               stockQuantity: Number(v.stockQuantity) || 0
@@ -198,12 +354,22 @@ const updateProduct = async (req, res, next) => {
       if (existing && existing.id !== id) throw new ConflictError('Slug already exists');
     }
 
-    const { variants, setIds, shortName, backImage, tcgplayerId, category, ...restData } = data;
+    const { variants, setIds, newSetName, shortName, backImage, tcgplayerId, category, categoryPath, images, language, cardSet, artist, ...restData } = data;
 
-    // Resolve the binary category (Box | Card) if it is being changed
-    const resolvedCategoryId = (category !== undefined && category !== null)
-      ? await resolveCategoryId(category)
-      : product.categoryId;
+    // Resolve the category reference if it is being changed
+    let resolvedCategoryId = product.categoryId;
+    if (categoryPath?.length) {
+      const leafCategory = await resolveCategoryPath(categoryPath);
+      if (leafCategory) resolvedCategoryId = leafCategory.id;
+    } else if (category !== undefined && category !== null && String(category).trim() !== '') {
+      resolvedCategoryId = await resolveCategoryId(category);
+    }
+
+    // Creatable Expansion Set — append the freshly created/linked Set id
+    let finalSetIds = setIds;
+    if (newSetName && String(newSetName).trim()) {
+      finalSetIds = [...(setIds || []), await resolveOrCreateSetId(newSetName)];
+    }
 
     // Xử lý variants: xóa cũ, tạo mới (đơn giản và an toàn)
     await prisma.productVariant.deleteMany({ where: { productId: id } });
@@ -212,13 +378,19 @@ const updateProduct = async (req, res, next) => {
       ...restData,
       slug,
       categoryId: resolvedCategoryId,
+      // MariaDB: images là JSON — chỉ cập nhật khi client gửi, ép về mảng
+      ...(images !== undefined && { images: Array.isArray(images) ? images : [] }),
       shortName: shortName !== undefined ? (shortName || null) : product.shortName,
       backImage: backImage !== undefined ? (backImage || null) : product.backImage,
       tcgplayerId: tcgplayerId !== undefined ? (tcgplayerId || null) : product.tcgplayerId,
+      // TCG metadata (single cards) — null clears, undefined keeps existing
+      language: language !== undefined ? (language || null) : product.language,
+      cardSet: cardSet !== undefined ? (cardSet || null) : product.cardSet,
+      artist: artist !== undefined ? (artist || null) : product.artist,
     };
 
-    if (setIds !== undefined) {
-      updateData.sets = { set: setIds.map(setId => ({ id: setId })) };
+    if (finalSetIds !== undefined) {
+      updateData.sets = { set: finalSetIds.map(setId => ({ id: setId })) };
     }
 
     await prisma.product.update({
@@ -230,7 +402,9 @@ const updateProduct = async (req, res, next) => {
       await prisma.productVariant.createMany({
         data: variants.map(v => ({
           productId: id,
-          condition: v.condition || 'NEAR_MINT',
+          condition: (v.condition === '' || v.condition === null || v.condition === undefined)
+            ? 'NEAR_MINT'
+            : v.condition,
           variant: v.variant || 'Normal',
           price: Number(v.price),
           stockQuantity: Number(v.stockQuantity) || 0
@@ -257,34 +431,51 @@ const deleteProduct = async (req, res, next) => {
 
 // ==================== CATEGORY MANAGEMENT ====================
 
-const listAdminCategories = async (req, res, next) => {
-  try {
-    const { activeOnly } = req.query;
-    const where = {};
-    if (activeOnly !== 'false') where.isActive = true;
-    const categories = await prisma.category.findMany({
-      where,
-      orderBy: { name: 'asc' },
-      include: { _count: { select: { products: true } } }
-    });
-    res.status(200).json({ success: true, data: categories, message: 'Categories retrieved' });
-  } catch (error) { next(error); }
-};
+  const listAdminCategories = async (req, res, next) => {
+    try {
+      const { activeOnly } = req.query;
+      // Admin mode returns ALL categories regardless of product count —
+      // newly created tags (Series, Expansion Set, Sealed Type) must
+      // appear in the options list immediately after creation, even
+      // before any product is assigned to them. Pruning by product
+      // count would hide them and cause the Options Fetch API to
+      // return empty lists. `activeOnly=false` is also kept for the
+      // Category Management page which needs the full tree.
+      const where = activeOnly === 'false'
+        ? {}
+        : { isActive: true };
+      const categories = await prisma.category.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        include: {
+          parent: { select: { id: true, name: true, slug: true } },
+          _count: { select: { products: { where: { status: 'ACTIVE' } } } }
+        }
+      });
+      res.status(200).json({ success: true, data: categories, message: 'Categories retrieved' });
+    } catch (error) { next(error); }
+  };
 
 const createCategory = async (req, res, next) => {
   try {
-    const { name, slug, description, imageUrl, isActive } = req.body;
+    const { name, slug, description, imageUrl, isActive, parentId } = req.body;
     const finalSlug = slug || slugify(name);
     const existing = await prisma.category.findUnique({ where: { slug: finalSlug } });
     if (existing) throw new ConflictError('Category slug already exists');
+    if (parentId) {
+      const parent = await prisma.category.findUnique({ where: { id: parentId } });
+      if (!parent) throw new NotFoundError('Parent category not found');
+    }
     const category = await prisma.category.create({
       data: {
         name,
         slug: finalSlug,
         description: description || null,
         imageUrl: imageUrl || null,
-        isActive: isActive ?? true
-      }
+        isActive: isActive ?? true,
+        parentId: parentId || null
+      },
+      include: { parent: { select: { id: true, name: true, slug: true } } }
     });
     res.status(201).json({ success: true, data: category, message: 'Category created' });
   } catch (error) { next(error); }
@@ -293,7 +484,7 @@ const createCategory = async (req, res, next) => {
 const updateCategory = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, slug, description, imageUrl, isActive } = req.body;
+    const { name, slug, description, imageUrl, isActive, parentId } = req.body;
     const category = await prisma.category.findUnique({ where: { id } });
     if (!category) throw new NotFoundError('Category not found');
 
@@ -303,6 +494,15 @@ const updateCategory = async (req, res, next) => {
     if (description !== undefined) data.description = description;
     if (imageUrl !== undefined) data.imageUrl = imageUrl || null;
     if (isActive !== undefined) data.isActive = isActive;
+    // Re-parent within the tree; null moves the node back to root level.
+    if (parentId !== undefined) {
+      if (parentId) {
+        if (parentId === id) throw new AppError('A category cannot be its own parent', 400, 'VALIDATION_ERROR');
+        const parent = await prisma.category.findUnique({ where: { id: parentId } });
+        if (!parent) throw new NotFoundError('Parent category not found');
+      }
+      data.parentId = parentId || null;
+    }
 
     const updated = await prisma.category.update({ where: { id }, data });
     res.status(200).json({ success: true, data: updated, message: 'Category updated' });
@@ -314,9 +514,14 @@ const deleteCategory = async (req, res, next) => {
     const { id } = req.params;
     const category = await prisma.category.findUnique({
       where: { id },
-      include: { _count: { select: { products: true } } }
+      include: { _count: { select: { products: true, children: true } } }
     });
     if (!category) throw new NotFoundError('Category not found');
+
+    // Block deletion of tree nodes with children (prevents orphaned subtrees)
+    if (category._count.children > 0) {
+      throw new ConflictError('Cannot delete a category that still has sub-categories. Remove or reassign them first.');
+    }
 
     // Block deletion if the category still contains products (prevents orphaned products)
     if (category._count.products > 0) {
@@ -375,25 +580,40 @@ const uploadImage = async (req, res, next) => {
 
 const listSets = async (req, res, next) => {
   try {
-    const sets = await prisma.set.findMany({ orderBy: { name: 'asc' }, include: { _count: { select: { products: true } } } });
+    // Master data for the admin Set Management page is always the full
+    // catalogue. Consumers that render a FILTER dropdown (or the product
+    // form's expansion-set matcher, where the edited product itself keeps
+    // its set non-empty) pass ?prune=active to hide expansion sets that
+    // currently have zero ACTIVE products — dynamic pruning parity with
+    // the storefront sidebar.
+    const prune = req.query.prune === 'active';
+    const sets = await prisma.set.findMany({
+      where: prune ? { products: { some: { status: 'ACTIVE' } } } : {},
+      orderBy: { name: 'asc' },
+      include: { _count: { select: { products: { where: { status: 'ACTIVE' } } } } }
+    });
     res.status(200).json({ success: true, data: sets, message: 'Sets retrieved' });
   } catch (error) { next(error); }
 };
 
 const createSet = async (req, res, next) => {
   try {
-    const { name } = req.body;
+    const { name, code } = req.body;
     const slug = slugify(name);
     const existing = await prisma.set.findUnique({ where: { slug } });
     if (existing) throw new ConflictError('Slug already exists');
-    const set = await prisma.set.create({ data: { name, slug } });
+    if (code) {
+      const codeTaken = await prisma.set.findFirst({ where: { code } });
+      if (codeTaken) throw new ConflictError(`Set code "${code}" is already used by "${codeTaken.name}"`);
+    }
+    const set = await prisma.set.create({ data: { name, slug, code: code || null } });
     res.status(201).json({ success: true, data: set, message: 'Set created' });
   } catch (error) { next(error); }
 };
 
 const updateSet = async (req, res, next) => {
   try {
-    const { id } = req.params; const { name } = req.body;
+    const { id } = req.params; const { name, code } = req.body;
     const set = await prisma.set.findUnique({ where: { id } });
     if (!set) throw new NotFoundError('Set not found');
     const slug = slugify(name || set.name);
@@ -401,7 +621,12 @@ const updateSet = async (req, res, next) => {
       const existing = await prisma.set.findUnique({ where: { slug } });
       if (existing && existing.id !== id) throw new ConflictError('Slug already exists');
     }
-    const updated = await prisma.set.update({ where: { id }, data: { name, slug, updatedAt: new Date() } });
+    const nextCode = code !== undefined ? (code || null) : set.code;
+    if (nextCode) {
+      const codeTaken = await prisma.set.findFirst({ where: { code: nextCode, id: { not: id } } });
+      if (codeTaken) throw new ConflictError(`Set code "${nextCode}" is already used by "${codeTaken.name}"`);
+    }
+    const updated = await prisma.set.update({ where: { id }, data: { name: name ?? set.name, slug, code: nextCode, updatedAt: new Date() } });
     res.status(200).json({ success: true, data: updated, message: 'Set updated' });
   } catch (error) { next(error); }
 };
@@ -473,7 +698,7 @@ const listOrders = async (req, res, next) => {
     const where = {};
     if (status) where.status = status;
     if (userId) where.userId = userId;
-    if (search) where.orderCode = { contains: search, mode: 'insensitive' };
+    if (search) where.orderCode = { contains: search };
 
     const [items, totalItems] = await Promise.all([
       prisma.order.findMany({ where, skip, take, orderBy: { createdAt: 'desc' },
@@ -505,7 +730,7 @@ const updateOrderStatus = async (req, res, next) => {
 
     if (newStatus === 'PACKAGING' && oldStatus === 'PENDING') {
       await prisma.$transaction(async (tx) => {
-        const locked = await tx.$queryRaw`SELECT * FROM "Order" WHERE "id" = ${orderId} FOR UPDATE`;
+        const locked = await tx.$queryRaw`SELECT * FROM \`Order\` WHERE \`id\` = ${orderId} FOR UPDATE`;
         if (!locked || locked.length === 0) throw new NotFoundError('Order not found');
         if (locked[0].status !== 'PENDING') throw new ConflictError('Order no longer pending');
 
@@ -532,7 +757,12 @@ const updateOrderStatus = async (req, res, next) => {
         await tx.orderStatusHistory.create({ data: { orderId, oldStatus, newStatus, note: note || `Đã giao hàng bởi ${adminUserId}`, changedByUserId: adminUserId } });
       });
     } else if (newStatus === 'CANCELLED' && ['PENDING', 'PACKAGING'].includes(oldStatus)) {
+      const voucherService = require('../services/voucher.service');
       await prisma.$transaction(async (tx) => {
+        // Hoàn lượt dùng voucher chỉ khi đơn PENDING chưa thanh toán
+        if (order.voucherCode && oldStatus === 'PENDING') {
+          await voucherService.rollbackVoucherTx(tx, { userId: order.userId, voucherCode: order.voucherCode });
+        }
         // Hoàn stock về variant đã đặt; hoàn status card về AVAILABLE
         for (const item of order.items) {
           if (item.variantId) {
@@ -548,12 +778,6 @@ const updateOrderStatus = async (req, res, next) => {
         else if (oldStatus === 'PACKAGING') await tx.payment.updateMany({ where: { orderId, status: 'COMPLETED' }, data: { status: 'REFUNDED' } });
         await tx.orderStatusHistory.create({ data: { orderId, oldStatus, newStatus, note: note || `Hủy bởi ${adminUserId}`, changedByUserId: adminUserId } });
       });
-    }
-
-    const io = global.io;
-    if (io) {
-      io.to(`user:${order.userId}`).emit('order:status_changed', { orderId: order.id, orderCode: order.orderCode, oldStatus, newStatus, trackingNumber: newStatus === 'SHIPPING' ? (trackingNumber || null) : undefined });
-      if (newStatus === 'PACKAGING') io.to(`user:${order.userId}`).emit('order:paid', { orderId: order.id, orderCode: order.orderCode, status: 'PACKAGING', paidAt: new Date().toISOString() });
     }
 
     const updatedOrder = await prisma.order.findUnique({ where: { id: orderId } });
@@ -591,7 +815,7 @@ const reconcilePayment = async (req, res, next) => {
       if (order.status !== 'PENDING') throw new ConflictError('Order is not pending');
 
       await prisma.$transaction(async (tx) => {
-        const locked = await tx.$queryRaw`SELECT * FROM "Order" WHERE "id" = ${order.id} FOR UPDATE`;
+        const locked = await tx.$queryRaw`SELECT * FROM \`Order\` WHERE \`id\` = ${order.id} FOR UPDATE`;
         if (!locked || locked.length === 0) throw new NotFoundError('Order not found');
         if (locked[0].status !== 'PENDING') throw new ConflictError('Order no longer pending');
 
@@ -602,9 +826,6 @@ const reconcilePayment = async (req, res, next) => {
         await tx.orderStatusHistory.create({ data: { orderId: order.id, oldStatus: 'PENDING', newStatus: 'PACKAGING', note: note || `Manual reconciliation by admin ${adminUserId}` } });
         await tx.paymentLog.update({ where: { id: paymentLogId }, data: { status: 'COMPLETED', processedAt: now, errorMessage: null } });
       });
-
-      const io = global.io;
-      if (io) io.to(`user:${log.order.userId}`).emit('order:paid', { orderId: log.order.id, orderCode: log.order.orderCode, status: 'PACKAGING', paidAt: new Date().toISOString() });
     } else if (action === 'MARK_AS_MISMATCH') {
       await prisma.paymentLog.update({ where: { id: paymentLogId }, data: { status: 'MISMATCH', errorMessage: note || 'Marked as mismatch by admin' } });
     } else {
@@ -632,14 +853,19 @@ const getDashboardStats = async (req, res, next) => {
       prisma.order.count({ where: { status: 'CANCELLED' } }),
       prisma.order.findMany({ orderBy: { createdAt: 'desc' }, take: 5, include: { user: { select: { email: true, fullName: true } } } }),
       prisma.$queryRaw`
-        SELECT to_char(d::date, 'YYYY-MM-DD') AS date,
-               COALESCE(SUM(o."grandTotal"), 0) AS revenue,
-               COUNT(o.id)::int AS orders
-        FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, INTERVAL '1 day') AS d
-        LEFT JOIN "Order" o
-          ON o."paidAt" >= d
-         AND o."paidAt" < d + INTERVAL '1 day'
-         AND o.status IN ('PACKAGING', 'SHIPPING', 'DELIVERED')
+        WITH RECURSIVE days(d) AS (
+          SELECT CURRENT_DATE - INTERVAL 6 DAY
+          UNION ALL
+          SELECT d + INTERVAL 1 DAY FROM days WHERE d < CURRENT_DATE
+        )
+        SELECT DATE_FORMAT(d, '%Y-%m-%d') AS date,
+               COALESCE(SUM(o.\`grandTotal\`), 0) AS revenue,
+               CAST(COUNT(o.\`id\`) AS SIGNED) AS orders
+        FROM days
+        LEFT JOIN \`Order\` o
+          ON o.\`paidAt\` >= d
+         AND o.\`paidAt\` < d + INTERVAL 1 DAY
+         AND o.\`status\` IN ('PACKAGING', 'SHIPPING', 'DELIVERED')
         GROUP BY d
         ORDER BY d ASC
       `
@@ -659,62 +885,6 @@ const getDashboardStats = async (req, res, next) => {
       recentOrders,
       revenueByDay: revenueByDay.map(r => ({ date: r.date, revenue: Number(r.revenue), orders: Number(r.orders) }))
     }, message: 'Dashboard stats retrieved' });
-  } catch (error) { next(error); }
-};
-
-// ==================== CHAT MANAGEMENT ====================
-
-const listChatRooms = async (req, res, next) => {
-  try {
-    // Only rooms with at least one message appear in the CSKH queue —
-    // empty sessions (widget opened, nothing sent) are filtered out.
-    const rooms = await prisma.chatRoom.findMany({
-      where: { messages: { some: {} } },
-      orderBy: { updatedAt: 'desc' },
-      include: {
-        user: { select: { id: true, email: true, fullName: true } },
-        order: { select: { id: true, orderCode: true, status: true } },
-        _count: { select: { messages: true } }
-      }
-    });
-    res.status(200).json({ success: true, data: rooms, message: 'Chat rooms retrieved' });
-  } catch (error) { next(error); }
-};
-
-const getChatRoomMessages = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const room = await prisma.chatRoom.findUnique({ where: { id } });
-    if (!room) throw new NotFoundError('Chat room not found');
-    const messages = await prisma.chatMessage.findMany({ where: { roomId: id }, orderBy: { createdAt: 'asc' }, include: { sender: { select: { id: true, fullName: true, avatarUrl: true, role: true } } } });
-    res.status(200).json({ success: true, data: { room, messages }, message: 'Chat room messages retrieved' });
-  } catch (error) { next(error); }
-};
-
-const updateChatRoomStatus = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { status } = req.body;
-    if (!['OPEN', 'CLOSED'].includes(status)) {
-      throw new AppError('Status must be OPEN or CLOSED', 400, 'VALIDATION_ERROR');
-    }
-    const room = await prisma.chatRoom.findUnique({ where: { id } });
-    if (!room) throw new NotFoundError('Chat room not found');
-    const updated = await prisma.chatRoom.update({
-      where: { id },
-      data: { status },
-      include: {
-        user: { select: { id: true, email: true, fullName: true } },
-        order: { select: { id: true, orderCode: true, status: true } },
-        _count: { select: { messages: true } }
-      }
-    });
-    const io = global.io;
-    if (io) {
-      io.to(`chat:${id}`).emit('chat:status_updated', { roomId: id, status });
-      io.to('admin:chat').emit('chat:status_updated', { roomId: id, status });
-    }
-    res.status(200).json({ success: true, data: updated, message: 'Chat room status updated' });
   } catch (error) { next(error); }
 };
 
@@ -854,8 +1024,8 @@ const listVirtualBoxes = async (req, res, next) => {
     const where = {};
     if (status) where.status = status;
     if (search) where.OR = [
-      { name: { contains: search, mode: 'insensitive' } },
-      { slug: { contains: search, mode: 'insensitive' } }
+      { name: { contains: search } },
+      { slug: { contains: search } }
     ];
 
     const [items, totalItems] = await Promise.all([
@@ -993,6 +1163,48 @@ const updateSepaySettings = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+const getShopSettings = async (req, res, next) => {
+  try {
+    const settings = await settingsService.getShopSettings();
+    res.status(200).json({ success: true, data: settings, message: 'Shop settings retrieved' });
+  } catch (error) { next(error); }
+};
+
+const updateShopSettings = async (req, res, next) => {
+  try {
+    const settings = await settingsService.updateShopSettings(req.body);
+    res.status(200).json({ success: true, data: settings, message: 'Shop settings updated' });
+  } catch (error) { next(error); }
+};
+
+const getShippingSettings = async (req, res, next) => {
+  try {
+    const settings = await settingsService.getShippingSettings();
+    res.status(200).json({ success: true, data: settings, message: 'Shipping settings retrieved' });
+  } catch (error) { next(error); }
+};
+
+const updateShippingSettings = async (req, res, next) => {
+  try {
+    const settings = await settingsService.updateShippingSettings(req.body);
+    res.status(200).json({ success: true, data: settings, message: 'Shipping settings updated' });
+  } catch (error) { next(error); }
+};
+
+const getSiteSettings = async (req, res, next) => {
+  try {
+    const settings = await settingsService.getSiteSettings();
+    res.status(200).json({ success: true, data: settings, message: 'Site settings retrieved' });
+  } catch (error) { next(error); }
+};
+
+const updateSiteSettings = async (req, res, next) => {
+  try {
+    const settings = await settingsService.updateSiteSettings(req.body);
+    res.status(200).json({ success: true, data: settings, message: 'Site settings updated' });
+  } catch (error) { next(error); }
+};
+
 // ==================== EXPORT ====================
 
 module.exports = {
@@ -1004,7 +1216,9 @@ module.exports = {
   listOrders, updateOrderStatus,
   listPaymentLogs, reconcilePayment,
   getDashboardStats,
-  listChatRooms, getChatRoomMessages, updateChatRoomStatus,
   listVirtualBoxes, createVirtualBox, updateVirtualBox, deleteVirtualBox,
-  getSepaySettings, updateSepaySettings
+  getSepaySettings, updateSepaySettings,
+  getShopSettings, updateShopSettings,
+  getShippingSettings, updateShippingSettings,
+  getSiteSettings, updateSiteSettings
 };

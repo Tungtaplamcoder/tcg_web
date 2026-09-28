@@ -2,14 +2,11 @@ const cron = require('node-cron');
 
 let cronTask = null;
 
-const startOrderCron = (io = null) => {
+const startOrderCron = () => {
   if (cronTask) {
     console.log('Order cron already running');
     return cronTask;
   }
-
-  // Store io globally for services to emit events
-  global.io = io;
 
   // HIỆN TẠI: không tự động hủy đơn PENDING nữa.
   // Nhân viên sẽ xử lý thủ công qua trang quản lý đơn hàng.
@@ -42,7 +39,7 @@ const stopOrderCron = () => {
 };
 
 if (require.main === module) {
-  startOrderCron(null);
+  startOrderCron();
 }
 
 module.exports = {

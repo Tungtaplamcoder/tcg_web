@@ -1,18 +1,28 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Trash2, Minus, Plus, ShoppingBag, ArrowRight, Sparkles } from 'lucide-react';
+import api from '../services/api';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useLanguage } from '../i18n/LanguageContext';
 import { formatVND } from '../utils/format';
 
 const Cart = () => {
   const { items, totalItems, updateQuantity, removeItem, clearCart } = useCartStore();
   const { isAuthenticated } = useAuthStore();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
+  // Phí ship động từ cấu hình admin — fallback 0 khi API lỗi để không chặn trang
+  const [shippingFee, setShippingFee] = useState(0);
+  useEffect(() => {
+    api.get('/shipping-fee')
+      .then((res) => setShippingFee(Number(res.data.data?.defaultShippingFee) || 0))
+      .catch(() => setShippingFee(0));
+  }, []);
+
   const totalPrice = items.reduce((sum, item) => sum + Number(item.price || 0) * item.quantity, 0);
-  const shippingFee = items.length > 0 ? 20000 : 0; // VND
-  const grandTotal = totalPrice + shippingFee;
+  const grandTotal = totalPrice + (items.length > 0 ? shippingFee : 0);
 
   const handleCheckout = () => {
     if (!isAuthenticated) {
@@ -31,10 +41,10 @@ const Cart = () => {
           <div className="mx-auto h-20 w-20 rounded-3xl bg-white/80 dark:bg-[#12121a]/80 backdrop-blur ring-1 ring-ink-100 dark:ring-white/10 shadow-glass flex items-center justify-center">
             <ShoppingBag className="h-10 w-10 text-primary-400" />
           </div>
-          <h2 className="mt-6 heading-display text-2xl">Your cart is empty</h2>
-          <p className="mt-2 text-ink-500 dark:text-ink-300">Browse our catalog to find your next chase card.</p>
+          <h2 className="mt-6 heading-display text-2xl">{t('cart.emptyTitle')}</h2>
+          <p className="mt-2 text-ink-500 dark:text-ink-300">{t('cart.emptyBody')}</p>
           <Link to="/catalog" className="btn-primary mt-8">
-            Continue Shopping <ArrowRight className="h-5 w-5" />
+            {t('cart.continueShopping')} <ArrowRight className="h-5 w-5" />
           </Link>
         </div>
       </div>
@@ -45,12 +55,12 @@ const Cart = () => {
     <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 animate-tcg-reveal">
       <div className="flex items-end justify-between mb-7">
         <div>
-          <p className="section-eyebrow">Your Bag</p>
-          <h1 className="heading-display text-3xl mt-1">Shopping Cart</h1>
+          <p className="section-eyebrow">{t('cart.eyebrow')}</p>
+          <h1 className="heading-display text-3xl mt-1">{t('cart.title')}</h1>
         </div>
         <span className="hidden sm:inline-flex items-center gap-2 text-sm font-medium text-ink-500 dark:text-ink-300">
           <Sparkles className="h-4 w-4 text-fuchsia-500" />
-          {totalItems} item{totalItems !== 1 ? 's' : ''}
+          {t('cart.itemCount', { count: totalItems })}
         </span>
       </div>
 
@@ -71,19 +81,19 @@ const Cart = () => {
                 />
               ) : (
                 <div className="w-20 h-20 sm:w-24 sm:h-24 bg-ink-50 dark:bg-white/5 ring-1 ring-ink-100 dark:ring-white/10 rounded-xl flex items-center justify-center text-ink-300 text-xs flex-shrink-0">
-                  No Image
+                  {t('cart.noImage')}
                 </div>
               )}
 
               {/* Details */}
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-ink-900 dark:text-white truncate">{item.name}</h3>
-                <p className="text-sm text-ink-400 dark:text-ink-300 mt-0.5">{formatVND(item.price)} / sản phẩm</p>
+                <p className="text-sm text-ink-400 dark:text-ink-300 mt-0.5">{formatVND(item.price)}{t('cart.perProduct')}</p>
                 <div className="mt-3 inline-flex items-center rounded-lg border border-ink-200 dark:border-white/15 bg-white overflow-hidden">
                   <button
                     onClick={() => updateQuantity(item.productId, item.quantity - 1, item.variantId || null)}
                     className="p-1.5 text-ink-500 dark:text-ink-300 hover:text-primary-700 hover:bg-primary-50 transition-colors"
-                    aria-label="Decrease quantity"
+                    aria-label={t('cart.decreaseQty')}
                   >
                     <Minus className="h-3.5 w-3.5" />
                   </button>
@@ -91,7 +101,7 @@ const Cart = () => {
                   <button
                     onClick={() => updateQuantity(item.productId, item.quantity + 1, item.variantId || null)}
                     className="p-1.5 text-ink-500 dark:text-ink-300 hover:text-primary-700 hover:bg-primary-50 transition-colors"
-                    aria-label="Increase quantity"
+                    aria-label={t('cart.increaseQty')}
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </button>
@@ -104,7 +114,7 @@ const Cart = () => {
                 <button
                   onClick={() => removeItem(item.productId, item.variantId || null)}
                   className="p-1.5 rounded-lg text-ink-300 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                  aria-label="Remove item"
+                  aria-label={t('cart.removeItem')}
                 >
                   <Trash2 className="h-[18px] w-[18px]" />
                 </button>
@@ -116,34 +126,34 @@ const Cart = () => {
             onClick={clearCart}
             className="text-sm font-medium text-rose-500 hover:text-rose-700 transition-colors inline-flex items-center gap-1.5"
           >
-            <Trash2 className="h-3.5 w-3.5" /> Clear Cart
+            <Trash2 className="h-3.5 w-3.5" /> {t('cart.clearCart')}
           </button>
         </div>
 
         {/* Order Summary */}
         <div className="lg:col-span-1">
           <div className="sticky top-24 rounded-3xl bg-white/85 dark:bg-[#12121a]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-7">
-            <h2 className="heading-display text-lg">Order Summary</h2>
+            <h2 className="heading-display text-lg">{t('cart.summary')}</h2>
             <div className="mt-5 space-y-3 text-sm">
               <div className="flex justify-between text-ink-600 dark:text-ink-200">
-                <span>Sản phẩm ({totalItems})</span>
+                <span>{t('checkout.products', { count: totalItems })}</span>
                 <span className="font-semibold text-ink-800 dark:text-white">{formatVND(totalPrice)}</span>
               </div>
               <div className="flex justify-between text-ink-600 dark:text-ink-200">
-                <span>Phí vận chuyển</span>
+                <span>{t('checkout.shippingFee')}</span>
                 <span className="font-semibold text-ink-800 dark:text-white">{formatVND(shippingFee)}</span>
               </div>
               <div className="h-px bg-gradient-to-r from-transparent via-ink-200 to-transparent my-4" />
               <div className="flex justify-between items-baseline">
-                <span className="font-semibold text-ink-900 dark:text-white">Tổng cộng</span>
+                <span className="font-semibold text-ink-900 dark:text-white">{t('cart.grandTotal')}</span>
                 <span className="text-2xl font-display font-bold text-gradient-brand">{formatVND(grandTotal)}</span>
               </div>
             </div>
             <button onClick={handleCheckout} className="btn-primary w-full mt-6">
-              Proceed to Checkout <ArrowRight className="h-5 w-5" />
+              {t('cart.proceedCheckout')} <ArrowRight className="h-5 w-5" />
             </button>
             <p className="mt-4 text-center text-xs text-ink-400 dark:text-ink-300">
-              Secure checkout powered by SePay
+              {t('cart.secureSePay')}
             </p>
           </div>
         </div>

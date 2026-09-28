@@ -7,12 +7,27 @@ const productQuerySchema = z.object({
   category: z.string().optional(),
   set: z.string().optional(),
   rarity: z.string().optional(),
+  language: z.string().optional(),
+  cardSet: z.string().optional(),
+  artist: z.string().optional(),
   condition: z.string().optional(),
   minPrice: z.coerce.number().min(0).optional(),
   maxPrice: z.coerce.number().min(0).optional(),
   inStock: z.coerce.boolean().optional(),
   sortBy: z.enum(['price', 'name', 'createdAt', 'stockQuantity']).default('createdAt'),
   order: z.enum(['asc', 'desc']).default('desc')
+});
+
+// Facet query: same attribute filters as /products so each facet list
+// can be narrowed by the currently applied sibling filters.
+const productFacetQuerySchema = z.object({
+  category: z.string().optional(),
+  set: z.string().optional(),
+  language: z.string().optional(),
+  rarity: z.string().optional(),
+  cardSet: z.string().optional(),
+  artist: z.string().optional(),
+  inStock: z.coerce.boolean().optional()
 });
 
 const categoryQuerySchema = z.object({
@@ -29,6 +44,7 @@ const cardQuerySchema = z.object({
 
 module.exports = {
   productQuerySchema,
+  productFacetQuerySchema,
   categoryQuerySchema,
   cardQuerySchema
 };

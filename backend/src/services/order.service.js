@@ -2,8 +2,9 @@ const prisma = require('../config/prisma');
 const env = require('../config/env');
 const { AppError, NotFoundError, PaymentError, ConflictError } = require('../utils/errors');
 const sepayService = require('./sepay.service');
+const voucherService = require('./voucher.service');
+const settingsService = require('./settings.service');
 
-const SHIPPING_FEE = 20000; // VND
 const MAX_TRANSFER_AMOUNT = 100000000; // Giới hạn 100 triệu VND
 
 const normalizePaymentMethod = (method) => {
@@ -23,7 +24,7 @@ const generateUniqueOrderCode = async () => {
 };
 
 const createCheckout = async (userId, checkoutData) => {
-  const { items, shippingAddress, paymentMethod } = checkoutData;
+  const { items, shippingAddress, paymentMethod, voucherCode } = checkoutData;
   const normalizedPaymentMethod = normalizePaymentMethod(paymentMethod);
 
   // Gom từng loại item: variant (sản phẩm theo tình trạng) và card (thẻ đơn lẻ)
@@ -52,11 +53,12 @@ const createCheckout = async (userId, checkoutData) => {
 
     for (const [variantId, quantity] of variantQuantities.entries()) {
       const variant = await tx.$queryRaw`
-        SELECT "id", "productId", "price", "stockQuantity"
-        FROM "ProductVariant"
-        WHERE "id" = ${variantId}
-          AND "status" = 'ACTIVE'
-          AND "stockQuantity" >= ${quantity}
+        SELECT \`id\`, \`productId\`, \`price\`, \`stockQuantity\`
+        FROM \`ProductVariant\`
+        WHERE \`id\` = ${variantId}
+          AND \`status\` = 'ACTIVE'
+          AND \`stockQuantity\` >= ${quantity}
+        LIMIT 1
         FOR UPDATE
       `;
 
@@ -75,12 +77,12 @@ const createCheckout = async (userId, checkoutData) => {
     // Fallback cho cart cũ không có variantId: chốt variant đầu tiên còn hàng của product
     for (const [productId, quantity] of fallbackProducts.entries()) {
       const variant = await tx.$queryRaw`
-        SELECT "id", "productId", "price", "stockQuantity"
-        FROM "ProductVariant"
-        WHERE "productId" = ${productId}
-          AND "status" = 'ACTIVE'
-          AND "stockQuantity" >= ${quantity}
-        ORDER BY "createdAt" ASC
+        SELECT \`id\`, \`productId\`, \`price\`, \`stockQuantity\`
+        FROM \`ProductVariant\`
+        WHERE \`productId\` = ${productId}
+          AND \`status\` = 'ACTIVE'
+          AND \`stockQuantity\` >= ${quantity}
+        ORDER BY \`createdAt\` ASC
         LIMIT 1
         FOR UPDATE
       `;
@@ -99,16 +101,23 @@ const createCheckout = async (userId, checkoutData) => {
 
     const cardReservations = [];
     for (const cardItem of cardItems) {
+      // MariaDB has no UPDATE ... RETURNING: update conditionally, then read back.
       const result = await tx.$queryRaw`
-        UPDATE "Card"
-        SET "status" = 'RESERVED'
-        WHERE "id" = ${cardItem.cardId}
-          AND "status" = 'AVAILABLE'
-        RETURNING "id", "productId", "sku"
+        SELECT \`id\`, \`productId\`, \`sku\`
+        FROM \`Card\`
+        WHERE \`id\` = ${cardItem.cardId}
+          AND \`status\` = 'AVAILABLE'
+        LIMIT 1
+        FOR UPDATE
       `;
       if (!result || result.length === 0) {
         throw new PaymentError(`Card ${cardItem.cardId} is not available`);
       }
+      await tx.$executeRaw`
+        UPDATE \`Card\`
+        SET \`status\` = 'RESERVED'
+        WHERE \`id\` = ${cardItem.cardId}
+      `;
       cardReservations.push({ cardId: cardItem.cardId, quantity: cardItem.quantity, card: result[0] });
     }
 
@@ -130,9 +139,9 @@ const createCheckout = async (userId, checkoutData) => {
     for (const reservation of cardReservations) {
       // Card là thẻ đơn lẻ — giá lấy từ variant NEAR_MINT của product cha
       const variantRow = await tx.$queryRaw`
-        SELECT "price" FROM "ProductVariant"
-        WHERE "productId" = ${reservation.card.productId} AND "status" = 'ACTIVE'
-        ORDER BY "price" DESC
+        SELECT \`price\` FROM \`ProductVariant\`
+        WHERE \`productId\` = ${reservation.card.productId} AND \`status\` = 'ACTIVE'
+        ORDER BY \`price\` DESC
         LIMIT 1
       `;
       if (!variantRow || variantRow.length === 0) {
@@ -149,7 +158,32 @@ const createCheckout = async (userId, checkoutData) => {
       });
     }
 
-    const grandTotal = totalAmount + SHIPPING_FEE;
+    // Redeem voucher BÊN TRONG transaction: lock FOR UPDATE serialize các đơn
+    // đồng thời -> usedQuantity không bao giờ vượt totalQuantity. Nhận PaymentError
+    // rõ ràng nếu voucher không hợp lệ.
+    let discountAmount = 0;
+    let appliedVoucherCode = null;
+    if (voucherCode) {
+      const voucherItems = orderItemsData.map((item) => ({
+        productId: item.productId,
+        subtotal: item.totalPrice
+      }));
+      const redemption = await voucherService.redeemVoucherTx(tx, {
+        userId,
+        code: voucherCode,
+        items: voucherItems,
+        subtotal: totalAmount
+      });
+      discountAmount = redemption.discountAmount;
+      appliedVoucherCode = redemption.code;
+    }
+
+    // Phí ship động: đọc cấu hình hiệu dụng (AppSetting > legacy default)
+    // ngay trước khi chốt grandTotal — đơn snapshot giá trị này nên sửa
+    // cấu hình sau đó không ảnh hưởng đơn đã tạo.
+    const shippingFee = await settingsService.getEffectiveShippingFee();
+
+    const grandTotal = Math.max(0, totalAmount - discountAmount + shippingFee);
 
     if (grandTotal > MAX_TRANSFER_AMOUNT) {
       throw new PaymentError(`Số tiền vượt quá giới hạn thanh toán cho phép (${MAX_TRANSFER_AMOUNT} VND)`);
@@ -164,9 +198,10 @@ const createCheckout = async (userId, checkoutData) => {
         userId,
         status: 'PENDING',
         totalAmount,
-        shippingFee: SHIPPING_FEE,
-        discountAmount: 0,
+        shippingFee,
+        discountAmount,
         grandTotal,
+        voucherCode: appliedVoucherCode,
         shippingAddress,
         paymentMethod: normalizedPaymentMethod,
         paymentStatus: 'PENDING',
@@ -221,6 +256,8 @@ const createCheckout = async (userId, checkoutData) => {
         status: order.status,
         totalAmount: order.totalAmount,
         shippingFee: order.shippingFee,
+        discountAmount: order.discountAmount,
+        voucherCode: order.voucherCode,
         grandTotal: order.grandTotal,
         createdAt: order.createdAt,
         expiresAt: order.expiresAt
@@ -284,7 +321,7 @@ const lookupByOrderCode = async (orderCode) => {
 const lookupByContact = async (identifier) => {
   const isEmail = identifier.includes('@');
   const userFilter = isEmail
-    ? { email: { equals: identifier, mode: 'insensitive' } }
+    ? { email: { equals: identifier } }
     : { phone: identifier };
 
   const order = await prisma.order.findFirst({
@@ -371,6 +408,13 @@ const cancelOrder = async (orderId, userId = null, note = 'Order cancelled by us
 
     const oldStatus = order.status;
 
+    // Hoàn lượt dùng voucher (trừ số dư và usage_count đã cộng lúc tạo đơn).
+    // Không hoàn cho đơn PACKAGING bị hủy sau khi đã thanh toán — lượt dùng
+    // vẫn được tính vì đơn đã sử dụng quyền lợi giảm giá thật.
+    if (order.voucherCode && oldStatus === 'PENDING') {
+      await voucherService.rollbackVoucherTx(tx, { userId: order.userId, voucherCode: order.voucherCode });
+    }
+
     for (const item of order.items) {
       // Hoàn stock về đúng variant đã đặt (nếu không có variantId thì bỏ qua —
       // không cộng thẳng vào Product vì bảng Product không có cột stock)
@@ -412,22 +456,6 @@ const cancelOrder = async (orderId, userId = null, note = 'Order cancelled by us
         note
       }
     });
-
-    const io = global.io;
-    if (io) {
-      io.to(`user:${order.userId}`).emit('order:cancelled', {
-        orderId: order.id,
-        orderCode: order.orderCode,
-        status: 'CANCELLED',
-        cancelledAt: new Date().toISOString()
-      });
-      io.to(`user:${order.userId}`).emit('order:status_changed', {
-        orderId: order.id,
-        orderCode: order.orderCode,
-        oldStatus,
-        newStatus: 'CANCELLED'
-      });
-    }
 
     return updatedOrder;
   }, { isolationLevel: 'ReadCommitted' });

@@ -7,10 +7,12 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import api from '../../services/api';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { formatVND } from '../../utils/format';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKDAYS_VI = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+const WEEKDAYS_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 // Trích phần ngày "YYYY-MM-DD" từ ISO string ("2026-08-30" | "2026-08-30T00:00:00.000Z")
 // để tránh lệch ngày theo timezone của browser khi parse bằng new Date().
@@ -22,7 +24,7 @@ const parseDateKey = (value) => {
 
 // Chuẩn hóa dữ liệu thô thành timeline 7 ngày liên tục (kể cả ngày 0đ), tăng dần theo ngày.
 // Anchor về ngày mới nhất trong dữ liệu để khớp với CURRENT_DATE phía server.
-const buildRevenueChartData = (revenueByDay) => {
+const buildRevenueChartData = (revenueByDay, weekdays) => {
   const byKey = new Map();
   let latestKey = null;
 
@@ -53,7 +55,7 @@ const buildRevenueChartData = (revenueByDay) => {
       ...entry,
       label: `${day}/${month}`,
       labelFull: `${day}/${month}/${year}`,
-      weekday: WEEKDAYS_VI[dt.getUTCDay()]
+      weekday: weekdays[dt.getUTCDay()]
     };
   });
 };
@@ -66,26 +68,28 @@ const formatVNDCompact = (value) => {
   return `${value}`;
 };
 
-const RevenueTooltip = ({ active, payload }) => {
+const RevenueTooltip = ({ active, payload, t }) => {
   if (!active || !payload || !payload.length) return null;
   const day = payload[0].payload;
   return (
     <div className="bg-white/95 backdrop-blur border border-primary-100 rounded-lg shadow-card px-3.5 py-2.5">
       <p className="text-xs font-semibold text-gray-500 mb-1">{day.weekday}, {day.labelFull}</p>
       <p className="text-sm font-bold text-primary-700">{formatVND(day.revenue)}</p>
-      <p className="text-xs text-gray-500 mt-0.5">{day.orders} đơn hàng</p>
+      <p className="text-xs text-gray-500 mt-0.5">{t('admin.analytics.totalOrders')} {day.orders}</p>
     </div>
   );
 };
 
 const AnalyticsDashboard = () => {
+  const { t, language } = useLanguage();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const revenueChartData = useMemo(
-    () => buildRevenueChartData(stats?.revenueByDay),
-    [stats]
+    () => buildRevenueChartData(stats?.revenueByDay, language === 'en' ? WEEKDAYS_EN : WEEKDAYS_VI),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stats, language]
   );
 
   useEffect(() => {
@@ -97,7 +101,7 @@ const AnalyticsDashboard = () => {
         setStats(response.data.data);
       } catch (err) {
         console.error('Failed to fetch dashboard stats:', err);
-        setError('Failed to load dashboard statistics.');
+        setError(t('admin.analytics.noRevenue'));
       } finally {
         setLoading(false);
       }
@@ -124,55 +128,55 @@ const AnalyticsDashboard = () => {
 
   const statCards = [
     {
-      label: 'Doanh thu',
+      label: t('admin.analytics.revenue'),
       value: formatVND(stats.totalRevenue),
       icon: DollarSign,
       color: 'bg-green-100 text-green-600'
     },
     {
-      label: 'Tổng đơn hàng',
+      label: t('admin.analytics.totalOrders'),
       value: stats.totalOrders,
       icon: ShoppingCart,
       color: 'bg-blue-100 text-blue-600'
     },
     {
-      label: 'Khách hàng',
+      label: t('admin.users.customer'),
       value: stats.totalCustomers,
       icon: Users,
       color: 'bg-purple-100 text-purple-600'
     },
     {
-      label: 'Tổng tồn kho',
+      label: t('admin.analytics.totalStock'),
       value: stats.totalStock,
       icon: Package,
       color: 'bg-orange-100 text-orange-600'
     },
     {
-      label: 'Chờ thanh toán',
+      label: t('orders.status.PENDING'),
       value: stats.pendingOrders,
       icon: Clock,
       color: 'bg-amber-100 text-amber-600'
     },
     {
-      label: 'Đang đóng gói',
+      label: t('orders.status.PACKAGING'),
       value: stats.packagingOrders,
       icon: Package,
       color: 'bg-blue-100 text-blue-600'
     },
     {
-      label: 'Đang giao hàng',
+      label: t('orders.status.SHIPPING'),
       value: stats.shippingOrders,
       icon: Truck,
       color: 'bg-indigo-100 text-indigo-600'
     },
     {
-      label: 'Đã nhận hàng',
+      label: t('orders.status.DELIVERED'),
       value: stats.deliveredOrders,
       icon: CheckCircle2,
       color: 'bg-emerald-100 text-emerald-600'
     },
     {
-      label: 'Đã hủy',
+      label: t('orders.status.CANCELLED'),
       value: stats.cancelledOrders,
       icon: XCircle,
       color: 'bg-rose-100 text-rose-600'
@@ -182,8 +186,8 @@ const AnalyticsDashboard = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-800">Phân tích doanh thu</h2>
-        <p className="text-gray-500">Tổng quan hoạt động cửa hàng</p>
+        <h2 className="text-2xl font-bold text-gray-800">{t('admin.analytics.title')}</h2>
+        <p className="text-gray-500">{t('admin.analytics.subtitle')}</p>
       </div>
 
       {/* Stat cards */}
@@ -210,7 +214,7 @@ const AnalyticsDashboard = () => {
       <div className="bg-white rounded-lg shadow-card p-6">
         <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
           <TrendingUp className="h-5 w-5 mr-2 text-primary-600" />
-          Doanh thu 7 ngày qua
+          {t('admin.analytics.revenue7d')}
         </h3>
         {revenueChartData.length > 0 ? (
           <div className="h-72 w-full">
@@ -239,7 +243,7 @@ const AnalyticsDashboard = () => {
                   width={56}
                   tickMargin={4}
                 />
-                <Tooltip content={<RevenueTooltip />} cursor={{ stroke: '#c4b5fd', strokeWidth: 1.5 }} />
+                <Tooltip content={<RevenueTooltip t={t} />} cursor={{ stroke: '#c4b5fd', strokeWidth: 1.5 }} />
                 <Area
                   type="monotone"
                   dataKey="revenue"
@@ -253,23 +257,23 @@ const AnalyticsDashboard = () => {
             </ResponsiveContainer>
           </div>
         ) : (
-          <p className="text-gray-500">Chưa có dữ liệu doanh thu.</p>
+          <p className="text-gray-500">{t('admin.analytics.noRevenue')}</p>
         )}
       </div>
 
       {/* Recent orders table */}
       <div className="bg-white rounded-lg shadow-card p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Đơn hàng gần đây</h3>
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">{t('admin.analytics.recentOrders')}</h3>
         {stats.recentOrders && stats.recentOrders.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mã đơn</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Khách hàng</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Tổng tiền</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Ngày</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('admin.analytics.colOrder')}</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('admin.analytics.colCustomer')}</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('admin.analytics.colTotal')}</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('admin.analytics.colStatus')}</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('admin.analytics.colDate')}</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -280,7 +284,7 @@ const AnalyticsDashboard = () => {
                     <td className="px-4 py-2 text-sm font-medium">{formatVND(order.grandTotal)}</td>
                     <td className="px-4 py-2 text-sm">
                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        {order.status}
+                        {t(`orders.status.${order.status}`) !== `orders.status.${order.status}` ? t(`orders.status.${order.status}`) : order.status}
                       </span>
                     </td>
                     <td className="px-4 py-2 text-sm text-gray-500">
@@ -292,7 +296,7 @@ const AnalyticsDashboard = () => {
             </table>
           </div>
         ) : (
-          <p className="text-gray-500">Không có đơn hàng gần đây.</p>
+          <p className="text-gray-500">{t('admin.analytics.noRecentOrders')}</p>
         )}
       </div>
     </div>

@@ -111,10 +111,18 @@ const buildPaymentUrls = (orderId) => {
 /**
  * Tạo checkout session. Ném PaymentError (mã 400, có message rõ ràng) thay vì
  * để lỗi SDK bắn lên thành 500 Internal Server Error.
+ * VND không có đơn vị lẻ: amount LUÔN làm tròn về số nguyên TRƯỚC khi gửi
+ * SePay để webhook `transaction_amount` khớp `order_amount` đã gửi (không còn
+ * tình trạng SePay thu 20249 mà đơn lưu 20249.99 gây AMOUNT_MISMATCH).
  */
 const createCheckoutSession = (orderCode, amountVND, description, urls) => {
   if (!sepayClient) {
     throw new PaymentError('SePay chưa được cấu hình (thiếu SEPAY_MERCHANT_ID / SEPAY_MERCHANT_SECRET_KEY). Vui lòng kiểm tra cấu hình thanh toán.');
+  }
+
+  const integerAmount = Math.round(Number(amountVND));
+  if (!Number.isFinite(integerAmount) || integerAmount <= 0) {
+    throw new PaymentError(`Số tiền thanh toán không hợp lệ: ${amountVND}`);
   }
 
   try {
@@ -123,7 +131,7 @@ const createCheckoutSession = (orderCode, amountVND, description, urls) => {
       operation: 'PURCHASE',
       payment_method: 'BANK_TRANSFER',
       order_invoice_number: orderCode,
-      order_amount: amountVND,
+      order_amount: integerAmount,
       currency: 'VND',
       order_description: description,
       success_url: urls.successUrl,
@@ -140,26 +148,59 @@ const createCheckoutSession = (orderCode, amountVND, description, urls) => {
 /**
  * Xác minh chữ ký webhook (HMAC-SHA256 của raw body).
  * Ưu tiên SEPAY_WEBHOOK_SECRET, fallback SEPAY_MERCHANT_SECRET_KEY.
+ * Chấp nhận cả hai secreTask 1: Generate Raw SQL for Product & ProductVariant
+ * 
+ Inspect `backend/prisma/schema.prisma` for `Product` and `ProductVariant` models. 
+ Output ONLY the raw `ALTER TABLE` / `CREATE TABLE` SQL statements needed to add any missing columns/enums (like `shortName`, `condition`, `sku`, etc.) so I can execute it manually in phpMyAdmin. Do not modify backend code yet.
+ t (webhook secret + merchant key) để sống sót qua
+ * việc admin đổi một trong hai trên SePay dashboard mà quên cái còn lại.
  */
 const verifyWebhookSignature = (rawBody, signature) => {
   if (!signature || !rawBody) return false;
-  const secret = env.sepayWebhookSecret || env.sepayMerchantSecretKey;
-  if (!secret) return false;
-  const expected = crypto.createHmac('sha256', secret)
-    .update(rawBody)
-    .digest('hex');
-  const a = Buffer.from(expected, 'hex');
-  const b = Buffer.from(String(signature).replace(/^sha256=/, ''), 'hex');
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(a, b);
+  const secrets = [...new Set([env.sepayWebhookSecret, env.sepayMerchantSecretKey].filter(Boolean))];
+  if (secrets.length === 0) return false;
+  const given = Buffer.from(String(signature).replace(/^sha256=/, ''), 'hex');
+  if (given.length === 0) return false;
+  for (const secret of secrets) {
+    const expected = Buffer.from(crypto.createHmac('sha256', secret).update(rawBody).digest('hex'), 'hex');
+    if (expected.length === given.length && crypto.timingSafeEqual(expected, given)) return true;
+  }
+  return false;
+};
+
+// SePay luôn làm tròn VND về số nguyên khi thu tiền (QR/Napas không có số lẻ).
+// Khoản chênh ≤ 1 VND là kết quả làm tròn, KHÔNG phải thiếu tiền:
+//   vd đơn 20249.99 → SePay thu 20249 → chênh 0.99 → vẫn coi là ĐÃ THANH TOÁN.
+// Chênh lớn hơn (khách thiếu tiền) vẫn bị từ chối như trước.
+const VND_ROUNDING_TOLERANCE = 1;
+
+/**
+ * So sánh số tiền SePay báo với tổng đơn (grandTotal) với dung sai làm tròn VND.
+ * `paid` đến từ webhook (number/string), `total` đến từ Decimal của Prisma.
+ * Trả về true khi |paid - total| <= 1 VND (làm tròn), ngược lại false.
+ */
+const isAmountMatched = (paid, total) => {
+  const paidValue = Number(paid);
+  const totalValue = Number(total);
+  if (!Number.isFinite(paidValue) || !Number.isFinite(totalValue)) return false;
+  return Math.abs(paidValue - totalValue) <= VND_ROUNDING_TOLERANCE;
 };
 
 /**
  * Ghi payment log an toàn: không để lỗi DB làm hỏng toàn bộ luồng webhook.
+ * Upsert theo sepayTransactionId để retry của SePay không vỡ unique constraint.
  */
 const logPayment = async (data) => {
   try {
-    await prisma.paymentLog.create({ data });
+    if (data.sepayTransactionId) {
+      await prisma.paymentLog.upsert({
+        where: { sepayTransactionId: data.sepayTransactionId },
+        update: { ...data, updatedAt: new Date() },
+        create: data
+      });
+    } else {
+      await prisma.paymentLog.create({ data });
+    }
   } catch (err) {
     console.error('Failed to write payment log:', err.message);
   }
@@ -216,13 +257,16 @@ const extractOrderCode = (payload) => {
 };
 
 // Trạng thái được coi là "đã thanh toán thành công"
-const PAID_TRANSACTION_STATUSES = ['APPROVED', 'PAID', 'COMPLETED', 'SUCCESS'];
+// (CAPTURED: SePay PG đặt order_status=CAPTURED sau khi giao dịch được thu)
+const PAID_TRANSACTION_STATUSES = ['APPROVED', 'PAID', 'COMPLETED', 'SUCCESS', 'CAPTURED'];
 
 /**
  * Chuyển đơn PENDING -> PACKAGING (Đã thanh toán / Đang đóng gói) trong MỘT
  * transaction an toàn (lock FOR UPDATE), dùng chung cho cả webhook IPN và
- * fallback sync API. Idempotent: đơn đã xử lý thì ném ConflictError, log
- * SePay transaction chỉ tạo khi chưa tồn tại (unique).
+ * fallback sync API. Idempotent: đơn đã xử lý (race webhook/sync/admin) thì
+ * trả kết quả hiện tại + alreadyProcessed=true thay vì throw — để caller ack
+ * SePay không retry vô hạn. Log SePay transaction: tạo mới khi chưa có
+ * (unique), upgrade MISMATCH/ERROR → COMPLETED khi retry xử lý thành công.
  */
 const markOrderPaid = async (order, {
   sepayTransactionId = null,
@@ -234,107 +278,121 @@ const markOrderPaid = async (order, {
 } = {}) => {
   const now = new Date();
 
-  await prisma.$transaction(async (tx) => {
-    // Lock order để tránh race giữa webhook / sync / admin
-    const locked = await tx.$queryRaw`SELECT * FROM "Order" WHERE "id" = ${order.id} FOR UPDATE`;
-    if (!locked || locked.length === 0) throw new NotFoundError('Order not found');
-    if (locked[0].status !== 'PENDING') {
-      throw new ConflictError(`Order is not in PENDING state (current: ${locked[0].status})`);
-    }
-
-    // Cập nhật order: PENDING -> PACKAGING (Đã thanh toán -> Đóng gói)
-    await tx.order.update({
-      where: { id: order.id },
-      data: {
-        status: 'PACKAGING',
-        paymentStatus: 'COMPLETED',
-        paidAt: now,
-        version: { increment: 1 }
+  let result;
+  try {
+    result = await prisma.$transaction(async (tx) => {
+      // Lock order để tránh race giữa webhook / sync / admin
+      const locked = await tx.$queryRaw`SELECT * FROM \`Order\` WHERE \`id\` = ${order.id} FOR UPDATE`;
+      if (!locked || locked.length === 0) throw new NotFoundError('Order not found');
+      if (locked[0].status !== 'PENDING') {
+        // Đã xử lý rồi (race giữa webhook/sync/admin) — ack idempotent,
+        // KHÔNG throw để SePay không retry vô hạn.
+        return {
+          orderId: order.id,
+          orderCode: order.orderCode,
+          status: locked[0].status,
+          paymentStatus: locked[0].paymentStatus,
+          paidAt: locked[0].paidAt ? new Date(locked[0].paidAt).toISOString() : null,
+          alreadyProcessed: true
+        };
       }
-    });
 
-    // Cập nhật payment record nếu có
-    const targetPaymentId = paymentId
-      || order.payments?.find((p) => p.status === 'PENDING')?.id
-      || order.payments?.[0]?.id
-      || null;
-    if (targetPaymentId) {
-      await tx.payment.update({
-        where: { id: targetPaymentId },
+      // Cập nhật order: PENDING -> PACKAGING (Đã thanh toán -> Đóng gói)
+      await tx.order.update({
+        where: { id: order.id },
         data: {
-          status: 'COMPLETED',
-          ...(sepayTransactionId ? { sepayTransactionId } : {}),
-          paidAt: now
+          status: 'PACKAGING',
+          paymentStatus: 'COMPLETED',
+          paidAt: now,
+          version: { increment: 1 }
         }
       });
-    }
 
-    // Tồn kho variant ĐÃ được trừ (reserve) ngay khi tạo đơn ở checkout —
-    // KHÔNG trừ lần nữa ở đây để tránh giảm tồn kho kép.
-    // Chỉ chốt thẻ đơn lẻ: RESERVED -> SOLD (idempotent, bỏ qua nếu đã SOLD).
-    for (const item of order.items || []) {
-      if (item.cardId) {
-        await tx.card.updateMany({
-          where: { id: item.cardId, status: 'RESERVED' },
-          data: { status: 'SOLD' }
+      // Cập nhật payment record nếu có
+      const targetPaymentId = paymentId
+        || order.payments?.find((p) => p.status === 'PENDING')?.id
+        || order.payments?.[0]?.id
+        || null;
+      if (targetPaymentId) {
+        await tx.payment.update({
+          where: { id: targetPaymentId },
+          data: {
+            status: 'COMPLETED',
+            ...(sepayTransactionId ? { sepayTransactionId } : {}),
+            paidAt: now
+          }
         });
       }
-    }
 
-    // Lịch sử trạng thái
-    await tx.orderStatusHistory.create({
-      data: {
-        orderId: order.id,
-        oldStatus: 'PENDING',
-        newStatus: 'PACKAGING',
-        note
+      // Tồn kho variant ĐÃ được trừ (reserve) ngay khi tạo đơn ở checkout —
+      // KHÔNG trừ lần nữa ở đây để tránh giảm tồn kho kép.
+      // Chỉ chốt thẻ đơn lẻ: RESERVED -> SOLD (idempotent, bỏ qua nếu đã SOLD).
+      for (const item of order.items || []) {
+        if (item.cardId) {
+          await tx.card.updateMany({
+            where: { id: item.cardId, status: 'RESERVED' },
+            data: { status: 'SOLD' }
+          });
+        }
       }
-    });
 
-    // Ghi log thành công — chỉ tạo khi chưa có log với transaction id này (idempotent)
-    const existingLog = sepayTransactionId
-      ? await tx.paymentLog.findUnique({ where: { sepayTransactionId } })
-      : null;
-    if (!existingLog) {
-      await tx.paymentLog.create({
+      // Lịch sử trạng thái
+      await tx.orderStatusHistory.create({
         data: {
-          sepayTransactionId,
           orderId: order.id,
-          paymentId: targetPaymentId,
-          rawPayload: rawPayload ?? { note, source: 'markOrderPaid' },
-          amount: amount != null ? Number(amount) : null,
-          content: content || null,
-          status: 'COMPLETED',
-          processedAt: now
+          oldStatus: 'PENDING',
+          newStatus: 'PACKAGING',
+          note
         }
       });
-    }
-  });
 
-  // Emit socket để frontend tự cập nhật trạng thái không cần F5
-  const io = global.io;
-  if (io && order.userId) {
-    io.to(`user:${order.userId}`).emit('order:paid', {
-      orderId: order.id,
-      orderCode: order.orderCode,
-      status: 'PACKAGING',
-      paidAt: now.toISOString()
+      // Ghi log thành công — chỉ tạo khi chưa có log với transaction id này (idempotent)
+      const existingLog = sepayTransactionId
+        ? await tx.paymentLog.findUnique({ where: { sepayTransactionId } })
+        : null;
+      if (!existingLog) {
+        await tx.paymentLog.create({
+          data: {
+            sepayTransactionId,
+            orderId: order.id,
+            paymentId: targetPaymentId,
+            rawPayload: rawPayload ?? { note, source: 'markOrderPaid' },
+            amount: amount != null ? Number(amount) : null,
+            content: content || null,
+            status: 'COMPLETED',
+            processedAt: now
+          }
+        });
+      } else if (existingLog.status !== 'COMPLETED') {
+        // Log trước đó là MISMATCH/ERROR (lần xử lý đầu đã fail) — đánh dấu COMPLETED
+        await tx.paymentLog.update({
+          where: { id: existingLog.id },
+          data: { status: 'COMPLETED', processedAt: now, errorMessage: null }
+        });
+      }
+
+      return {
+        orderId: order.id,
+        orderCode: order.orderCode,
+        status: 'PACKAGING',
+        paymentStatus: 'COMPLETED',
+        paidAt: now.toISOString()
+      };
     });
-    io.to(`user:${order.userId}`).emit('order:status_changed', {
-      orderId: order.id,
-      orderCode: order.orderCode,
-      oldStatus: 'PENDING',
-      newStatus: 'PACKAGING'
-    });
+  } catch (error) {
+    // Order không còn PENDING do race thật sự (webhook vs sync) — ack idempotent
+    if (error instanceof ConflictError) {
+      return {
+        orderId: order.id,
+        orderCode: order.orderCode,
+        status: 'ALREADY_PROCESSED',
+        alreadyProcessed: true
+      };
+    }
+    throw error;
   }
 
-  return {
-    orderId: order.id,
-    orderCode: order.orderCode,
-    status: 'PACKAGING',
-    paymentStatus: 'COMPLETED',
-    paidAt: now.toISOString()
-  };
+  return result;
 };
 
 /**
@@ -547,22 +605,16 @@ const processWebhook = async (payload, rawBody, signature, headers) => {
     return { success: true, message: 'Transaction not approved, logged' };
   }
 
-  // Idempotency check
+  // Idempotency check: nếu log này đã đánh dấu COMPLETED thì ack thôi.
+  // Log MISMATCH/ERROR trước đó (webhook retry của SePay) thì CHO XỬ Là LẠI —
+  // nếu không đơn sẽ kẹt PENDING vĩnh viễn dù webhook retry tới đúng.
   const existingLog = await prisma.paymentLog.findUnique({
     where: { sepayTransactionId }
   }).catch((err) => {
     console.error('PaymentLog lookup failed:', err.message);
     return null;
   });
-  if (existingLog) {
-    await logPayment({
-      rawPayload: payload,
-      status: 'DUPLICATE',
-      errorMessage: 'Duplicate webhook received',
-      amount: parseFloat(amount),
-      content,
-      sepayTransactionId
-    });
+  if (existingLog && existingLog.status === 'COMPLETED') {
     return { success: true, message: 'Duplicate webhook acknowledged' };
   }
 
@@ -603,9 +655,10 @@ const processWebhook = async (payload, rawBody, signature, headers) => {
     return { success: true, message: 'Order not pending, logged' };
   }
 
-  // Kiểm tra số tiền khớp với đơn hàng
+  // Kiểm tra số tiền khớp với đơn hàng (dung sai làm tròn VND ≤ 1đ:
+  // SePay thu integer VND, đơn có thể có số lẻ .99)
   const paidAmount = parseFloat(amount);
-  if (!Number.isFinite(paidAmount) || Math.abs(paidAmount - Number(order.grandTotal)) > 0.01) {
+  if (!Number.isFinite(paidAmount) || !isAmountMatched(paidAmount, order.grandTotal)) {
     await logPayment({
       rawPayload: payload,
       status: 'AMOUNT_MISMATCH',
@@ -656,5 +709,7 @@ module.exports = {
   syncOrderPaymentFromSepay,
   extractOrderCode,
   getFrontendBaseUrl,
-  buildPaymentUrls
+  buildPaymentUrls,
+  isAmountMatched,
+  PAID_TRANSACTION_STATUSES
 };

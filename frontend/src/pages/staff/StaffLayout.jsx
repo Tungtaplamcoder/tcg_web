@@ -1,22 +1,25 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard, Package, FileText, MessageSquare, LogOut, Menu, X,
-  User, ClipboardList, Boxes, Headset
+  LayoutDashboard, Package, FileText, LogOut, Menu, X,
+  User, ClipboardList, Boxes, Headset, TicketPercent
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import ThemeToggle from '../../components/ThemeToggle';
+import { useLanguage } from '../../i18n/LanguageContext';
 
-const PAGE_TITLES = {
-  '/staff': 'Overview',
-  '/staff/orders': 'Orders',
-  '/staff/inventory': 'Inventory',
-  '/staff/virtual-boxes': 'Virtual Boxes',
-  '/staff/posts': 'Posts',
-  '/staff/chat': 'Chat CSKH'
+const PAGE_TITLE_KEYS = {
+  '/staff': 'staff.pageTitles./staff',
+  '/staff/orders': 'staff.pageTitles./staff/orders',
+  '/staff/inventory': 'staff.pageTitles./staff/products',
+  '/staff/products': 'staff.pageTitles./staff/products',
+  '/staff/vouchers': 'staff.pageTitles./staff/vouchers',
+  '/staff/virtual-boxes': 'staff.pageTitles./staff/virtual-boxes',
+  '/staff/posts': 'staff.pageTitles./staff/posts'
 };
 
 const StaffLayout = () => {
+  const { t } = useLanguage();
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
@@ -24,18 +27,14 @@ const StaffLayout = () => {
 
   const handleLogout = async () => { await logout(); navigate('/'); };
 
-  const isAdmin = user?.role === 'ADMIN';
-  const canManageInventory = isAdmin || user?.canManageInventory;
-  const canManagePosts = isAdmin || user?.canManagePosts;
-
   const navItems = [
-    { to: '/staff', label: 'Overview', icon: LayoutDashboard, end: true, visible: true },
-    { to: '/staff/orders', label: 'Orders', icon: ClipboardList, visible: true },
-    { to: '/staff/inventory', label: 'Inventory', icon: Package, visible: canManageInventory },
-    { to: '/staff/virtual-boxes', label: 'Virtual Boxes', icon: Boxes, visible: true },
-    { to: '/staff/posts', label: 'Posts', icon: FileText, visible: canManagePosts },
-    { to: '/staff/chat', label: 'Chat CSKH', icon: MessageSquare, visible: true },
-  ].filter(item => item.visible);
+    { to: '/staff', label: t('staff.pageTitles./staff'), icon: LayoutDashboard, end: true },
+    { to: '/staff/products', label: t('staff.pageTitles./staff/products'), icon: Package },
+    { to: '/staff/posts', label: t('staff.pageTitles./staff/posts'), icon: FileText },
+    { to: '/staff/vouchers', label: t('staff.pageTitles./staff/vouchers'), icon: TicketPercent },
+    { to: '/staff/orders', label: t('staff.pageTitles./staff/orders'), icon: ClipboardList },
+    { to: '/staff/virtual-boxes', label: t('staff.pageTitles./staff/virtual-boxes'), icon: Boxes },
+  ];
 
   return (
     <div className="min-h-screen app-bg flex">
@@ -55,7 +54,7 @@ const StaffLayout = () => {
             <div className="h-8 w-8 rounded-lg bg-brand-gradient flex items-center justify-center shadow-glow transition-transform duration-300 group-hover:scale-105">
               <Headset className="h-4 w-4 text-white" />
             </div>
-            <span className="font-display text-lg font-bold tracking-tight text-strong">Staff Portal</span>
+            <span className="font-display text-lg font-bold tracking-tight text-strong">{t('staff.portalTitle')}</span>
           </Link>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 text-muted hover:text-strong transition-colors">
             <X className="h-5 w-5" />
@@ -99,7 +98,7 @@ const StaffLayout = () => {
             className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm font-medium text-muted hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-all duration-300"
           >
             <LogOut className="h-5 w-5" />
-            Logout
+            {t('nav.logout')}
           </button>
         </div>
       </aside>
@@ -113,10 +112,10 @@ const StaffLayout = () => {
             <Menu className="h-6 w-6" />
           </button>
           <h1 className="font-display text-lg font-bold text-strong tracking-tight flex-1 truncate">
-            {PAGE_TITLES[location.pathname] || 'Staff Dashboard'}
+            {t(PAGE_TITLE_KEYS[location.pathname] || 'staff.pageTitles.fallback')}
           </h1>
           <Link to="/" className="hidden sm:inline-flex text-sm font-medium text-muted hover:text-primary-700 dark:hover:text-aura-cyan transition-colors">
-            ← Storefront
+            {t('admin.storefrontLink')}
           </Link>
           <ThemeToggle className="p-2" iconClassName="h-5 w-5" />
         </header>

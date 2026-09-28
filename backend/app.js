@@ -9,7 +9,21 @@
  *
  * Passenger intercepts http.Server.listen(), so the port below is only a
  * local-dev fallback. All configuration comes from ./.env (never hardcoded).
+ *
+ * SINGLE-INSTANCE MODE (cPanel/LiteSpeed): no cluster.fork() / child-process
+ * spawning is allowed in this entry point. The app runs as ONE Node process
+ * so we never hit the LVE NPROC limit ("fork: Resource temporarily
+ * unavailable"). Small libuv threadpool to bound per-process memory.
  */
+process.env.UV_THREADPOOL_SIZE = '4';
+
+// Defensive guard: refuse to run if Passenger/PM2 config drift ever launches
+// us as a cluster worker — this entry point must stay single-instance.
+if (require('cluster').isWorker) {
+  console.error('❌ Cluster workers are disabled on cPanel (NPROC limit). Exiting.');
+  process.exit(1);
+}
+
 const express = require('express');
 const path = require('path');
 const fs = require('fs');

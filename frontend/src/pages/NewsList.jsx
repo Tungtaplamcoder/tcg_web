@@ -2,8 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Newspaper, AlertCircle, ArrowRight, Calendar, User } from 'lucide-react';
 import api from '../services/api';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const NewsList = () => {
+  const { t } = useLanguage();
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -47,7 +49,7 @@ const NewsList = () => {
       setMeta(response.data.data.meta || { totalPages: 1 });
     } catch (err) {
       console.error('Failed to fetch news:', err);
-      setError('Failed to load articles. Please try again.');
+      setError(t('news.errLoad'));
     } finally {
       setLoading(false);
     }
@@ -73,9 +75,9 @@ const NewsList = () => {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8 animate-tcg-reveal">
       <div className="mb-7">
-        <p className="section-eyebrow">Insights</p>
+        <p className="section-eyebrow">{t('news.eyebrow')}</p>
         <div className="flex items-center justify-between mt-1">
-          <h1 className="heading-display text-3xl">News & Updates</h1>
+          <h1 className="heading-display text-3xl">{t('news.title')}</h1>
           <div className="h-11 w-11 rounded-xl bg-brand-gradient-soft ring-1 ring-primary-200/50 hidden sm:flex items-center justify-center">
             <Newspaper className="h-5 w-5 text-primary-700" />
           </div>
@@ -94,7 +96,7 @@ const NewsList = () => {
           <div className="pointer-events-none absolute -top-16 right-1/4 h-56 w-56 rounded-full bg-primary-300/15 blur-[80px]" />
           <div className="relative">
             <Newspaper className="h-12 w-12 mx-auto text-ink-300" />
-            <p className="mt-4 text-ink-500 dark:text-ink-300 font-medium">No articles published yet.</p>
+            <p className="mt-4 text-ink-500 dark:text-ink-300 font-medium">{t('news.empty')}</p>
           </div>
         </div>
       ) : (
@@ -159,15 +161,15 @@ const NewsList = () => {
             disabled={page <= 1}
             className="btn-secondary !px-5 !py-2 text-sm"
           >
-            Previous
+            {t('common.previous')}
           </button>
-          <span className="px-3 text-sm font-semibold text-ink-600 dark:text-ink-200">Page {page} of {meta.totalPages}</span>
+          <span className="px-3 text-sm font-semibold text-ink-600 dark:text-ink-200">{t('news.pageOf', { page, total: meta.totalPages })}</span>
           <button
             onClick={() => setPage(Math.min(meta.totalPages, page + 1))}
             disabled={page >= meta.totalPages}
             className="btn-secondary !px-5 !py-2 text-sm"
           >
-            Next
+            {t('common.next')}
           </button>
         </div>
       )}

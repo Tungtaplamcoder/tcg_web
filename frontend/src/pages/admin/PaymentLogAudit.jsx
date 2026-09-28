@@ -15,9 +15,23 @@ import {
   X
 } from 'lucide-react';
 import api from '../../services/api';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { formatVND } from '../../utils/format';
 
+/* Backend status enum → i18n key for display labels */
+const STATUS_KEYS = {
+  PENDING: 'admin.paymentLogs.pending',
+  COMPLETED: 'admin.paymentLogs.completed',
+  MISMATCH: 'admin.paymentLogs.mismatch',
+  AMOUNT_MISMATCH: 'admin.paymentLogs.amountMismatch',
+  SIGNATURE_MISMATCH: 'admin.paymentLogs.signatureMismatch',
+  INVALID_PAYLOAD: 'admin.paymentLogs.invalidPayload',
+  DUPLICATE: 'admin.paymentLogs.duplicate',
+  ERROR: 'admin.paymentLogs.errorStatus'
+};
+
 const PaymentLogAudit = () => {
+  const { t } = useLanguage();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -41,11 +55,12 @@ const PaymentLogAudit = () => {
       setMeta(response.data.data.meta || { totalPages: 1 });
     } catch (err) {
       console.error('Failed to fetch payment logs:', err);
-      setError('Failed to load payment logs.');
+      setError(t('admin.paymentLogs.empty'));
     } finally {
       setLoading(false);
     }
-  }, [page, statusFilter, search]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, statusFilter, search, t]);
 
   useEffect(() => {
     fetchLogs();
@@ -66,7 +81,7 @@ const PaymentLogAudit = () => {
       fetchLogs();
     } catch (err) {
       console.error('Reconciliation failed:', err);
-      setError('Failed to reconcile payment log.');
+      setError(t('admin.paymentLogs.mismatch'));
     } finally {
       setReconciling(false);
     }
@@ -101,8 +116,8 @@ const PaymentLogAudit = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-800">Payment Log Audit</h2>
-        <p className="text-gray-500">Review and reconcile SePay payment logs</p>
+        <h2 className="text-2xl font-bold text-gray-800">{t('admin.paymentLogs.title')}</h2>
+        <p className="text-gray-500">{t('admin.paymentLogs.subtitle')}</p>
       </div>
 
       {/* Filters */}
@@ -113,7 +128,7 @@ const PaymentLogAudit = () => {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by transaction ID, content, order code..."
+            placeholder={t('admin.paymentLogs.searchPlaceholder')}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
@@ -122,15 +137,15 @@ const PaymentLogAudit = () => {
           onChange={(e) => setStatusFilter(e.target.value)}
           className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
-          <option value="">All Statuses</option>
-          <option value="PENDING">Pending</option>
-          <option value="COMPLETED">Completed</option>
-          <option value="MISMATCH">Mismatch</option>
-          <option value="AMOUNT_MISMATCH">Amount Mismatch</option>
-          <option value="SIGNATURE_MISMATCH">Signature Mismatch</option>
-          <option value="INVALID_PAYLOAD">Invalid Payload</option>
-          <option value="DUPLICATE">Duplicate</option>
-          <option value="ERROR">Error</option>
+          <option value="">{t('admin.paymentLogs.allStatuses')}</option>
+          <option value="PENDING">{t('admin.paymentLogs.pending')}</option>
+          <option value="COMPLETED">{t('admin.paymentLogs.completed')}</option>
+          <option value="MISMATCH">{t('admin.paymentLogs.mismatch')}</option>
+          <option value="AMOUNT_MISMATCH">{t('admin.paymentLogs.amountMismatch')}</option>
+          <option value="SIGNATURE_MISMATCH">{t('admin.paymentLogs.signatureMismatch')}</option>
+          <option value="INVALID_PAYLOAD">{t('admin.paymentLogs.invalidPayload')}</option>
+          <option value="DUPLICATE">{t('admin.paymentLogs.duplicate')}</option>
+          <option value="ERROR">{t('admin.paymentLogs.errorStatus')}</option>
         </select>
       </div>
 
@@ -148,17 +163,17 @@ const PaymentLogAudit = () => {
             <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
           </div>
         ) : logs.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">No payment logs found.</div>
+          <div className="text-center py-12 text-gray-500">{t('admin.paymentLogs.empty')}</div>
         ) : (
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Transaction ID</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Content</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('admin.paymentLogs.colTransaction')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('admin.paymentLogs.colContent')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('admin.paymentLogs.colAmount')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('admin.paymentLogs.colStatus')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('admin.paymentLogs.colDate')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('admin.paymentLogs.colActions')}</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -170,18 +185,18 @@ const PaymentLogAudit = () => {
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClasses(log.status)}`}>
                       {getStatusIcon(log.status)}
-                      <span className="ml-1">{log.status}</span>
+                      <span className="ml-1">{t(STATUS_KEYS[log.status]) || log.status}</span>
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500">
                     {new Date(log.createdAt).toLocaleString()}
                   </td>
                   <td className="px-4 py-3">
-                    <button
-                      onClick={() => setSelectedLog(log)}
-                      className="p-1 text-blue-600 hover:text-blue-800"
-                      title="View details"
-                    >
+                     <button
+                       onClick={() => setSelectedLog(log)}
+                       className="p-1 text-blue-600 hover:text-blue-800"
+                       title={t('admin.paymentLogs.viewDetails')}
+                     >
                       <Eye className="h-5 w-5" />
                     </button>
                   </td>
@@ -202,7 +217,7 @@ const PaymentLogAudit = () => {
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
-          <span className="text-gray-700">Page {page} of {meta.totalPages}</span>
+          <span className="text-gray-700">{t('news.pageOf', { page, total: meta.totalPages })}</span>
           <button
             onClick={() => setPage(Math.min(meta.totalPages, page + 1))}
             disabled={page >= meta.totalPages}
@@ -219,7 +234,7 @@ const PaymentLogAudit = () => {
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[80vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-800">Payment Log Details</h3>
+                <h3 className="text-lg font-semibold text-gray-800">{t('admin.paymentLogs.detailsTitle')}</h3>
                 <button onClick={() => setSelectedLog(null)} className="text-gray-500 hover:text-gray-700">
                   <X className="h-5 w-5" />
                 </button>
@@ -231,38 +246,38 @@ const PaymentLogAudit = () => {
                   <span className="font-mono">{selectedLog.id}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Transaction ID</span>
+                  <span className="text-gray-500">{t('admin.paymentLogs.colTransaction')}</span>
                   <span className="font-mono">{selectedLog.sepayTransactionId || '-'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Content</span>
+                  <span className="text-gray-500">{t('admin.paymentLogs.colContent')}</span>
                   <span>{selectedLog.content || '-'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Amount</span>
+                  <span className="text-gray-500">{t('admin.paymentLogs.colAmount')}</span>
                   <span className="font-medium">{selectedLog.amount ? formatVND(selectedLog.amount) : '-'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Status</span>
+                  <span className="text-gray-500">{t('admin.paymentLogs.colStatus')}</span>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadgeClasses(selectedLog.status)}`}>
-                    {selectedLog.status}
+                    {t(STATUS_KEYS[selectedLog.status]) || selectedLog.status}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Order</span>
+                  <span className="text-gray-500">{t('admin.paymentLogs.order')}</span>
                   <span>{selectedLog.order?.orderCode || '-'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Created At</span>
+                  <span className="text-gray-500">{t('admin.paymentLogs.createdAt')}</span>
                   <span>{new Date(selectedLog.createdAt).toLocaleString()}</span>
                 </div>
                 {selectedLog.errorMessage && (
                   <div className="p-3 bg-gray-50 rounded">
-                    <p className="text-gray-700"><strong>Error:</strong> {selectedLog.errorMessage}</p>
+                    <p className="text-gray-700"><strong>{t('admin.paymentLogs.errorLabel')}</strong> {selectedLog.errorMessage}</p>
                   </div>
                 )}
                 <div>
-                  <p className="text-gray-500 mb-1">Raw Payload</p>
+                  <p className="text-gray-500 mb-1">{t('admin.paymentLogs.rawPayload')}</p>
                   <pre className="bg-gray-50 p-3 rounded text-xs overflow-x-auto max-h-40">
                     {JSON.stringify(selectedLog.rawPayload, null, 2)}
                   </pre>
@@ -271,12 +286,12 @@ const PaymentLogAudit = () => {
 
               {/* Reconciliation actions */}
               <div className="mt-6 border-t pt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Reconciliation Note</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('admin.paymentLogs.reconNote')}</label>
                 <textarea
                   value={reconcileNote}
                   onChange={(e) => setReconcileNote(e.target.value)}
                   rows={2}
-                  placeholder="Optional note..."
+                  placeholder={t('admin.paymentLogs.notePlaceholder')}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <div className="mt-4 flex justify-end space-x-3">
@@ -286,7 +301,7 @@ const PaymentLogAudit = () => {
                     className="inline-flex items-center px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50"
                   >
                     <XCircle className="h-4 w-4 mr-2" />
-                    Mark as Mismatch
+                    {t('admin.paymentLogs.markMismatch')}
                   </button>
                   <button
                     onClick={() => handleReconcile('MARK_AS_COMPLETED')}
@@ -294,11 +309,11 @@ const PaymentLogAudit = () => {
                     className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
                   >
                     {reconciling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
-                    Mark as Completed
+                    {t('admin.paymentLogs.completed')}
                   </button>
                 </div>
                 {!selectedLog.orderId && (
-                  <p className="mt-2 text-xs text-gray-500">Mark as Completed is disabled because no order is associated.</p>
+                  <p className="mt-2 text-xs text-gray-500">{t('admin.paymentLogs.markCompletedDisabled')}</p>
                 )}
               </div>
             </div>

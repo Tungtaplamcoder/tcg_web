@@ -2,7 +2,7 @@
 # =============================================================================
 # Database Restore Script for TCG E-Commerce Platform
 # =============================================================================
-# Restores a PostgreSQL database from a backup file created by backup.sh
+# Restores a MariaDB/MySQL database from a backup file created by backup.sh
 # Usage: ./scripts/restore.sh <backup_file> [--force]
 # =============================================================================
 
@@ -64,37 +64,24 @@ else
     exit 1
 fi
 
-# Parse DATABASE_URL to extract connection parameters
-if [ -z "${DATABASE_URL:-}" ]; then
-    echo -e "${RED}Error: DATABASE_URL not set in .env${NC}"
+# Connection parameters come from DB_* variables in .env (never hardcoded)
+if [ -z "${DB_NAME:-}" ] || [ -z "${DB_USER:-}" ]; then
+    echo -e "${RED}Error: DB_USER / DB_NAME not set in .env${NC}"
     exit 1
 fi
 
-# Extract connection parameters from DATABASE_URL
-DB_URL="${DATABASE_URL#postgresql://}"
-DB_URL="${DB_URL#postgres://}"
-
-if [[ "$DB_URL" == *"@"* ]]; then
-    AUTH_PART="${DB_URL%%@*}"
-    DB_USER="${AUTH_PART%%:*}"
-    DB_PASS="${AUTH_PART#*:}"
-    HOST_PART="${DB_URL#*@}"
-else
-    DB_USER="${PGUSER:-postgres}"
-    DB_PASS="${PGPASSWORD:-}"
-    HOST_PART="$DB_URL"
-fi
-
-DB_HOST="${HOST_PART%%:*}"
-PORT_DB="${HOST_PART#*:}"
-DB_PORT="${PORT_DB%%/*}"
-DB_NAME="${PORT_DB#*/}"
-DB_NAME="${DB_NAME%%\?*}"
-
 DB_HOST="${DB_HOST:-localhost}"
-DB_PORT="${DB_PORT:-5432}"
-DB_USER="${DB_USER:-postgres}"
-DB_NAME="${DB_NAME:-tcg_db}"
+DB_PORT="${DB_PORT:-3306}"
+
+# Prefer mariadb client, fall back to mysql
+if command -v mariadb >/dev/null 2>&1; then
+    SQL_CMD="mariadb"
+elif command -v mysql >/dev/null 2>&1; then
+    SQL_CMD="mysql"
+else
+    echo -e "${RED}Error: mariadb / mysql client not found${NC}"
+    exit 1
+fi
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}  Database Restore${NC}"
@@ -117,49 +104,17 @@ if [ "$FORCE" = false ]; then
     fi
 fi
 
-# Set PGPASSWORD for pg_restore
-export PGPASSWORD="$DB_PASS"
-
-# Check backup file format
-FILE_TYPE=$(file "$BACKUP_FILE" | cut -d: -f2 | xargs)
-
 echo -e "${BLUE}Restoring database...${NC}"
 
-# Restore based on file format
-if [[ "$FILE_TYPE" == *"PostgreSQL custom database dump"* ]]; then
-    # Custom format (from backup.sh)
-    if pg_restore \
-        --host="$DB_HOST" \
-        --port="$DB_PORT" \
-        --username="$DB_USER" \
-        --dbname="$DB_NAME" \
-        --clean \
-        --if-exists \
-        --no-owner \
-        --no-privileges \
-        --verbose \
-        "$BACKUP_FILE"; then
-        echo -e "${GREEN}✓ Database restored successfully from custom format!${NC}"
-    else
-        echo -e "${RED}✗ Restore failed!${NC}"
-        exit 1
-    fi
-elif [[ "$FILE_TYPE" == *"ASCII text"* ]] || [[ "$FILE_TYPE" == *"UTF-8 Unicode text"* ]]; then
-    # Plain SQL format
-    if psql \
-        --host="$DB_HOST" \
-        --port="$DB_PORT" \
-        --username="$DB_USER" \
-        --dbname="$DB_NAME" \
-        --file="$BACKUP_FILE" \
-        --quiet; then
-        echo -e "${GREEN}✓ Database restored successfully from SQL format!${NC}"
-    else
-        echo -e "${RED}✗ Restore failed!${NC}"
-        exit 1
-    fi
+# Credentials passed via MYSQL_PWD (never on the command line)
+if MYSQL_PWD="$DB_PASS" "$SQL_CMD" \
+    --host="$DB_HOST" \
+    --port="$DB_PORT" \
+    --user="$DB_USER" \
+    "$DB_NAME" < "$BACKUP_FILE"; then
+    echo -e "${GREEN}✓ Database restored successfully!${NC}"
 else
-    echo -e "${RED}Error: Unknown backup file format: $FILE_TYPE${NC}"
+    echo -e "${RED}✗ Restore failed!${NC}"
     exit 1
 fi
 

@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const router = express.Router();
 const adminController = require('../controllers/admin.controller');
+const voucherAdminController = require('../controllers/voucher.admin.controller');
 const validate = require('../middlewares/validate');
 const { authenticate, authorize, requirePermission } = require('../middlewares/auth');
 const { apiLimiter } = require('../middlewares/rateLimiters');
@@ -14,7 +15,15 @@ const {
   updateOrderStatusSchema, listOrdersQuerySchema, reconcilePaymentSchema, listPaymentLogsQuerySchema,
   listUsersQuerySchema,
   createVirtualBoxSchema, updateVirtualBoxSchema, listVirtualBoxesQuerySchema,
-  sepaySettingsSchema
+  sepaySettingsSchema,
+  shopSettingsSchema,
+  shippingSettingsSchema,
+  siteSettingsSchema,
+  createVoucherSchema,
+  updateVoucherSchema,
+  listVouchersQuerySchema,
+  toggleVoucherSchema,
+  allocateVoucherSchema
 } = require('../schemas/admin.schema');
 
 const upload = multer({
@@ -47,7 +56,7 @@ router.delete('/sets/:id', apiLimiter, authorize('ADMIN'), adminController.delet
 router.get('/virtual-boxes', apiLimiter, authorize(...managementRoles), validate(listVirtualBoxesQuerySchema, 'query'), adminController.listVirtualBoxes);
 router.post('/virtual-boxes', apiLimiter, authorize(...managementRoles), validate(createVirtualBoxSchema), adminController.createVirtualBox);
 router.put('/virtual-boxes/:id', apiLimiter, authorize(...managementRoles), validate(updateVirtualBoxSchema), adminController.updateVirtualBox);
-router.delete('/virtual-boxes/:id', apiLimiter, authorize('ADMIN'), adminController.deleteVirtualBox);
+router.delete('/virtual-boxes/:id', apiLimiter, authorize('ADMIN', 'STAFF'), adminController.deleteVirtualBox);
 
 // ==================== PRODUCT MANAGEMENT ====================
 router.get('/products', apiLimiter, authorize(...managementRoles), requirePermission('inventory'), adminController.listProducts);
@@ -66,20 +75,27 @@ router.delete('/categories/:id', apiLimiter, authorize('ADMIN'), adminController
 router.get('/posts', apiLimiter, authorize(...managementRoles), requirePermission('posts'), validate(listPostsQuerySchema, 'query'), adminController.listPosts);
 router.post('/posts', apiLimiter, authorize(...managementRoles), requirePermission('posts'), validate(createPostSchema), adminController.createPost);
 router.patch('/posts/:id', apiLimiter, authorize(...managementRoles), requirePermission('posts'), validate(updatePostSchema), adminController.updatePost);
-router.delete('/posts/:id', apiLimiter, authorize('ADMIN'), adminController.deletePost);
-
-// ==================== CHAT MANAGEMENT ====================
-router.get('/chat/rooms', apiLimiter, authorize(...managementRoles), requirePermission('chat'), adminController.listChatRooms);
-router.get('/chat/rooms/:id/messages', apiLimiter, authorize(...managementRoles), requirePermission('chat'), adminController.getChatRoomMessages);
-router.patch('/chat/rooms/:id/status', apiLimiter, authorize(...managementRoles), requirePermission('chat'), adminController.updateChatRoomStatus);
+router.delete('/posts/:id', apiLimiter, authorize('ADMIN', 'STAFF'), adminController.deletePost);
 
 // ==================== ORDER MANAGEMENT ====================
-router.get('/orders', apiLimiter, authorize(...managementRoles), validate(listOrdersQuerySchema, 'query'), adminController.listOrders);
-router.patch('/orders/:id/status', apiLimiter, authorize(...managementRoles), validate(updateOrderStatusSchema), adminController.updateOrderStatus);
+// ADMIN + STAFF may view and manage orders (MODERATOR read-only is
+// intentionally excluded; elevate via updateUserPermissions if needed).
+router.get('/orders', apiLimiter, authorize('ADMIN', 'STAFF'), requirePermission('orders'), validate(listOrdersQuerySchema, 'query'), adminController.listOrders);
+router.patch('/orders/:id/status', apiLimiter, authorize('ADMIN', 'STAFF'), requirePermission('orders'), validate(updateOrderStatusSchema), adminController.updateOrderStatus);
 
 // ==================== PAYMENTS (ADMIN ONLY) ====================
 router.get('/payments/logs', apiLimiter, authorize('ADMIN'), validate(listPaymentLogsQuerySchema, 'query'), adminController.listPaymentLogs);
 router.post('/payments/reconcile', apiLimiter, authorize('ADMIN'), validate(reconcilePaymentSchema), adminController.reconcilePayment);
+
+// ==================== VOUCHER MANAGEMENT ====================
+router.get('/vouchers', apiLimiter, authorize(...managementRoles), validate(listVouchersQuerySchema, 'query'), voucherAdminController.listVouchers);
+router.post('/vouchers', apiLimiter, authorize(...managementRoles), validate(createVoucherSchema), voucherAdminController.createVoucher);
+router.post('/vouchers/allocate', apiLimiter, authorize(...managementRoles), validate(allocateVoucherSchema), voucherAdminController.allocateVoucher);
+router.get('/vouchers/:id', apiLimiter, authorize(...managementRoles), voucherAdminController.getVoucher);
+router.put('/vouchers/:id', apiLimiter, authorize(...managementRoles), validate(updateVoucherSchema), voucherAdminController.updateVoucher);
+router.patch('/vouchers/:id/toggle', apiLimiter, authorize(...managementRoles), validate(toggleVoucherSchema), voucherAdminController.toggleVoucher);
+router.delete('/vouchers/:id', apiLimiter, authorize('ADMIN', 'STAFF'), voucherAdminController.deleteVoucher);
+router.get('/vouchers/:id/holders', apiLimiter, authorize(...managementRoles), voucherAdminController.listVoucherHolders);
 
 // ==================== DASHBOARD ====================
 router.get('/dashboard/stats', apiLimiter, authorize(...managementRoles), adminController.getDashboardStats);
@@ -87,5 +103,15 @@ router.get('/dashboard/stats', apiLimiter, authorize(...managementRoles), adminC
 // ==================== SETTINGS (ADMIN ONLY) ====================
 router.get('/settings/sepay', apiLimiter, authorize('ADMIN'), adminController.getSepaySettings);
 router.put('/settings/sepay', apiLimiter, authorize('ADMIN'), validate(sepaySettingsSchema), adminController.updateSepaySettings);
+
+router.get('/settings/shop', apiLimiter, authorize('ADMIN'), adminController.getShopSettings);
+router.put('/settings/shop', apiLimiter, authorize('ADMIN'), validate(shopSettingsSchema), adminController.updateShopSettings);
+
+router.get('/settings/shipping', apiLimiter, authorize('ADMIN'), adminController.getShippingSettings);
+router.put('/settings/shipping', apiLimiter, authorize('ADMIN'), validate(shippingSettingsSchema), adminController.updateShippingSettings);
+
+// ==================== SITE SETTINGS (ADMIN ONLY) ====================
+router.get('/settings/site', apiLimiter, authorize('ADMIN'), adminController.getSiteSettings);
+router.put('/settings/site', apiLimiter, authorize('ADMIN'), validate(siteSettingsSchema), adminController.updateSiteSettings);
 
 module.exports = router;

@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, User } from 'lucide-react';
 import api from '../services/api';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const NewsDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [article, setArticle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -19,12 +21,13 @@ const NewsDetail = () => {
         setArticle(response.data.data);
       } catch (err) {
         console.error('Failed to fetch article:', err);
-        setError('Article not found or unavailable.');
+        setError(t('news.notFoundBody'));
       } finally {
         setLoading(false);
       }
     };
     fetchArticle();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   if (loading) {
@@ -39,9 +42,9 @@ const NewsDetail = () => {
   if (error || !article) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-20 text-center">
-        <p className="text-rose-500 font-medium">{error || 'Article not found'}</p>
+        <p className="text-rose-500 font-medium">{error || t('news.notFound')}</p>
         <Link to="/news" className="btn-ghost mt-4">
-          <ArrowLeft className="h-4 w-4 mr-1.5" /> Back to News
+          <ArrowLeft className="h-4 w-4 mr-1.5" /> {t('news.backToNews')}
         </Link>
       </div>
     );
@@ -50,7 +53,7 @@ const NewsDetail = () => {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 lg:px-8 animate-tcg-reveal">
       <button onClick={() => navigate('/news')} className="btn-ghost mb-6 !px-3">
-        <ArrowLeft className="h-4 w-4 mr-1.5" /> All Articles
+        <ArrowLeft className="h-4 w-4 mr-1.5" /> {t('news.allArticles')}
       </button>
 
       <article className="relative overflow-hidden rounded-3xl bg-white/90 dark:bg-[#13131d]/90 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-10">

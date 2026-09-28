@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { RotateCcw, RotateCw } from 'lucide-react';
+import { RotateCcw, RotateCw, Package } from 'lucide-react';
 import TiltCard from './TiltCard';
 import ProductImage from './ProductImage';
 import RarityBadge from './RarityBadge';
@@ -13,22 +13,29 @@ import { isCardProduct } from '../utils/productDataParser';
  * • Padding is driven by the frame (not the img), so any artwork
  *   aspect ratio is letterboxed cleanly with zero distortion.
  * • Dark glass stage, rarity-tinted neon aura, spring-physics 3D tilt.
- * • Front/back toggle + thumbnail selector beneath the preview.
+ * • Front/back toggle + thumbnail selector beneath the preview — SINGLE
+ *   CARDS ONLY. Sealed products render a plain single-image gallery with
+ *   no card-flipping controls.
  */
-const ProductGallery = ({ product }) => {
+const ProductGallery = ({ product, isSealedProduct = false }) => {
   const [face, setFace] = useState('front');
 
   const isCard = isCardProduct(product);
+  const sealed = isSealedProduct;
   const frontSrc = product?.images && product.images.length > 0 ? product.images[0] : null;
   const backSrc = product?.backImage || null;
   const hasBack = Boolean(backSrc);
   const activeSrc = face === 'back' && backSrc ? backSrc : frontSrc;
   const activeLabel = product?.shortName || product?.name || 'No image';
 
-  const faces = [
-    { key: 'front', label: 'Front', icon: RotateCw, disabled: !frontSrc },
-    { key: 'back', label: 'Back', icon: RotateCcw, disabled: !hasBack }
-  ].filter((f) => !f.disabled);
+  // Card-flip controls (front/back switch + back thumbnail) are a
+  // single-card affordance; sealed boxes only ever show the main image.
+  const faces = sealed
+    ? []
+    : [
+        { key: 'front', label: 'Front', icon: RotateCw, disabled: !frontSrc },
+        { key: 'back', label: 'Back', icon: RotateCcw, disabled: !hasBack }
+      ].filter((f) => !f.disabled);
 
   return (
     <div className="lg:sticky lg:top-24">
@@ -87,9 +94,11 @@ const ProductGallery = ({ product }) => {
               <ProductImage
                 src={activeSrc}
                 alt={`${product?.name || 'Product'} — ${face} side`}
+                sealed={sealed}
+                icon={sealed ? Package : undefined}
                 className="h-full w-full object-contain pd-artwork"
                 fallbackClassName="pd-fallback"
-                iconClassName="h-12 w-12 text-white/90"
+                iconClassName={sealed ? 'h-12 w-12 text-slate-400 dark:text-white/70' : 'h-12 w-12 text-white/90'}
                 label={activeLabel}
               />
             </TiltCard>
@@ -97,8 +106,9 @@ const ProductGallery = ({ product }) => {
         </div>
       </div>
 
-      {/* ── Thumbnail selector beneath the stage ──────────────── */}
-      {faces.length > 0 && (
+      {/* ── Thumbnail selector beneath the stage ────────────────
+          Single cards only. Sealed products get no back-side selector. */}
+      {!sealed && faces.length > 0 && (
         <div className="mt-4 flex items-center justify-center gap-3">
           {faces.map((f) => {
             const src = f.key === 'back' ? backSrc : frontSrc;

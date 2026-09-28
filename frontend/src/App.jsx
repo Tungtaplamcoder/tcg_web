@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar.jsx';
 import Footer from './components/Footer.jsx';
 import ChatWidget from './components/ChatWidget.jsx';
@@ -19,6 +19,7 @@ import PaymentCancel from './pages/PaymentCancel.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import OrderHistory from './pages/OrderHistory.jsx';
+import Vouchers from './pages/Vouchers.jsx';
 import NewsList from './pages/NewsList.jsx';
 import NewsDetail from './pages/NewsDetail.jsx';
 import VirtualBoxesPage from './pages/storefront/VirtualBoxesPage.jsx';
@@ -28,7 +29,6 @@ import StaffLayout from './pages/staff/StaffLayout.jsx';
 import StaffOverview from './pages/staff/StaffOverview.jsx';
 import InventoryManager from './pages/staff/InventoryManager.jsx';
 import PostEditor from './pages/staff/PostEditor.jsx';
-import StaffChatInbox from './pages/staff/StaffChatInbox.jsx';
 import OrderManagement from './pages/OrderManagement.jsx';
 import CategoryManagement from './pages/CategoryManagement.jsx';
 
@@ -38,8 +38,10 @@ import AnalyticsDashboard from './pages/admin/AnalyticsDashboard.jsx';
 import UserManagement from './pages/admin/UserManagement.jsx';
 import PaymentLogAudit from './pages/admin/PaymentLogAudit.jsx';
 import SePayConfig from './pages/admin/SePayConfig.jsx';
+import ShopSettings from './pages/admin/ShopSettings.jsx';
+import ShippingSettings from './pages/admin/ShippingSettings.jsx';
 import VirtualBoxes from './pages/admin/VirtualBoxes.jsx';
-import AdminChat from './pages/admin/Chat.jsx';
+import AdminVouchers from './pages/admin/Vouchers.jsx';
 
 function App() {
   return (
@@ -50,6 +52,8 @@ function App() {
           {/* Public routes */}
           <Route path="/" element={<Home />} />
           <Route path="/catalog" element={<Catalog />} />
+          {/* Legacy/alternative storefront deep link → collection page */}
+          <Route path="/collection" element={<Navigate to="/catalog" replace />} />
           <Route
             path="/product/:id"
             element={
@@ -74,6 +78,7 @@ function App() {
           <Route element={<ProtectedRoute allowedRoles={['CUSTOMER', 'STAFF', 'ADMIN']} />}>
             <Route path="/orders" element={<OrderHistory />} />
             <Route path="/orders/:id" element={<OrderHistory />} />
+            <Route path="/user/vouchers" element={<Vouchers />} />
           </Route>
 
           {/* Staff routes */}
@@ -81,11 +86,12 @@ function App() {
             <Route path="/staff" element={<StaffLayout />}>
               <Route index element={<StaffOverview />} />
               <Route path="orders" element={<OrderManagement />} />
-              <Route path="inventory" element={<InventoryManager />} />
+              <Route path="inventory" element={<Navigate to="/staff/products" replace />} />
+              <Route path="products" element={<InventoryManager />} />
               <Route path="categories" element={<CategoryManagement />} />
               <Route path="virtual-boxes" element={<VirtualBoxes />} />
               <Route path="posts" element={<PostEditor />} />
-              <Route path="chat" element={<StaffChatInbox />} />
+              <Route path="vouchers" element={<AdminVouchers />} />
             </Route>
           </Route>
 
@@ -99,9 +105,11 @@ function App() {
               <Route path="categories" element={<CategoryManagement />} />
               <Route path="posts" element={<PostEditor />} />
               <Route path="users" element={<UserManagement />} />
+              <Route path="vouchers" element={<AdminVouchers />} />
               <Route path="payment-logs" element={<PaymentLogAudit />} />
               <Route path="sepay-config" element={<SePayConfig />} />
-              <Route path="chat" element={<AdminChat />} />
+              <Route path="shop-settings" element={<ShopSettings />} />
+              <Route path="shipping-settings" element={<ShippingSettings />} />
             </Route>
           </Route>
 

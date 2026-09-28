@@ -1,4 +1,5 @@
 const productService = require('../services/product.service');
+const { isDatabaseError, emptyPage, sendDbEmpty } = require('../utils/dbGuard');
 
 const listProducts = async (req, res, next) => {
   try {
@@ -9,6 +10,11 @@ const listProducts = async (req, res, next) => {
       message: 'Products retrieved'
     });
   } catch (error) {
+    if (isDatabaseError(error)) {
+      // DB down/degraded: return an empty page so the catalog renders its
+      // empty state instead of a hard error screen.
+      return sendDbEmpty(res, 'product.listProducts', error, emptyPage(req.query?.page, req.query?.limit));
+    }
     next(error);
   }
 };
@@ -22,6 +28,11 @@ const getProduct = async (req, res, next) => {
       message: 'Product retrieved'
     });
   } catch (error) {
+    if (isDatabaseError(error)) {
+      // ProductDetail already treats a null payload as "not found" — a
+      // clean 200 keeps the page from crashing on a DB hiccup.
+      return sendDbEmpty(res, 'product.getProduct', error, null);
+    }
     next(error);
   }
 };
@@ -35,19 +46,45 @@ const getProductStock = async (req, res, next) => {
       message: 'Stock retrieved'
     });
   } catch (error) {
+    if (isDatabaseError(error)) {
+      return sendDbEmpty(res, 'product.getProductStock', error, { productId: req.params.id, stockQuantity: 0 });
+    }
+    next(error);
+  }
+};
+
+const getProductFacets = async (req, res, next) => {
+  try {
+    const facets = await productService.getProductFacets(req.query);
+    res.status(200).json({
+      success: true,
+      data: facets,
+      message: 'Product facets retrieved'
+    });
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      // Empty facets degrade the filter rail to plain selects without counts
+      return sendDbEmpty(res, 'product.getProductFacets', error, { languages: [], rarities: [], cardSets: [], sets: [], categories: [] });
+    }
     next(error);
   }
 };
 
 const listCategories = async (req, res, next) => {
   try {
-    const categories = await productService.listCategories(req.query.activeOnly === 'true');
+    // activeOnly arrives coerced to a boolean by categoryQuerySchema
+    const categories = await productService.listCategories(req.query.activeOnly !== false);
     res.status(200).json({
       success: true,
       data: categories,
       message: 'Categories retrieved'
     });
   } catch (error) {
+    if (isDatabaseError(error)) {
+      // Home/footer consume this via `response.data.data || []` — an empty
+      // array is a safe degradation for both.
+      return sendDbEmpty(res, 'product.listCategories', error, []);
+    }
     next(error);
   }
 };
@@ -61,6 +98,9 @@ const listSets = async (req, res, next) => {
       message: 'Sets retrieved'
     });
   } catch (error) {
+    if (isDatabaseError(error)) {
+      return sendDbEmpty(res, 'product.listSets', error, []);
+    }
     next(error);
   }
 };
@@ -74,6 +114,9 @@ const listCards = async (req, res, next) => {
       message: 'Cards retrieved'
     });
   } catch (error) {
+    if (isDatabaseError(error)) {
+      return sendDbEmpty(res, 'product.listCards', error, emptyPage(req.query?.page, req.query?.limit));
+    }
     next(error);
   }
 };
@@ -87,6 +130,9 @@ const getCard = async (req, res, next) => {
       message: 'Card retrieved'
     });
   } catch (error) {
+    if (isDatabaseError(error)) {
+      return sendDbEmpty(res, 'product.getCard', error, null);
+    }
     next(error);
   }
 };
@@ -95,6 +141,7 @@ module.exports = {
   listProducts,
   getProduct,
   getProductStock,
+  getProductFacets,
   listCategories,
   listSets,
   listCards,

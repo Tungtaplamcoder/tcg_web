@@ -47,10 +47,15 @@ export const useAuthStore = create((set) => ({
     });
   },
 
-  login: async (email, password) => {
+  login: async (identifier, password) => {
+    // Phone is the primary identifier; email is optional on accounts.
+    const trimmed = (identifier || '').trim();
+    const payload = trimmed.includes('@')
+      ? { email: trimmed, password }
+      : { phone: trimmed, password };
     set({ isLoading: true });
     try {
-      const response = await api.post('/auth/login', { email, password });
+      const response = await api.post('/auth/login', payload);
       const { user, accessToken, refreshToken } = response.data.data;
       setStoredItem('tcg_access_token', accessToken);
       setStoredItem('tcg_refresh_token', refreshToken);
@@ -104,7 +109,12 @@ export const useAuthStore = create((set) => ({
       return { success: true, user };
     } catch (error) {
       set({ isLoading: false });
-      return { success: false, error: error.response?.data?.error?.message || 'Registration failed' };
+      const fieldErrors = error.response?.data?.errors;
+      return {
+        success: false,
+        error: error.response?.data?.error?.message || 'Registration failed',
+        errors: fieldErrors && typeof fieldErrors === 'object' ? fieldErrors : null
+      };
     }
   },
 

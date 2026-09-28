@@ -1,9 +1,75 @@
 // prisma/seed.js
-const { PrismaClient } = require('@prisma/client');
+// Generated client (custom output) — runs standalone, no @prisma/client needed.
+const { PrismaClient } = require('../src/generated/prisma');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 const prisma = new PrismaClient();
+
+// =============================================================================
+// POKÉMON TCG MASTER DATA — canonical taxonomy
+// =============================================================================
+// Everything below is authentic Pokémon TCG domain data. Legacy cross-game
+// mock rows (Yu-Gi-Oh, MTG) and ad-hoc rarity spellings are gone for good:
+// the storefront filter rail and category pruning are driven by these rows,
+// so a stray non-Pokémon product silently corrupts the facet dropdowns.
+// Prices are VND (the shop formats with Intl 'vi-VN' / currency VND).
+
+const TCG_GAME = 'Pokémon TCG';
+
+const RARITY = {
+  C: 'Common (C)',
+  U: 'Uncommon (U)',
+  R: 'Rare (R)',
+  RR: 'Double Rare (RR)',
+  IR: 'Illustration Rare (IR)',
+  SAR: 'Special Illustration Rare (SAR)',
+  UR: 'Ultra Rare (UR)',
+  HR: 'Hyper Rare (HR)',
+  ACE_SPEC: 'ACE SPEC'
+};
+
+const LANGUAGE = {
+  ENG: 'ENG', // English
+  JP: 'JP',   // Japanese
+  VIE: 'VIE'  // Vietnamese
+};
+
+// Expansion sets — each entry: name, slug, code, releaseDate, parent series.
+const SERIES = {
+  SV:    { name: 'Scarlet & Violet', slug: 'scarlet-violet' },
+  SWSH:  { name: 'Sword & Shield',   slug: 'sword-shield' },
+  SM:    { name: 'Sun & Moon',       slug: 'sun-moon' }
+};
+const SERIES_BY_SLUG = {
+  'scarlet-violet': SERIES.SV,
+  'sword-shield': SERIES.SWSH,
+  'sun-moon': SERIES.SM
+};
+
+// Every expansion is attached to its CORRECT series. Paldea Evolved is part
+// of the Scarlet & Violet main series and backs the "Iono Full Art" sample —
+// the same set carries the English Paldea Evolved print (269/193).
+const EXPANSIONS = [
+  { series: SERIES.SV,   name: '151 (MEW)',            slug: 'sv-151',              code: 'MEW',  releaseDate: new Date('2023-09-22'), printedTotal: 165 },
+  { series: SERIES.SV,   name: 'Paldean Fates (PAF)',  slug: 'sv-paldean-fates',    code: 'PAF',  releaseDate: new Date('2024-03-29'), printedTotal: 91  },
+  { series: SERIES.SV,   name: 'Obsidian Flames (OBF)', slug: 'sv-obsidian-flames', code: 'OBF',  releaseDate: new Date('2023-08-11'), printedTotal: 197 },
+  { series: SERIES.SV,   name: 'Surging Sparks (SSP)', slug: 'sv-surging-sparks',   code: 'SSP',  releaseDate: new Date('2024-11-08'), printedTotal: 191 },
+  { series: SERIES.SV,   name: 'Paldea Evolved (PECO)', slug: 'sv-paldea-evolved',  code: 'PECO', releaseDate: new Date('2023-06-09'), printedTotal: 193 },
+  { series: SERIES.SWSH, name: 'Crown Zenith (CRZ)',   slug: 'swsh-crown-zenith',   code: 'CRZ',  releaseDate: new Date('2023-01-20'), printedTotal: 197 },
+  { series: SERIES.SWSH, name: 'Evolving Skies (EVS)', slug: 'swsh-evolving-skies', code: 'EVS',  releaseDate: new Date('2021-08-27'), printedTotal: 203 },
+  { series: SERIES.SWSH, name: 'Lost Origin (LOR)',    slug: 'swsh-lost-origin',    code: 'LOR',  releaseDate: new Date('2022-09-09'), printedTotal: 196 },
+  { series: SERIES.SM,   name: 'Cosmic Eclipse (MMA9)', slug: 'sm-cosmic-eclipse',  code: 'MMA9', releaseDate: new Date('2019-11-29'), printedTotal: 236 }
+];
+
+// Sealed product types (`sealed_type`) — level-2 categories under Sealed Products.
+const SEALED_TYPES = [
+  { name: 'Booster Box', slug: 'booster-box' },
+  { name: 'Elite Trainer Box (ETB)', slug: 'elite-trainer-box' },
+  { name: 'Booster Pack', slug: 'booster-pack' },
+  { name: 'Special Collection Box', slug: 'special-collection-box' },
+  { name: 'Tin Box', slug: 'tin-box' }
+];
 
 async function hashPassword(password) {
   return bcrypt.hash(password, 12);
@@ -11,10 +77,12 @@ async function hashPassword(password) {
 
 async function main() {
   // =========================================================================
-  // IDEMPOTENCY GUARD — this seed runs on every deploy via deploy.sh.
+  // IDEMPOTENCY GUARD — this seed runs on every deploy.
   // If the database already contains data (users/products/orders), exit
-  // immediately WITHOUT deleting anything. A redeploy must never wipe data.
-  // To force a fresh reseed, delete rows manually or run with SEED_FORCE=1.
+  // immediately WITHOUT deleting anything. A redeploy must never wipe data —
+  // this is what keeps primary keys free of collisions and live stock intact.
+  // To force a fresh Pokémon TCG master-data reseed, run with SEED_FORCE=1
+  // (destructive — wipes in FK-safe order, then repopulates).
   // =========================================================================
   const forceSeed = process.env.SEED_FORCE === '1' || process.env.SEED_FORCE === 'true';
   if (!forceSeed) {
@@ -28,31 +96,33 @@ async function main() {
       console.log('Re-deploying does NOT reseed. Set SEED_FORCE=1 to force a fresh seed (destructive).');
       return;
     }
-    console.log('Empty database detected — seeding initial data...');
+    console.log('Empty database detected — seeding Pokémon TCG master data...');
   } else {
-    console.log('SEED_FORCE is set — wiping and reseeding demo data...');
+    console.log('SEED_FORCE is set — wiping and reseeding Pokémon TCG master data...');
   }
 
   if (forceSeed) {
-    console.log('Cleaning existing data...');
+    console.log('Cleaning existing data (FK-safe order, no orphans left behind)...');
 
-    // Delete in dependency-safe order
+    // Delete in dependency-safe order: children before parents. Voucher is
+    // referenced by Order (SET NULL) AND UserVoucher (CASCADE) — clear both
+    // join/usage tables before the voucher and product masters.
     await prisma.orderStatusHistory.deleteMany({});
     await prisma.paymentLog.deleteMany({});
     await prisma.payment.deleteMany({});
     await prisma.orderItem.deleteMany({});
     await prisma.order.deleteMany({});
-    await prisma.chatMessage.deleteMany({});
-    await prisma.chatParticipant.deleteMany({});
-    await prisma.chatRoom.deleteMany({});
     await prisma.post.deleteMany({}); // Posts reference User.authorId with Restrict
     await prisma.card.deleteMany({});
+    await prisma.productVariant.deleteMany({});
     await prisma.userCard.deleteMany({});
     await prisma.virtualBoxOpening.deleteMany({});
     await prisma.virtualBoxPoolItem.deleteMany({});
     await prisma.virtualBoxDropRate.deleteMany({});
     await prisma.virtualBox.deleteMany({});
     await prisma.gachaCard.deleteMany({});
+    await prisma.userVoucher.deleteMany({});
+    await prisma.voucher.deleteMany({});
     await prisma.product.deleteMany({});
     await prisma.set.deleteMany({});
     await prisma.category.deleteMany({});
@@ -62,6 +132,9 @@ async function main() {
     await prisma.user.deleteMany({});
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // USERS
+  // ─────────────────────────────────────────────────────────────────────────
   console.log('Creating users...');
 
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@tcg.com';
@@ -69,47 +142,42 @@ async function main() {
   const staffPassword = await hashPassword('Staff@123');
   const customerPassword = await hashPassword('Customer@123');
 
-  // Admin user
   const admin = await prisma.user.create({
     data: {
       email: adminEmail,
       passwordHash: adminPassword,
       fullName: 'Admin User',
-      phone: '+84900000001',
+      phone: '84900000001',
       address: '1 Admin St, Hanoi',
       role: 'ADMIN',
       status: 'ACTIVE',
       emailVerified: true,
       canManageInventory: true,
-      canManagePosts: true,
-      canAccessChat: true
+      canManagePosts: true
     }
   });
 
-  // Staff user
   const staff = await prisma.user.create({
     data: {
       email: 'staff@tcg.com',
       passwordHash: staffPassword,
       fullName: 'Staff User',
-      phone: '+84900000002',
+      phone: '84900000002',
       address: '2 Staff St, Hanoi',
       role: 'STAFF',
       status: 'ACTIVE',
       emailVerified: true,
       canManageInventory: true,
-      canManagePosts: true,
-      canAccessChat: true
+      canManagePosts: true
     }
   });
 
-  // Customer user
   const customer = await prisma.user.create({
     data: {
       email: 'customer@tcg.com',
       passwordHash: customerPassword,
       fullName: 'Customer User',
-      phone: '+84900000003',
+      phone: '84900000003',
       address: '3 Customer St, Hanoi',
       role: 'CUSTOMER',
       status: 'ACTIVE',
@@ -120,283 +188,304 @@ async function main() {
 
   console.log(`Created users: ${admin.email}, ${staff.email}, ${customer.email}`);
 
-  // Create Categories
-  console.log('Creating categories...');
-  const pokemonCategory = await prisma.category.create({
-    data: {
-      name: 'Pokemon',
-      slug: 'pokemon',
-      description: 'Pokemon Trading Card Game cards and boxes',
-      imageUrl: 'https://example.com/pokemon-category.jpg',
-      isActive: true
-    }
-  });
-
-  const yugiohCategory = await prisma.category.create({
-    data: {
-      name: 'Yu-Gi-Oh!',
-      slug: 'yu-gi-oh',
-      description: 'Yu-Gi-Oh! Trading Card Game cards',
-      imageUrl: 'https://example.com/yugioh-category.jpg',
-      isActive: true
-    }
-  });
-
-  const mtgCategory = await prisma.category.create({
-    data: {
-      name: 'Magic: The Gathering',
-      slug: 'magic-the-gathering',
-      description: 'Magic: The Gathering singles and boxes',
-      imageUrl: 'https://example.com/mtg-category.jpg',
-      isActive: true
-    }
-  });
-
-  console.log(`Created categories: ${pokemonCategory.name}, ${yugiohCategory.name}, ${mtgCategory.name}`);
-
-  // Binary product categories (Phase 1B): every product is either Box or Card
-  const boxCategory = await prisma.category.create({
-    data: {
-      name: 'Box',
-      slug: 'box',
-      description: 'Sealed Boxes',
-      isActive: true
-    }
-  });
+  // ─────────────────────────────────────────────────────────────────────────
+  // CATEGORY TREE  (Single Cards → series → expansion · Sealed Products → sealed_type)
+  // ─────────────────────────────────────────────────────────────────────────
+  // Level 1 roots: every product is either a Sealed Product or a Single Card
+  // (plus an Accessories bucket). Series/Eras hang under Single Cards, their
+  // expansion sets hang under the series. Sealed product types hang directly
+  // under Sealed Products. Language/rarity are Product attributes, NEVER
+  // categories — the storefront prunes category nodes with 0 ACTIVE products,
+  // so a fully seeded empty series (e.g. Sun & Moon) simply does not show as
+  // a filter until stock exists.
+  console.log('Creating category tree...');
 
   const cardCategory = await prisma.category.create({
     data: {
-      name: 'Card',
-      slug: 'card',
-      description: 'Single Cards',
+      name: 'Single Cards',
+      slug: 'single-cards',
+      description: 'Authenticated Pokémon TCG singles and chase cards',
       isActive: true
     }
   });
 
-  console.log(`Created binary categories: ${boxCategory.name}, ${cardCategory.name}`);
-
-  // Create Sets
-  console.log('Creating sets...');
-  const vividVoltage = await prisma.set.create({
+  const boxCategory = await prisma.category.create({
     data: {
-      name: 'Vivid Voltage',
-      slug: 'vivid-voltage',
-      releaseDate: new Date('2020-11-13'),
-      description: 'Pokemon Vivid Voltage expansion',
-      imageUrl: 'https://example.com/vivid-voltage.jpg'
+      name: 'Sealed Products',
+      slug: 'sealed-products',
+      description: 'Sealed Pokémon TCG booster boxes, ETBs, tins and special collections',
+      isActive: true
     }
   });
 
-  const battleStyles = await prisma.set.create({
+  const accessoriesCategory = await prisma.category.create({
     data: {
-      name: 'Battle Styles',
-      slug: 'battle-styles',
-      releaseDate: new Date('2021-03-19'),
-      description: 'Pokemon Battle Styles expansion',
-      imageUrl: 'https://example.com/battle-styles.jpg'
+      name: 'Accessories',
+      slug: 'accessories',
+      description: 'Card sleeves, binders, deck boxes and playmats',
+      isActive: true
     }
   });
 
-  const legendOfBlueEyes = await prisma.set.create({
-    data: {
-      name: 'Legend of Blue Eyes White Dragon',
-      slug: 'legend-of-blue-eyes',
-      releaseDate: new Date('2002-03-08'),
-      description: 'Yu-Gi-Oh! Legend of Blue Eyes White Dragon set',
-      imageUrl: 'https://example.com/lob.jpg'
-    }
-  });
+  const createChild = async (parentId, name, slug, description = null) =>
+    prisma.category.create({ data: { name, slug, description, parentId, isActive: true } });
 
-  const modernHorizons = await prisma.set.create({
-    data: {
-      name: 'Modern Horizons 2',
-      slug: 'modern-horizons-2',
-      releaseDate: new Date('2021-06-18'),
-      description: 'Magic: The Gathering Modern Horizons 2',
-      imageUrl: 'https://example.com/mh2.jpg'
-    }
-  });
+  // Single Cards → series/eras
+  const seriesCatBySlug = {};
+  for (const series of Object.values(SERIES_BY_SLUG)) {
+    seriesCatBySlug[series.slug] = await createChild(
+      cardCategory.id,
+      series.name,
+      series.slug,
+      `${series.name} era`
+    );
+  }
 
-  console.log('Created sets.');
+  // ... → expansion sets
+  const setCatBySlug = {};
+  for (const expansion of EXPANSIONS) {
+    setCatBySlug[expansion.slug] = await createChild(
+      seriesCatBySlug[expansion.series.slug].id,
+      expansion.name,
+      expansion.slug,
+      `${expansion.series.name} — ${expansion.name} expansion`
+    );
+  }
 
-  // Create Products
+  // Sealed Products → sealed types
+  const sealedTypeCatBySlug = {};
+  for (const type of SEALED_TYPES) {
+    sealedTypeCatBySlug[type.slug] = await createChild(boxCategory.id, type.name, type.slug);
+  }
+
+  // Accessories → types
+  await createChild(accessoriesCategory.id, 'Sleeves', 'sleeves');
+  await createChild(accessoriesCategory.id, 'Binders', 'binders');
+  await createChild(accessoriesCategory.id, 'Deck Boxes', 'deck-boxes');
+  await createChild(accessoriesCategory.id, 'Toploaders', 'toploaders');
+  await createChild(accessoriesCategory.id, 'Playmats', 'playmats');
+
+  console.log('Created hierarchical category tree: 3 roots × series/types → expansion sets.');
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // SETS (catalogue expansions — powers ?set=SSP style filtering)
+  // ─────────────────────────────────────────────────────────────────────────
+  console.log('Creating expansion sets...');
+
+  const setBySlug = {};
+  for (const expansion of EXPANSIONS) {
+    setBySlug[expansion.slug] = await prisma.set.create({
+      data: {
+        name: expansion.name,
+        slug: expansion.slug,
+        code: expansion.code,
+        releaseDate: expansion.releaseDate,
+        description: `Pokémon TCG — ${expansion.name}, ${expansion.series.name} expansion (${expansion.printedTotal} numbered cards).`
+      }
+    });
+  }
+  console.log(`Created ${EXPANSIONS.length} sets: ${EXPANSIONS.map((e) => e.code).join(', ')}.`);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // PRODUCTS — authentic Pokémon TCG sample catalogue
+  // ─────────────────────────────────────────────────────────────────────────
   console.log('Creating products...');
 
   const productsData = [
-    // Pokemon Singles
+    // ---- Single Cards ----
     {
-      name: 'Pikachu VMAX',
-      shortName: 'Pikachu VMAX',
-      slug: 'pikachu-vmax',
-      description: 'Pikachu VMAX from Vivid Voltage, highly sought after.',
-      category: cardCategory.id,
-      sets: [vividVoltage.id],
-      cardNumber: '044/185',
-      rarity: 'ULTRA_RARE',
+      type: 'card',
+      name: 'Charizard ex 199/165 SAR',
+      shortName: 'Charizard ex SAR',
+      slug: 'charizard-ex-199-sar-eng',
+      description: 'Charizard ex — Special Illustration Rare (SAR), 199/165 from Scarlet & Violet 151 (English). Full-art chase card of the 151\'s secret-rare lineup.',
+      categorySlug: 'sv-151',
+      setSlug: 'sv-151',
+      cardNumber: '199/165',
+      rarity: RARITY.SAR,
+      language: LANGUAGE.ENG,
+      cardSet: '151 (MEW)',
+      artist: 'miki kudo',
       condition: 'NEAR_MINT',
-      price: 149.99,
-      stockQuantity: 5,
-      images: ['https://example.com/pikachu-vmax.jpg'],
-      attributes: { holo: true, firstEdition: false }
-    },
-    {
-      name: 'Charizard VMAX',
-      shortName: 'Charizard VMAX',
-      slug: 'charizard-vmax',
-      description: 'Charizard VMAX from Battle Styles.',
-      category: cardCategory.id,
-      sets: [battleStyles.id],
-      cardNumber: '012/163',
-      rarity: 'SECRET_RARE',
-      condition: 'NEAR_MINT',
-      price: 299.99,
+      price: 8990000,
       stockQuantity: 2,
-      images: ['https://example.com/charizard-vmax.jpg'],
-      attributes: { holo: true, firstEdition: false }
+      images: ['https://images.pokemontcg.io/sv2a/199.png'],
+      attributes: { game: TCG_GAME, series: SERIES.SV.name, code: 'MEW', holo: true, secretNumber: true, numberInSet: 199, setTotal: 165 }
     },
     {
-      name: 'Shining Fates Elite Trainer Box',
-      shortName: 'Shining Fates ETB',
-      slug: 'shining-fates-etb',
-      description: 'Shining Fates Elite Trainer Box with 10 booster packs.',
-      category: boxCategory.id,
-      sets: [],
-      cardNumber: null,
-      rarity: 'BOX',
-      condition: 'MINT',
-      price: 59.99,
-      stockQuantity: 10,
-      images: ['https://example.com/shining-fates-etb.jpg'],
-      attributes: { type: 'box', packs: 10 }
-    },
-    // Yu-Gi-Oh Singles
-    {
-      name: 'Blue-Eyes White Dragon',
-      shortName: 'Blue-Eyes White Dragon',
-      slug: 'blue-eyes-white-dragon',
-      description: 'Blue-Eyes White Dragon from Legend of Blue Eyes White Dragon.',
-      category: cardCategory.id,
-      sets: [legendOfBlueEyes.id],
-      cardNumber: 'LOB-001',
-      rarity: 'ULTRA_RARE',
+      type: 'card',
+      name: 'Pikachu ex SAR 238/191 (Surging Sparks)',
+      shortName: 'Pikachu ex SAR',
+      slug: 'pikachu-ex-238-sar-eng',
+      description: 'Pikachu ex — Special Illustration Rare (SAR), 238/191 from Surging Sparks (English). The definitive Pikachu chase card of the Scarlet & Violet era.',
+      categorySlug: 'sv-surging-sparks',
+      setSlug: 'sv-surging-sparks',
+      cardNumber: '238/191',
+      rarity: RARITY.SAR,
+      language: LANGUAGE.ENG,
+      cardSet: 'Surging Sparks (SSP)',
+      artist: 'GIDORA',
       condition: 'NEAR_MINT',
-      price: 199.99,
+      price: 7450000,
+      stockQuantity: 2,
+      images: ['https://images.pokemontcg.io/sv8/238.png'],
+      attributes: { game: TCG_GAME, series: SERIES.SV.name, code: 'SSP', holo: true, secretNumber: true, numberInSet: 238, setTotal: 191 }
+    },
+    {
+      type: 'card',
+      name: 'Iono Supporter Full Art 269/193 SIR',
+      shortName: 'Iono Full Art',
+      slug: 'iono-269-sir-eng',
+      description: 'Iono — Special Illustration Rare full-art Supporter, 269/193 from Paldea Evolved (English). One of the most played competitive Supporters of the era.',
+      categorySlug: 'sv-paldea-evolved',
+      setSlug: 'sv-paldea-evolved',
+      cardNumber: '269/193',
+      rarity: RARITY.SAR,
+      language: LANGUAGE.ENG,
+      cardSet: 'Paldea Evolved (PECO)',
+      artist: 'kirisAki',
+      condition: 'NEAR_MINT',
+      price: 1290000,
       stockQuantity: 3,
-      images: ['https://example.com/blue-eyes.jpg'],
-      attributes: { firstEdition: true }
+      images: ['https://images.pokemontcg.io/sv2/269.png'],
+      attributes: { game: TCG_GAME, series: SERIES.SV.name, code: 'PECO', holo: true, secretNumber: true, cardType: 'Trainer — Supporter', numberInSet: 269, setTotal: 193 }
     },
     {
-      name: 'Dark Magician',
-      shortName: 'Dark Magician',
-      slug: 'dark-magician',
-      description: 'Dark Magician from Legend of Blue Eyes White Dragon.',
-      category: cardCategory.id,
-      sets: [legendOfBlueEyes.id],
-      cardNumber: 'LOB-002',
-      rarity: 'ULTRA_RARE',
-      condition: 'EXCELLENT',
-      price: 89.99,
-      stockQuantity: 4,
-      images: ['https://example.com/dark-magician.jpg'],
-      attributes: { firstEdition: false }
-    },
-    // MTG Singles
-    {
-      name: 'Ragavan, Nimble Pilferer',
-      shortName: 'Ragavan',
-      slug: 'ragavan-nimble-pilferer',
-      description: 'Ragavan from Modern Horizons 2.',
-      category: cardCategory.id,
-      sets: [modernHorizons.id],
-      cardNumber: '137/303',
-      rarity: 'MYTHIC',
+      type: 'card',
+      name: 'Mew ex 151/165 (Double Rare)',
+      shortName: 'Mew ex',
+      slug: 'mew-ex-151-rar-eng',
+      description: 'Mew ex — Double Rare (RR), 151/165 from Scarlet & Violet 151 (English). The iconic 151 mascot card.',
+      categorySlug: 'sv-151',
+      setSlug: 'sv-151',
+      cardNumber: '151/165',
+      rarity: RARITY.RR,
+      language: LANGUAGE.ENG,
+      cardSet: '151 (MEW)',
+      artist: 'aky CG Works',
       condition: 'NEAR_MINT',
-      price: 89.99,
+      price: 210000,
+      stockQuantity: 3,
+      images: ['https://images.pokemontcg.io/sv2a/151.png'],
+      attributes: { game: TCG_GAME, series: SERIES.SV.name, code: 'MEW', holo: true, numberInSet: 151, setTotal: 165 }
+    },
+    // ---- Sealed Products (variant: language + version, simplified stock) ----
+    {
+      type: 'sealed',
+      name: 'Pokémon TCG: Scarlet & Violet 151 Elite Trainer Box (ENG)',
+      shortName: '151 ETB',
+      slug: 'sv-151-elite-trainer-box-eng',
+      description: 'Pokémon TCG: Scarlet & Violet—151 Elite Trainer Box (English). Sealed ETB with booster packs, promo card and trainer accessories.',
+      sealedTypeSlug: 'elite-trainer-box',
+      setSlug: 'sv-151',
+      language: LANGUAGE.ENG,
+      cardSet: '151 (MEW)',
+      condition: 'MINT',
+      price: 1850000,
       stockQuantity: 6,
-      images: ['https://example.com/ragavan.jpg'],
-      attributes: { foil: false }
+      images: ['https://images.pokemontcg.io/sv2a_supplies.png'],
+      attributes: { game: TCG_GAME, sealedType: 'Elite Trainer Box (ETB)', series: SERIES.SV.name, code: 'MEW' }
     },
     {
-      name: 'Modern Horizons 2 Booster Box',
-      shortName: 'MH2 Booster Box',
-      slug: 'modern-horizons-2-booster-box',
-      description: 'Modern Horizons 2 Booster Box with 36 packs.',
-      category: boxCategory.id,
-      sets: [modernHorizons.id],
-      cardNumber: null,
-      rarity: 'BOX',
+      type: 'sealed',
+      name: 'Pokémon Card 151 Shiny Treasure ex Booster Box (JP)',
+      shortName: 'Shiny Treasure ex Box',
+      slug: 'shiny-treasure-ex-booster-box-jp',
+      description: 'Japanese Shiny Treasure ex booster box (SV2D-side special subset; English release: Paldean Fates). Sealed 日本語 product for JP collectors.',
+      sealedTypeSlug: 'booster-box',
+      setSlug: 'sv-paldean-fates',
+      language: LANGUAGE.JP,
+      cardSet: 'Paldean Fates (PAF)',
       condition: 'MINT',
-      price: 249.99,
-      stockQuantity: 8,
-      images: ['https://example.com/mh2-box.jpg'],
-      attributes: { type: 'box', packs: 36 }
+      price: 3450000,
+      stockQuantity: 3,
+      images: ['https://images.pokemontcg.io/sv3pt5_supplies.png'],
+      attributes: { game: TCG_GAME, sealedType: 'Booster Box', series: SERIES.SV.name, code: 'SV3P5' }
+    },
+    {
+      type: 'sealed',
+      name: 'Pokémon TCG: Scarlet & Violet 151 Booster Box (VIE)',
+      shortName: '151 Booster Box VIE',
+      slug: 'sv-151-booster-box-vie',
+      description: 'Hộp booster Pokémon TCG: Scarlet & Violet—151 bản Tiếng Việt (VIE) — hàng niêm phong chính hãng, 36 gói.',
+      sealedTypeSlug: 'booster-box',
+      setSlug: 'sv-151',
+      language: LANGUAGE.VIE,
+      cardSet: '151 (MEW)',
+      condition: 'MINT',
+      price: 2650000,
+      stockQuantity: 5,
+      images: ['https://images.pokemontcg.io/sv2a_supplies.png'],
+      attributes: { game: TCG_GAME, sealedType: 'Booster Box', packs: 36, series: SERIES.SV.name, code: 'MEW' }
     }
   ];
 
   const createdProducts = [];
   for (const productData of productsData) {
-    const { category, sets, condition, price, stockQuantity, ...rest } = productData;
+    const leafSlug = productData.type === 'card' ? productData.categorySlug : productData.sealedTypeSlug;
+    const {
+      type, categorySlug, sealedTypeSlug, setSlug,
+      condition, price, stockQuantity, ...rest
+    } = productData;
+
     const product = await prisma.product.create({
       data: {
         ...rest,
-        category: { connect: { id: category } },
-        sets: sets.length > 0 ? { connect: sets.map(id => ({ id })) } : undefined
+        rarity: type === 'card' ? productData.rarity : null,
+        category: { connect: { id: setCatBySlug[leafSlug]?.id || sealedTypeCatBySlug[leafSlug]?.id || cardCategory.id } },
+        sets: setSlug ? { connect: { id: setBySlug[setSlug].id } } : undefined
       }
     });
     createdProducts.push(product);
     console.log(`Created product: ${product.name}`);
 
-    // condition / price / stockQuantity belong to ProductVariant, not Product
+    // condition / price / stockQuantity belong to ProductVariant, not Product.
     await prisma.productVariant.create({
       data: {
         productId: product.id,
         condition: condition || 'NEAR_MINT',
+        variant: type === 'card' ? productData.language : 'Normal',
         price: price != null ? price : 0,
         stockQuantity: stockQuantity != null ? stockQuantity : 0,
-        status: 'ACTIVE',
-        variant: 'Normal'
+        status: 'ACTIVE'
       }
     });
-  }
 
-  // Create individual Cards for singles
-  console.log('Creating individual card items...');
-
-  const singleProducts = createdProducts.filter(p => p.rarity !== 'BOX');
-  for (const product of singleProducts) {
-    const src = productsData.find(pd => pd.slug === product.slug);
-    const cardCount = Math.min(src ? src.stockQuantity : 0, 3); // create up to 3 card items per product
-    for (let i = 0; i < cardCount; i++) {
-      await prisma.card.create({
-        data: {
-          sku: `${product.slug.toUpperCase()}-${String(i + 1).padStart(3, '0')}`,
-          productId: product.id,
-          condition: (src && src.condition) || 'NEAR_MINT',
-          status: 'AVAILABLE',
-          purchasePrice: src ? Math.round(Number(src.price) * 0.6 * 100) / 100 : 0,
-          notes: 'Seeded card'
-        }
-      });
+    // Real single cards are individually serialised (one Card row per copy).
+    if (type === 'card') {
+      const code = productData.attributes.code || 'TCG';
+      for (let i = 1; i <= Math.min(stockQuantity, 3); i++) {
+        await prisma.card.create({
+          data: {
+            sku: `PKM-${code}-${productData.cardNumber.replace('/', '-')}-${productData.language}-0${i}`,
+            productId: product.id,
+            condition,
+            status: 'AVAILABLE',
+            purchasePrice: Math.round(price * 0.75),
+            notes: 'Verified Pokémon TCG single — seeded stock'
+          }
+        });
+      }
     }
   }
 
-  console.log('Created individual cards.');
+  console.log(`Created ${productsData.length} products (${productsData.filter((p) => p.type === 'card').length} singles + ${productsData.filter((p) => p.type === 'sealed').length} sealed).`);
 
-  // Create dedicated Gacha cards + Virtual Boxes (gacha) — the gacha pool is
-  // fully decoupled from the retail shop inventory: boxes pull from
-  // GachaCard rows with their own artwork, set codes and drop weights.
-  console.log('Creating gacha cards and virtual boxes...');
+  // ─────────────────────────────────────────────────────────────────────────
+  // GACHA (virtual boxes) — decoupled Pokémon-themed pool
+  // ─────────────────────────────────────────────────────────────────────────
+  console.log('Creating gacha cards and virtual boxes (Pokémon-themed)...');
 
   const gachaCardsData = [
-    { name: 'Ember Fox', rarity: 'COMMON', setCode: 'GEN-001', imageUrl: 'https://example.com/gacha/ember-fox.jpg' },
-    { name: 'Tide Runner', rarity: 'COMMON', setCode: 'GEN-002', imageUrl: 'https://example.com/gacha/tide-runner.jpg' },
-    { name: 'Stone Sentinel', rarity: 'COMMON', setCode: 'GEN-003', imageUrl: 'https://example.com/gacha/stone-sentinel.jpg' },
-    { name: 'Gale Dancer', rarity: 'RARE', setCode: 'GEN-014', imageUrl: 'https://example.com/gacha/gale-dancer.jpg' },
-    { name: 'Void Wanderer', rarity: 'RARE', setCode: 'GEN-019', imageUrl: 'https://example.com/gacha/void-wanderer.jpg' },
-    { name: 'Aurora Weaver', rarity: 'EPIC', setCode: 'AUR-032', imageUrl: 'https://example.com/gacha/aurora-weaver.jpg' },
-    { name: 'Prism Colossus', rarity: 'EPIC', setCode: 'AUR-041', imageUrl: 'https://example.com/gacha/prism-colossus.jpg' },
-    { name: 'Celestial Dragon', rarity: 'LEGENDARY', setCode: 'CEL-001', imageUrl: 'https://example.com/gacha/celestial-dragon.jpg' },
-    { name: 'Eclipse Sovereign', rarity: 'LEGENDARY', setCode: 'CEL-009', imageUrl: 'https://example.com/gacha/eclipse-sovereign.jpg' }
+    { name: 'Bulbasaur', rarity: 'COMMON', setCode: 'GEN-001', imageUrl: 'https://images.pokemontcg.io/base1/46.png' },
+    { name: 'Charmander', rarity: 'COMMON', setCode: 'GEN-004', imageUrl: 'https://images.pokemontcg.io/base1/4.png' },
+    { name: 'Squirtle', rarity: 'COMMON', setCode: 'GEN-007', imageUrl: 'https://images.pokemontcg.io/base1/65.png' },
+    { name: 'Raichu', rarity: 'RARE', setCode: 'GEN-026', imageUrl: 'https://images.pokemontcg.io/base1/48.png' },
+    { name: 'Gengar', rarity: 'RARE', setCode: 'GEN-094', imageUrl: 'https://images.pokemontcg.io/base1/15.png' },
+    { name: 'Lapras ex', rarity: 'EPIC', setCode: 'MEW-066', imageUrl: 'https://images.pokemontcg.io/sv2a/79.png' },
+    { name: 'Gardevoir ex', rarity: 'EPIC', setCode: 'SV1-086', imageUrl: 'https://images.pokemontcg.io/sv1/86.png' },
+    { name: 'Mew ex', rarity: 'LEGENDARY', setCode: 'MEW-151', imageUrl: 'https://images.pokemontcg.io/sv2a/151.png' },
+    { name: 'Charizard ex', rarity: 'LEGENDARY', setCode: 'MEW-199', imageUrl: 'https://images.pokemontcg.io/sv2a/199.png' }
   ];
 
   const gachaCardByName = {};
@@ -417,10 +506,10 @@ async function main() {
 
   const virtualBoxesData = [
     {
-      name: 'Genesis Starter Box',
-      slug: 'genesis-starter-box',
-      description: 'Entry-level gacha box with a balanced pool of collectible cards.',
-      price: 24.99,
+      name: 'Kanto Starter Box',
+      slug: 'kanto-starter-box',
+      description: 'Entry-level virtual box with a balanced pool of classic Pokémon.',
+      price: 300000,
       status: 'ACTIVE',
       gradient: 'from-violet-500 to-fuchsia-500',
       dropRates: [
@@ -430,19 +519,19 @@ async function main() {
         { rarity: 'LEGENDARY', rate: 5 }
       ],
       pool: [
-        { name: 'Ember Fox', rarity: 'COMMON' },
-        { name: 'Tide Runner', rarity: 'COMMON' },
-        { name: 'Stone Sentinel', rarity: 'COMMON' },
-        { name: 'Gale Dancer', rarity: 'RARE' },
-        { name: 'Aurora Weaver', rarity: 'EPIC' },
-        { name: 'Celestial Dragon', rarity: 'LEGENDARY' }
+        { name: 'Bulbasaur', rarity: 'COMMON' },
+        { name: 'Charmander', rarity: 'COMMON' },
+        { name: 'Squirtle', rarity: 'COMMON' },
+        { name: 'Raichu', rarity: 'RARE' },
+        { name: 'Lapras ex', rarity: 'EPIC' },
+        { name: 'Mew ex', rarity: 'LEGENDARY' }
       ]
     },
     {
-      name: 'Aurora Legends Box',
-      slug: 'aurora-legends-box',
-      description: 'Premium box with boosted Epic and Legendary odds.',
-      price: 49.99,
+      name: 'ex Legends Box',
+      slug: 'ex-legends-box',
+      description: 'Premium box with boosted Epic and Legendary odds — chase the 151 icons.',
+      price: 599000,
       status: 'ACTIVE',
       gradient: 'from-cyan-500 to-blue-600',
       dropRates: [
@@ -452,18 +541,18 @@ async function main() {
         { rarity: 'LEGENDARY', rate: 6 }
       ],
       pool: [
-        { name: 'Tide Runner', rarity: 'COMMON' },
-        { name: 'Ember Fox', rarity: 'COMMON' },
-        { name: 'Void Wanderer', rarity: 'RARE' },
-        { name: 'Prism Colossus', rarity: 'EPIC' },
-        { name: 'Eclipse Sovereign', rarity: 'LEGENDARY' }
+        { name: 'Charmander', rarity: 'COMMON' },
+        { name: 'Raichu', rarity: 'RARE' },
+        { name: 'Gengar', rarity: 'RARE' },
+        { name: 'Gardevoir ex', rarity: 'EPIC' },
+        { name: 'Charizard ex', rarity: 'LEGENDARY' }
       ]
     },
     {
-      name: 'Obsidian Rivals Box',
-      slug: 'obsidian-rivals-box',
+      name: 'Moonbreon Tribute Box',
+      slug: 'moonbreon-tribute-box',
       description: 'Upcoming box (draft) reserved for the next release wave.',
-      price: 39.99,
+      price: 450000,
       status: 'DRAFT',
       gradient: 'from-slate-600 to-slate-900',
       dropRates: [
@@ -473,9 +562,9 @@ async function main() {
         { rarity: 'LEGENDARY', rate: 4 }
       ],
       pool: [
-        { name: 'Stone Sentinel', rarity: 'COMMON' },
-        { name: 'Gale Dancer', rarity: 'RARE' },
-        { name: 'Prism Colossus', rarity: 'EPIC' }
+        { name: 'Bulbasaur', rarity: 'COMMON' },
+        { name: 'Gengar', rarity: 'RARE' },
+        { name: 'Mew ex', rarity: 'LEGENDARY' }
       ]
     }
   ];
@@ -487,7 +576,7 @@ async function main() {
         ...boxFields,
         dropRates: { create: dropRates },
         poolItems: {
-          create: pool.map(entry => ({
+          create: pool.map((entry) => ({
             gachaCardId: gachaCardByName[entry.name].id,
             rarity: entry.rarity
           }))
@@ -497,7 +586,29 @@ async function main() {
     console.log(`Created virtual box: ${box.name} (${box.status})`);
   }
 
-  console.log('Database seeded successfully');
+  // ─────────────────────────────────────────────────────────────────────────
+  // POST-SEED INVARIANTS — fail loudly rather than shipping corrupt master
+  // data: every Pokémon product must resolve to a Pokémon leaf category, and
+  // no cross-game leftovers may exist under any category.
+  // ─────────────────────────────────────────────────────────────────────────
+  const [totalProducts, nonPokemon, orphanProducts] = await Promise.all([
+    prisma.product.count(),
+    prisma.product.count({
+      where: {
+        OR: [
+          { name: { contains: 'Dragon' } },
+          { slug: { in: ['blue-eyes-white-dragon', 'dark-magician', 'ragavan-nimble-pilferer', 'modern-horizons-2-booster-box'] } },
+          { cardSet: { in: ['Legend of Blue Eyes White Dragon', 'Modern Horizons 2'] } }
+        ]
+      }
+    }),
+    prisma.product.count({ where: { categoryId: null } })
+  ]);
+  if (nonPokemon > 0) throw new Error(`Seed invariant failed: ${nonPokemon} non-Pokémon product(s) created.`);
+  if (orphanProducts > 0) throw new Error(`Seed invariant failed: ${orphanProducts} product(s) without category (would orphan filter tree).`);
+  if (totalProducts !== productsData.length) throw new Error(`Seed invariant failed: expected ${productsData.length} products, found ${totalProducts}.`);
+
+  console.log('Database seeded successfully — Pokémon TCG master data verified.');
 }
 
 main()

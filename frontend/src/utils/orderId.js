@@ -14,10 +14,12 @@ export const detectIdentifier = (raw) => {
 export const isValidIdentifier = (detected) =>
   detected.type === 'orderCode' || detected.type === 'email' || detected.type === 'phone';
 
-export const IDENTIFIER_LABELS = {
-  orderCode: 'Mã đơn hàng',
-  email: 'Email',
-  phone: 'Số điện thoại',
-  unknown: 'Không hợp lệ',
+/* Detection-chip labels live in the i18n dictionary
+   (lookup.identifier.*); consumers resolve them via t(). */
+export const IDENTIFIER_LABEL_KEYS = {
+  orderCode: 'lookup.identifier.orderCode',
+  email: 'lookup.identifier.email',
+  phone: 'lookup.identifier.phone',
+  unknown: 'lookup.identifier.unknown',
   empty: ''
 };

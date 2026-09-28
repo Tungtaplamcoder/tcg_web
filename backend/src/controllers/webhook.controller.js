@@ -27,24 +27,36 @@ const getSepayWebhookConfig = async (req, res, next) => {
 
 const handleSepayWebhook = async (req, res, next) => {
   try {
-    // verifyRawBody (express.raw) gắn Buffer gốc vào req.body — parse JSON
-    // thủ công từ buffer đó; fallback cho trường hợp middleware không chạy.
+    // Ưu tiên req.rawBody — Buffer byte-gốc do express.json({ verify }) gắn vào
+    // TRƯỚC khi parse (src/app.js). Chữ ký HMAC phải được tính trên đúng byte
+    // gốc — dựng lại từ JSON.parse/stringify sẽ cho hash khác.
+    // Fallback: req.body là Buffer (express.raw chạy) hoặc object đã parse.
     let payload = req.body || {};
     let rawBody;
-    if (Buffer.isBuffer(req.body)) {
+
+    if (Buffer.isBuffer(req.rawBody)) {
+      rawBody = req.rawBody.toString('utf8');
+      try {
+        payload = rawBody ? JSON.parse(rawBody) : {};
+      } catch {
+        payload = {};
+      }
+    } else if (Buffer.isBuffer(req.body)) {
       rawBody = req.body.toString('utf8');
       try {
         payload = rawBody ? JSON.parse(rawBody) : {};
       } catch {
         payload = {};
       }
-    } else if (Buffer.isBuffer(req.rawBody)) {
-      rawBody = req.rawBody.toString('utf8');
     } else {
       rawBody = JSON.stringify(payload);
     }
 
-    const signature = req.headers['x-sepay-signature'] || req.headers['sepay-signature'];
+    // SePay gửi chữ ký qua nhiều tên header — nhận tất cả để tương thích
+    const signature = req.headers['x-sepay-signature']
+      || req.headers['sepay-signature']
+      || req.headers['x-signature']
+      || req.headers['signature'];
 
     const result = await sepayService.processWebhook(payload, rawBody, signature, req.headers);
 
@@ -65,9 +77,11 @@ const handleSepayWebhook = async (req, res, next) => {
   }
 };
 
-// Middleware gắn raw body vào req.rawBody TRƯỚC khi express.json() parse,
-// dùng cho verify chữ ký HMAC của SePay.
-const verifyRawBody = express.raw({ type: 'application/json', limit: '1mb' });
+// DEPRECATED middleware — giữ lại để tương thích ngược. Raw body giờ được gắn
+// bởi express.json({ verify }) ở src/app.js (req.rawBody). Middleware này
+// KHÔNG chạy nữa vì app-level parser đã set req._body = true (body-parser bỏ
+// qua request đã parse) — nhưng nếu app-level bị bỏ, nó vẫn capture đúng.
+const verifyRawBody = express.raw({ type: () => true, limit: '1mb' });
 
 module.exports = {
   getSepayWebhookConfig,

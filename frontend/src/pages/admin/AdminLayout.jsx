@@ -1,26 +1,31 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
-  Users, Settings, LogOut, Menu, X, Shield,
-  BarChart3, ScrollText, Package, ClipboardList, FileText, Boxes, Headset
+  Users, Settings, LogOut, Menu, X, Shield, Store, Truck,
+  BarChart3, ScrollText, Package, ClipboardList, FileText, Boxes, TicketPercent
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useLanguage } from '../../i18n/LanguageContext';
 import ThemeToggle from '../../components/ThemeToggle';
 
-const PAGE_TITLES = {
-  '/admin': 'Dashboard',
-  '/admin/orders': 'Orders',
-  '/admin/inventory': 'Inventory',
-  '/admin/virtual-boxes': 'Virtual Boxes',
-  '/admin/posts': 'Posts',
-  '/admin/users': 'User Management',
-  '/admin/payment-logs': 'Payment Logs',
-  '/admin/sepay-config': 'SePay Configuration',
-  '/admin/chat': 'Chat CSKH'
+/* Route path → i18n key for the sidebar nav + header title */
+const PAGE_TITLE_KEYS = {
+  '/admin': 'admin.pageTitles./admin',
+  '/admin/orders': 'admin.pageTitles./admin/orders',
+  '/admin/inventory': 'admin.pageTitles./admin/inventory',
+  '/admin/virtual-boxes': 'admin.pageTitles./admin/virtual-boxes',
+  '/admin/posts': 'admin.pageTitles./admin/posts',
+  '/admin/users': 'admin.pageTitles./admin/users',
+  '/admin/vouchers': 'admin.pageTitles./admin/vouchers',
+  '/admin/payment-logs': 'admin.pageTitles./admin/payment-logs',
+  '/admin/sepay-config': 'admin.pageTitles./admin/sepay-config',
+  '/admin/shop-settings': 'admin.pageTitles./admin/shop-settings',
+  '/admin/shipping-settings': 'admin.pageTitles./admin/shipping-settings'
 };
 
 const AdminLayout = () => {
   const { user, logout } = useAuthStore();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -28,16 +33,20 @@ const AdminLayout = () => {
   const handleLogout = async () => { await logout(); navigate('/'); };
 
   const navItems = [
-    { to: '/admin', label: 'Dashboard', icon: BarChart3, end: true },
-    { to: '/admin/orders', label: 'Orders', icon: ClipboardList },
-    { to: '/admin/inventory', label: 'Inventory', icon: Package },
-    { to: '/admin/virtual-boxes', label: 'Virtual Boxes', icon: Boxes },
-    { to: '/admin/posts', label: 'Posts', icon: FileText },
-    { to: '/admin/users', label: 'User Management', icon: Users },
-    { to: '/admin/payment-logs', label: 'Payment Logs', icon: ScrollText },
-    { to: '/admin/sepay-config', label: 'SePay Configuration', icon: Settings },
-    { to: '/admin/chat', label: 'Chat CSKH', icon: Headset },
+    { to: '/admin', labelKey: PAGE_TITLE_KEYS['/admin'], icon: BarChart3, end: true },
+    { to: '/admin/orders', labelKey: PAGE_TITLE_KEYS['/admin/orders'], icon: ClipboardList },
+    { to: '/admin/inventory', labelKey: PAGE_TITLE_KEYS['/admin/inventory'], icon: Package },
+    { to: '/admin/virtual-boxes', labelKey: PAGE_TITLE_KEYS['/admin/virtual-boxes'], icon: Boxes },
+    { to: '/admin/posts', labelKey: PAGE_TITLE_KEYS['/admin/posts'], icon: FileText },
+    { to: '/admin/users', labelKey: PAGE_TITLE_KEYS['/admin/users'], icon: Users },
+    { to: '/admin/vouchers', labelKey: PAGE_TITLE_KEYS['/admin/vouchers'], icon: TicketPercent },
+    { to: '/admin/payment-logs', labelKey: PAGE_TITLE_KEYS['/admin/payment-logs'], icon: ScrollText },
+    { to: '/admin/sepay-config', labelKey: PAGE_TITLE_KEYS['/admin/sepay-config'], icon: Settings },
+    { to: '/admin/shop-settings', labelKey: PAGE_TITLE_KEYS['/admin/shop-settings'], icon: Store },
+    { to: '/admin/shipping-settings', labelKey: PAGE_TITLE_KEYS['/admin/shipping-settings'], icon: Truck },
   ];
+
+  const pageTitle = t(PAGE_TITLE_KEYS[location.pathname]) || t('admin.pageTitles.fallback');
 
   return (
     <div className="min-h-screen app-bg flex">
@@ -57,7 +66,7 @@ const AdminLayout = () => {
             <div className="h-8 w-8 rounded-lg bg-brand-gradient flex items-center justify-center shadow-glow transition-transform duration-300 group-hover:scale-105">
               <Shield className="h-4 w-4 text-white" />
             </div>
-            <span className="font-display text-lg font-bold tracking-tight text-strong">Admin Portal</span>
+            <span className="font-display text-lg font-bold tracking-tight text-strong">{t('admin.portalTitle')}</span>
           </Link>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 text-muted hover:text-strong transition-colors">
             <X className="h-5 w-5" />
@@ -94,7 +103,7 @@ const AdminLayout = () => {
               }
             >
               <item.icon className="h-5 w-5" />
-              {item.label}
+              {t(item.labelKey)}
             </NavLink>
           ))}
         </nav>
@@ -105,7 +114,7 @@ const AdminLayout = () => {
             className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm font-medium text-muted hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-all duration-300"
           >
             <LogOut className="h-5 w-5" />
-            Logout
+            {t('admin.logout')}
           </button>
         </div>
       </aside>
@@ -119,10 +128,10 @@ const AdminLayout = () => {
             <Menu className="h-6 w-6" />
           </button>
           <h1 className="font-display text-lg font-bold text-strong tracking-tight flex-1 truncate">
-            {PAGE_TITLES[location.pathname] || 'Admin Dashboard'}
+            {pageTitle}
           </h1>
           <Link to="/" className="hidden sm:inline-flex text-sm font-medium text-muted hover:text-primary-700 dark:hover:text-aura-cyan transition-colors">
-            ← Storefront
+            {t('admin.storefrontLink')}
           </Link>
           <ThemeToggle className="p-2" iconClassName="h-5 w-5" />
         </header>

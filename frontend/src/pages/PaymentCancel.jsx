@@ -1,9 +1,11 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { XCircle, MessageCircle, ShoppingCart, Home } from 'lucide-react';
+import { XCircle, ShoppingCart, Home, MessageCircle } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const PaymentCancel = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   return (
     <div className="relative overflow-hidden min-h-[60vh] flex items-center justify-center px-4 py-16">
@@ -17,25 +19,25 @@ const PaymentCancel = () => {
             <XCircle className="h-9 w-9 text-white" />
           </div>
         </div>
-        <h1 className="mt-6 heading-display text-2xl">Payment Cancelled</h1>
+        <h1 className="mt-6 heading-display text-2xl">{t('payment.cancelTitle')}</h1>
         <p className="mt-2 text-ink-500 dark:text-ink-300 leading-relaxed">
-          Your payment was cancelled. Your order is still pending and will expire soon.
+          {t('payment.cancelBody')}
         </p>
         <div className="mt-8 space-y-3">
           <Link to="/cart" className="btn-primary w-full">
             <ShoppingCart className="h-5 w-5" />
-            Return to Cart
+            {t('payment.returnToCart')}
           </Link>
-          <Link to="/chat" className="btn-secondary w-full">
+          <Link to="/" className="btn-secondary w-full">
             <MessageCircle className="h-5 w-5" />
-            Contact Support
+            {t('payment.contactSupport')}
           </Link>
           <button
             onClick={() => navigate('/')}
             className="w-full inline-flex items-center justify-center gap-2 py-3 text-sm font-medium text-ink-400 dark:text-ink-300 hover:text-ink-700 dark:text-ink-100 transition-colors"
           >
             <Home className="h-4 w-4" />
-            Back to Home
+            {t('common.backToHome')}
           </button>
         </div>
       </div>

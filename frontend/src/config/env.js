@@ -8,7 +8,6 @@
  *
  *   NEXT_PUBLIC_APP_URL  (or VITE_APP_URL)   — public frontend origin
  *   NEXT_PUBLIC_API_URL  (or VITE_API_URL)   — backend API base
- *   NEXT_PUBLIC_SOCKET_URL (or VITE_SOCKET_URL) — Socket.io origin
  *
  * No hardcoded domains or IPs anywhere: in the standard production
  * topology (Nginx reverse proxy) API_URL stays a RELATIVE path so the
@@ -32,11 +31,6 @@ export const API_URL = trimTrailingSlash(
   import.meta.env.NEXT_PUBLIC_API_URL || import.meta.env.VITE_API_URL || '/api/v1'
 );
 
-/** Socket.io origin — empty string means "same origin as the page". */
-export const SOCKET_URL = trimTrailingSlash(
-  import.meta.env.NEXT_PUBLIC_SOCKET_URL || import.meta.env.VITE_SOCKET_URL || ''
-);
-
 /** Absolute URL for a frontend route, e.g. appUrl('/payment/success', {orderId}) */
 export const appUrl = (path, params) => {
   const base = APP_URL || (typeof window !== 'undefined' ? window.location.origin : '');
@@ -46,4 +40,4 @@ export const appUrl = (path, params) => {
   return search ? `${url}?${search}` : url;
 };
 
-export default { APP_URL, API_URL, SOCKET_URL, appUrl };
+export default { APP_URL, API_URL, appUrl };

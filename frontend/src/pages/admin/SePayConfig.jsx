@@ -8,11 +8,15 @@ import {
   CreditCard,
   Building,
   Globe,
-  Check
+  Check,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import api from '../../services/api';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 const SePayConfig = () => {
+  const { t } = useLanguage();
   const [config, setConfig] = useState({
     apiUrl: '',
     webhookUrl: '',
@@ -44,7 +48,7 @@ const SePayConfig = () => {
         });
       } catch (err) {
         console.error('Failed to fetch SePay config:', err);
-        setError(err.response?.data?.error?.message || 'Failed to load SePay configuration.');
+        setError(err.response?.data?.error?.message || t('admin.shopSettings.loadFailed'));
       } finally {
         setLoading(false);
       }
@@ -64,12 +68,12 @@ const SePayConfig = () => {
     setSuccess('');
     try {
       await api.put('/admin/settings/sepay', config);
-      setSuccess('SePay configuration updated successfully.');
+      setSuccess(t('admin.shopSettings.saved'));
       setConfigSource('database');
     } catch (err) {
       console.error('Failed to save SePay config:', err);
       const detail = err.response?.data?.error?.details?.map((d) => `${d.field}: ${d.message}`).join('. ');
-      setError(detail || err.response?.data?.error?.message || 'Failed to save configuration.');
+      setError(detail || err.response?.data?.error?.message || t('admin.shopSettings.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -88,9 +92,9 @@ const SePayConfig = () => {
       <div>
         <h2 className="text-2xl font-bold text-gray-800 flex items-center">
           <Settings className="h-6 w-6 mr-2 text-primary-600" />
-          SePay API Configuration
+          {t('admin.sepay.title')}
         </h2>
-        <p className="text-gray-500">Configure your SePay payment gateway integration</p>
+        <p className="text-gray-500">{t('admin.sepay.subtitle')}</p>
       </div>
 
       {error && (
@@ -112,15 +116,14 @@ const SePayConfig = () => {
           <div className="p-3 bg-blue-50 text-blue-700 rounded-lg text-sm flex items-start">
             <Globe className="h-5 w-5 mr-2 mt-0.5 shrink-0" />
             <span>
-              Đang hiển thị giá trị mặc định từ <code className="px-1 py-0.5 bg-blue-100 rounded text-xs">.env</code>{' '}
+              {t('admin.sepay.defaultFrom')}{' '}
               (SEPAY_API_URL, SEPAY_WEBHOOK_URL/APP_BASE_URL, SEPAY_WEBHOOK_SECRET, SEPAY_ACCOUNT_NUMBER, SEPAY_ACCOUNT_NAME).
-              Nhấn "Save Configuration" để lưu vào database và ghi đè mặc định.
             </span>
           </div>
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">SePay API URL</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.sepay.apiUrl')}</label>
           <div className="relative">
             <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
@@ -136,7 +139,7 @@ const SePayConfig = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Webhook / IPN URL</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.sepay.webhookUrl')}</label>
           <div className="relative">
             <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
@@ -145,18 +148,16 @@ const SePayConfig = () => {
               value={config.webhookUrl}
               onChange={handleChange}
               className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              placeholder="https://your-domain.com/api/v1/webhooks/sepay (hoặc để trống để dùng mặc định từ env)"
+              placeholder="https://your-domain.com/api/v1/webhooks/sepay"
             />
           </div>
           <p className="mt-1 text-xs text-gray-500">
-            URL SePay sẽ gọi IPN về. Đặt qua <code className="px-1 bg-gray-100 rounded">SEPAY_WEBHOOK_URL</code> /{' '}
-            <code className="px-1 bg-gray-100 rounded">APP_BASE_URL</code> trong .env, hoặc nhập trực tiếp ở đây.
-            Để trống = dùng mặc định env, fallback path <code className="px-1 bg-gray-100 rounded">/api/v1/webhooks/sepay</code>.
+            {t('admin.sepay.webhookHint')} / APP_BASE_URL — /api/v1/webhooks/sepay
           </p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Webhook Secret</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.sepay.webhookSecret')}</label>
           <div className="relative">
             <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
@@ -166,21 +167,21 @@ const SePayConfig = () => {
               onChange={handleChange}
               required
               className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              placeholder="Enter webhook secret"
+              placeholder={t('admin.sepay.secretPlaceholder')}
             />
             <button
               type="button"
               onClick={() => setShowSecret(!showSecret)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
             >
-              {showSecret ? 'Hide' : 'Show'}
+              {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.sepay.accountNumber')}</label>
             <div className="relative">
               <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
@@ -190,12 +191,12 @@ const SePayConfig = () => {
                 onChange={handleChange}
                 required
                 className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="Bank account number"
+                placeholder={t('admin.sepay.accountPlaceholder')}
               />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Account Name</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.sepay.accountName')}</label>
             <div className="relative">
               <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
@@ -205,7 +206,7 @@ const SePayConfig = () => {
                 onChange={handleChange}
                 required
                 className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="Account holder name"
+                placeholder={t('admin.sepay.namePlaceholder')}
               />
             </div>
           </div>
@@ -220,12 +221,12 @@ const SePayConfig = () => {
             {saving ? (
               <>
                 <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                Saving...
+                {t('admin.sepay.saving')}
               </>
             ) : (
               <>
                 <Save className="h-5 w-5 mr-2" />
-                Save Configuration
+                {t('admin.sepay.save')}
               </>
             )}
           </button>

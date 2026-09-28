@@ -10,6 +10,7 @@ import api from '../services/api';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { useTheme } from '../context/ThemeContext';
+import { useLanguage } from '../i18n/LanguageContext';
 import { formatVND, USD_TO_VND_RATE } from '../utils/format';
 import { playTick, vibrate } from '../utils/sfx';
 import BreadcrumbBar from '../components/BreadcrumbBar';
@@ -18,32 +19,24 @@ import TrustBadges from '../components/TrustBadges';
 import { parseProductData, repairProductEncoding } from '../utils/productDataParser';
 import { getProductCategory } from '../constants/productCategories';
 
-const RANGE_LABELS = {
-  month: '1 Month Snapshot',
-  quarter: '3 Month Snapshot',
-  'semi-annual': '6 Month Snapshot',
-  annual: '1 Year Snapshot'
+const RANGE_KEYS = {
+  month: 'product.range.month',
+  quarter: 'product.range.quarter',
+  'semi-annual': 'product.range.semi-annual',
+  annual: 'product.range.annual'
 };
 
-const CONDITION_LABELS = {
-  MINT: 'Mint',
-  NEAR_MINT: 'Near Mint',
-  LIGHTLY_PLAYED: 'Lightly Played',
-  MODERATELY_PLAYED: 'Moderately Played',
-  HEAVILY_PLAYED: 'Heavily Played'
-};
+const CONDITION_KEYS = ['MINT', 'NEAR_MINT', 'LIGHTLY_PLAYED', 'MODERATELY_PLAYED', 'HEAVILY_PLAYED'];
 
-const VARIANT_LABELS = {
-  NORMAL: 'Standard',
-  HOLOFOIL: 'Holofoil',
-  REVERSE_HOLOFOIL: 'Reverse Holofoil',
-  '1ST_EDITION': '1st Edition',
-  '1ST_EDITION_HOLOFOIL': '1st Edition Holofoil',
-  'UNLIMITED_HOLOFOIL': 'Unlimited Holofoil'
-};
+const VARIANT_KEYS = ['NORMAL', 'HOLOFOIL', 'REVERSE_HOLOFOIL', '1ST_EDITION', '1ST_EDITION_HOLOFOIL', 'UNLIMITED_HOLOFOIL'];
 
-const formatCondition = (c) => CONDITION_LABELS[c] || (c ? c.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase()) : 'Near Mint');
-const formatVariant = (v) => VARIANT_LABELS[v] || (v && v !== '' ? v.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase()) : 'Standard');
+const formatCondition = (c, t) => t(`product.condition.${c}`) || (c ? c.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase()) : t('product.condition.NEAR_MINT'));
+const formatVariant = (v, t) => {
+  if (!v || v === '') return t('product.variantType.NORMAL');
+  const key = `product.variantType.${v}`;
+  const translated = t(key);
+  return translated !== key ? translated : v.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase());
+};
 
 const CHART_THEMES = {
   light: {
@@ -72,12 +65,22 @@ const ProductDetail = () => {
   const { addItem } = useCartStore();
   const { isAuthenticated } = useAuthStore();
   const { theme } = useTheme();
+  const { t } = useLanguage();
   const chartTheme = CHART_THEMES[theme] || CHART_THEMES.light;
 
   /* ── Automatic Data Parser: one memoized pass for the whole page ── */
   const parsed = useMemo(() => (product ? parseProductData(product) : null), [product]);
   const productType = parsed?.productType;
-  const isBox = productType === 'BOX';
+
+  /* Sealed products vs single cards. `parseProductType` already resolves the
+   * canonical category slugs (`sealed-products` / `single-cards`) and
+   * `attributes.type`, but honor an explicit `main_type` field when the API
+   * sends one so the SOURCE OF TRUTH always wins. Card-only attributes
+   * (condition, finish, front/back flip) are gated strictly on SINGLE_CARD. */
+  const mainType = String(product?.main_type ?? product?.mainType ?? '').trim().toUpperCase();
+  const isSealedProduct = mainType === 'SEALED_PRODUCT' || (mainType !== 'SINGLE_CARD' && productType === 'BOX');
+  const isSingleCard = !isSealedProduct;
+  const isBox = isSealedProduct;
   const categoryMeta = useMemo(() => getProductCategory(product), [product]);
 
   /* ── Breadcrumb trail: Home > Catalog > [Category >] Product ──
@@ -88,7 +91,7 @@ const ProductDetail = () => {
     if (!product) return [];
     const items = [{ label: 'Catalog', to: '/catalog' }];
     if (categoryMeta) {
-      items.push({ label: categoryMeta.description || categoryMeta.label, to: `/catalog?category=${categoryMeta.value === 'BOX' ? 'box' : 'card'}` });
+      items.push({ label: categoryMeta.description || categoryMeta.label, to: `/catalog?category=${categoryMeta.slug || (categoryMeta.value === 'BOX' ? 'sealed-products' : 'single-cards')}` });
     }
     items.push({ label: product.shortName || product.name });
     return items;
@@ -324,7 +327,7 @@ const ProductDetail = () => {
     Math.round(i * volumeStep * 100) / 100
   );
 
-  const snapshotTitle = RANGE_LABELS[priceRange] || 'Snapshot';
+  const snapshotTitle = (RANGE_KEYS[priceRange] && t(RANGE_KEYS[priceRange])) || 'Snapshot';
 
   const CustomTooltip = ({ active, payload }) => {
     if (!active || !payload || payload.length === 0) return null;
@@ -356,7 +359,7 @@ const ProductDetail = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
         {/* ── Image container & 3D interactive view ─────────────── */}
-        <ProductGallery product={product} />
+        <ProductGallery product={product} isSealedProduct={isSealedProduct} />
 
         {/* ── Details ───────────────────────────────────────────── */}
         <div>
@@ -386,14 +389,14 @@ const ProductDetail = () => {
             <div className="flex text-amber-400">
               {[...Array(5)].map((_, i) => <Star key={i} className="h-[18px] w-[18px] fill-current" />)}
             </div>
-            <span className="text-sm text-ink-400 dark:text-ink-300">(0 reviews)</span>
+            <span className="text-sm text-ink-400 dark:text-ink-300">({t('product.reviews', { count: 0 })})</span>
           </div>
 
           {/* Price + live inventory badge */}
           <div className="mt-6 flex flex-wrap items-center gap-4">
             <div className="pd-price-chip">
               <span className="text-3xl sm:text-4xl font-display font-bold text-gradient-brand">
-                {selectedVariant ? formatVND(selectedVariant.price) : 'Select condition'}
+                {selectedVariant ? formatVND(selectedVariant.price) : t('product.selectCondition')}
               </span>
             </div>
             {selectedVariant && (
@@ -403,15 +406,19 @@ const ProductDetail = () => {
                   : 'bg-rose-400/15 text-rose-600 dark:text-rose-300 ring-1 ring-rose-400/30'
               }`}>
                 <span className={`h-1.5 w-1.5 rounded-full ${selectedVariant.stockQuantity > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                {selectedVariant.stockQuantity > 0 ? 'In Stock' : 'Sold Out'}
+                {selectedVariant.stockQuantity > 0 ? t('product.inStockBadge') : t('product.soldOut')}
               </span>
             )}
           </div>
 
-          {/* Condition / variant selector */}
-          {product.variants && product.variants.length > 0 && (
+          {/* Condition / finish variants — SINGLE CARDS ONLY.
+              Sealed products must never surface card attributes (condition
+              like "Near Mint", finish like "Normal"/"Foil"/"Reverse Foil").
+              Their variants carry only price + stock, so we render a plain
+              price/stock list instead. */}
+          {isSingleCard && product.variants && product.variants.length > 0 && (
             <div className="mt-6">
-              <label className="label-premium">Condition & Card Type</label>
+              <label className="label-premium">{t('product.conditionCardType')}</label>
               <div className="flex flex-wrap gap-2.5">
                 {product.variants.map(v => {
                   const isSelected = selectedVariantId === v.id;
@@ -427,14 +434,48 @@ const ProductDetail = () => {
                           : 'glass-panel text-strong ring-1 ring-transparent hover:ring-primary-400/50 hover:-translate-y-0.5'
                       } disabled:opacity-45 disabled:pointer-events-none`}
                     >
-                      {formatCondition(v.condition)} <span className={isSelected ? 'text-white/70' : 'text-faint'}>•</span> {formatVariant(v.variant)}
+                      {formatCondition(v.condition, t)} <span className={isSelected ? 'text-white/70' : 'text-faint'}>•</span> {formatVariant(v.variant, t)}
                       <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${
                         inStock
                           ? 'bg-emerald-400/15 text-emerald-600 dark:text-emerald-300'
                           : 'bg-rose-400/15 text-rose-500'
                       } ${isSelected ? 'bg-white/20 text-white' : ''}`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${inStock ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                        {inStock ? `${v.stockQuantity} available` : 'Sold out'}
+                        {inStock ? t('product.available', { count: v.stockQuantity }) : t('product.soldOut')}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {isSealedProduct && product.variants && product.variants.length > 0 && (
+            <div className="mt-6">
+              <label className="label-premium">{t('product.availableStock')}</label>
+              <div className="flex flex-wrap gap-2.5">
+                {product.variants.map(v => {
+                  const isSelected = selectedVariantId === v.id;
+                  const inStock = v.stockQuantity > 0;
+                  return (
+                    <button
+                      key={v.id}
+                      onClick={() => setSelectedVariantId(v.id)}
+                      disabled={!inStock}
+                      className={`inline-flex items-center gap-2.5 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 ${
+                        isSelected
+                          ? 'text-white bg-gradient-to-r from-primary-600 to-fuchsia-600 shadow-[0_6px_20px_-6px_rgba(124,58,237,0.55)] ring-1 ring-white/25'
+                          : 'glass-panel text-strong ring-1 ring-transparent hover:ring-primary-400/50 hover:-translate-y-0.5'
+                      } disabled:opacity-45 disabled:pointer-events-none`}
+                    >
+                      {formatVND(Number(v.price))}
+                      <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${
+                        inStock
+                          ? 'bg-emerald-400/15 text-emerald-600 dark:text-emerald-300'
+                          : 'bg-rose-400/15 text-rose-500'
+                      } ${isSelected ? 'bg-white/20 text-white' : ''}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${inStock ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                        {inStock ? t('product.available', { count: v.stockQuantity }) : t('product.soldOut')}
                       </span>
                     </button>
                   );
@@ -449,7 +490,7 @@ const ProductDetail = () => {
               <button
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
                 className="p-3 text-ink-500 dark:text-ink-300 hover:text-primary-700 hover:bg-primary-50 dark:hover:bg-primary-400/10 transition-colors"
-                aria-label="Decrease quantity"
+                aria-label={t('cart.decreaseQty')}
               >
                 <Minus className="h-4 w-4" />
               </button>
@@ -457,7 +498,7 @@ const ProductDetail = () => {
               <button
                 onClick={() => setQuantity(Math.min(selectedVariant?.stockQuantity || 10, quantity + 1))}
                 className="p-3 text-ink-500 dark:text-ink-300 hover:text-primary-700 hover:bg-primary-50 dark:hover:bg-primary-400/10 transition-colors"
-                aria-label="Increase quantity"
+                aria-label={t('cart.increaseQty')}
               >
                 <Plus className="h-4 w-4" />
               </button>
@@ -467,7 +508,7 @@ const ProductDetail = () => {
               disabled={!selectedVariantId || !selectedVariant?.stockQuantity || added}
               className={`btn-primary flex-1 w-full !py-3.5 text-base ${added ? '!from-emerald-500 !to-teal-500' : ''}`}
             >
-              {added ? (<><Check className="h-5 w-5" /> Added!</>) : (<><ShoppingCart className="h-5 w-5" /> Add to cart</>)}
+              {added ? (<><Check className="h-5 w-5" /> {t('product.added')}</>) : (<><ShoppingCart className="h-5 w-5" /> {t('product.addToCart')}</>)}
             </button>
           </div>
 
@@ -478,7 +519,7 @@ const ProductDetail = () => {
               disabled={!selectedVariantId || !selectedVariant?.stockQuantity}
               className="btn-aura w-full !py-3.5 text-base"
             >
-              <Zap className="h-5 w-5" /> Buy Now
+              <Zap className="h-5 w-5" /> {t('product.buyNow')}
             </button>
           </div>
 
@@ -490,11 +531,11 @@ const ProductDetail = () => {
           {/* ── Description: classic unified block ──────────────── */}
           {product.description && (
             <section className="mt-8">
-              <p className="section-eyebrow">Specifications</p>
+              <p className="section-eyebrow">{t('product.specifications')}</p>
               <h2 className="heading-display text-xl mt-1 mb-4">
-                {isBox ? 'Box details' : 'Card details'}
+                {isBox ? t('product.boxDetailsTitle') : t('product.cardDetailsTitle')}
               </h2>
-              <div className="rounded-2xl bg-white/50 dark:bg-white/5 ring-1 ring-ink-900/5 dark:ring-white/10 backdrop-blur-md p-6">
+              <div className="rounded-2xl bg-white/80 dark:bg-[#12121a]/90 md:bg-white/50 dark:md:bg-white/5 ring-1 ring-ink-900/5 dark:ring-white/10 backdrop-blur-sm md:backdrop-blur-md p-6">
                 <p className="text-sm text-ink-600 dark:text-ink-300 leading-relaxed whitespace-pre-wrap font-medium">
                   {product.description}
                 </p>
@@ -509,16 +550,16 @@ const ProductDetail = () => {
         <div className="relative mt-12 overflow-hidden rounded-3xl glass-panel p-6 sm:p-8">
           <div className="pointer-events-none absolute -top-24 right-1/4 h-64 w-64 rounded-full bg-fuchsia-400/10 blur-[90px]" />
           <div className="mb-6">
-            <p className="section-eyebrow">Market Insights</p>
-            <h2 className="heading-display text-2xl mt-1">Market price trends</h2>
+            <p className="section-eyebrow">{t('product.marketInsights')}</p>
+            <h2 className="heading-display text-2xl mt-1">{t('product.marketPriceTrends')}</h2>
           </div>
 
           {priceData === null && !isLoadingRange ? (
-            <p className="text-ink-400 dark:text-ink-300">No price history data.</p>
+            <p className="text-ink-400 dark:text-ink-300">{t('product.noPriceHistory')}</p>
           ) : (
             <div className="relative">
               {isLoadingRange && (
-                <div className="absolute inset-0 bg-white/60 dark:bg-ink-950/60 backdrop-blur-sm z-20 flex items-center justify-center rounded-2xl">
+                <div className="absolute inset-0 bg-white/60 dark:bg-ink-950/90 md:dark:bg-ink-950/60 backdrop-blur-sm z-20 flex items-center justify-center rounded-2xl">
                   <Loader2 className="h-10 w-10 animate-spin text-primary-600" />
                 </div>
               )}

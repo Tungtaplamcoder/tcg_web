@@ -4,10 +4,12 @@ import {
   Search, Loader2, AlertCircle, ChevronLeft, ChevronRight, Eye, XCircle, Loader, Truck
 } from 'lucide-react';
 import api from '../services/api';
+import { useLanguage } from '../i18n/LanguageContext';
 import { STATUS_MAP } from '../constants/orderStatus';
 import { formatVND } from '../utils/format';
 
 const OrderManagement = () => {
+  const { t } = useLanguage();
   const [searchParams, setSearchParams] = useSearchParams();
   const statusFromQuery = searchParams.get('status') || '';
   const [orders, setOrders] = useState([]);
@@ -46,11 +48,12 @@ const OrderManagement = () => {
       setMeta(response.data.data.meta || { totalPages: 1 });
     } catch (err) {
       console.error('Failed to fetch orders:', err);
-      setError('Failed to load orders.');
+      setError(t('orders.errLoad'));
     } finally {
       setLoading(false);
     }
-  }, [page, statusFilter, search]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, statusFilter, search, t]);
 
   useEffect(() => {
     fetchOrders();
@@ -65,7 +68,7 @@ const OrderManagement = () => {
       setSelectedOrder(null);
     } catch (err) {
       console.error('Failed to update status:', err);
-      setError(err.response?.data?.error?.message || 'Failed to update order status.');
+      setError(err.response?.data?.error?.message || t('orders.errLoad'));
     } finally {
       setUpdatingId(null);
     }
@@ -88,7 +91,7 @@ const OrderManagement = () => {
   const confirmStartShipping = async () => {
     const trimmed = trackingNumber.trim();
     if (!trimmed) {
-      setTrackingError('Mã vận đơn không được để trống.');
+      setTrackingError(t('orderMgmt.trackingRequired'));
       return;
     }
     setTrackingError('');
@@ -104,7 +107,7 @@ const OrderManagement = () => {
       setSelectedOrder(null);
     } catch (err) {
       console.error('Failed to start shipping:', err);
-      setTrackingError(err.response?.data?.error?.message || 'Không thể bắt đầu vận chuyển. Vui lòng thử lại.');
+      setTrackingError(err.response?.data?.error?.message || t('orderMgmt.errShipping'));
     } finally {
       setSubmittingTracking(false);
     }
@@ -112,6 +115,7 @@ const OrderManagement = () => {
 
   const getStatusBadge = (status) => {
     const config = STATUS_MAP[status] || {
+      labelKey: null,
       label: status,
       icon: Loader,
       badgeClass: 'bg-gray-50 text-gray-700 border-gray-200'
@@ -120,7 +124,7 @@ const OrderManagement = () => {
     return (
       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${config.badgeClass}`}>
         <Icon className="h-3 w-3 mr-1" />
-        {config.label}
+        {config.labelKey ? t(config.labelKey) : config.label}
       </span>
     );
   };
@@ -130,8 +134,8 @@ const OrderManagement = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-800">Quản lý đơn hàng</h2>
-        <p className="text-gray-500">Xem và cập nhật trạng thái đơn hàng</p>
+        <h2 className="text-2xl font-bold text-gray-800">{t('orderMgmt.title')}</h2>
+        <p className="text-gray-500">{t('orderMgmt.subtitle')}</p>
       </div>
 
       {/* Filters */}
@@ -142,7 +146,7 @@ const OrderManagement = () => {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm theo mã đơn..."
+            placeholder={t('orderMgmt.searchPlaceholder')}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
@@ -151,12 +155,12 @@ const OrderManagement = () => {
           onChange={(e) => handleStatusFilterChange(e.target.value)}
           className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
-          <option value="">Tất cả trạng thái</option>
-          <option value="PENDING">Chờ thanh toán</option>
-          <option value="PACKAGING">Đang đóng gói</option>
-          <option value="SHIPPING">Đang giao hàng</option>
-          <option value="DELIVERED">Đã nhận hàng</option>
-          <option value="CANCELLED">Đã hủy</option>
+          <option value="">{t('orderMgmt.allStatuses')}</option>
+          <option value="PENDING">{t('orders.status.PENDING')}</option>
+          <option value="PACKAGING">{t('orders.status.PACKAGING')}</option>
+          <option value="SHIPPING">{t('orders.status.SHIPPING')}</option>
+          <option value="DELIVERED">{t('orders.status.DELIVERED')}</option>
+          <option value="CANCELLED">{t('orders.status.CANCELLED')}</option>
         </select>
       </div>
 
@@ -174,17 +178,17 @@ const OrderManagement = () => {
             <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
           </div>
         ) : orders.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">Không có đơn hàng nào.</div>
+          <div className="text-center py-12 text-gray-500">{t('orderMgmt.empty')}</div>
         ) : (
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mã đơn</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Khách hàng</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tổng tiền</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ngày tạo</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Thao tác</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('orderMgmt.colOrder')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('orderMgmt.colCustomer')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('orderMgmt.colTotal')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('orderMgmt.colStatus')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('orderMgmt.colDate')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('orderMgmt.colActions')}</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -203,7 +207,7 @@ const OrderManagement = () => {
                       <button
                         onClick={() => openOrderDetail(order)}
                         className="p-1 text-gray-600 hover:text-gray-800"
-                        title="Xem chi tiết"
+                        title={t('orderMgmt.viewDetails')}
                       >
                         <Eye className="h-5 w-5" />
                       </button>
@@ -226,7 +230,7 @@ const OrderManagement = () => {
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
-          <span>Page {page} of {meta.totalPages}</span>
+          <span>{t('news.pageOf', { page, total: meta.totalPages })}</span>
           <button
             onClick={() => setPage(Math.min(meta.totalPages, page + 1))}
             disabled={page >= meta.totalPages}
@@ -243,33 +247,33 @@ const OrderManagement = () => {
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Chi tiết đơn hàng</h3>
+                <h3 className="text-lg font-semibold">{t('orderMgmt.detailsTitle')}</h3>
                 <button onClick={() => setSelectedOrder(null)} className="text-gray-500 hover:text-gray-700">
                   <XCircle className="h-5 w-5" />
                 </button>
               </div>
 
               <div className="space-y-3">
-                <p><strong>Mã đơn:</strong> {selectedOrder.orderCode}</p>
-                <p><strong>Khách hàng:</strong> {selectedOrder.user?.fullName} ({selectedOrder.user?.email})</p>
-                <p><strong>Tổng tiền:</strong> {formatVND(selectedOrder.grandTotal)}</p>
-                <p><strong>Trạng thái:</strong> {getStatusBadge(selectedOrder.status)}</p>
-                <p><strong>Địa chỉ:</strong> {selectedOrder.shippingAddress?.fullName}, {selectedOrder.shippingAddress?.addressLine1}, {selectedOrder.shippingAddress?.city}</p>
-                <p><strong>SĐT:</strong> {selectedOrder.shippingAddress?.phone}</p>
+                <p><strong>{t('orderMgmt.orderCode')}</strong> {selectedOrder.orderCode}</p>
+                <p><strong>{t('orderMgmt.customer')}</strong> {selectedOrder.user?.fullName} ({selectedOrder.user?.email})</p>
+                <p><strong>{t('orderMgmt.total')}</strong> {formatVND(selectedOrder.grandTotal)}</p>
+                <p><strong>{t('orderMgmt.status')}</strong> {getStatusBadge(selectedOrder.status)}</p>
+                <p><strong>{t('orderMgmt.address')}</strong> {selectedOrder.shippingAddress?.fullName}, {selectedOrder.shippingAddress?.addressLine1}, {selectedOrder.shippingAddress?.city}</p>
+                <p><strong>{t('orderMgmt.phone')}</strong> {selectedOrder.shippingAddress?.phone}</p>
                 {selectedOrder.trackingNumber && (
                   <p className="flex items-center gap-1.5">
                     <Truck className="h-4 w-4 text-indigo-600 flex-shrink-0" />
-                    <span><strong>Mã vận đơn:</strong> <span className="font-mono">{selectedOrder.trackingNumber}</span></span>
+                    <span><strong>{t('orderMgmt.trackingNumber')}</strong> <span className="font-mono">{selectedOrder.trackingNumber}</span></span>
                   </p>
                 )}
 
                 {/* Items */}
                 <div className="mt-4">
-                  <h4 className="font-medium text-sm mb-2">Sản phẩm</h4>
+                  <h4 className="font-medium text-sm mb-2">{t('orderMgmt.products')}</h4>
                   <ul className="space-y-2">
                     {selectedOrder.items?.map((item, idx) => (
                       <li key={idx} className="flex justify-between text-sm">
-                        <span>{item.product?.name || item.card?.sku || 'Sản phẩm'} x {item.quantity}</span>
+                        <span>{item.product?.name || item.card?.sku || t('orders.product')} x {item.quantity}</span>
                         <span>{formatVND(item.totalPrice)}</span>
                       </li>
                     ))}
@@ -285,14 +289,14 @@ const OrderManagement = () => {
                         disabled={updatingId === selectedOrder.id}
                         className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
                       >
-                        {updatingId === selectedOrder.id ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Xác nhận thanh toán'}
+                        {updatingId === selectedOrder.id ? <Loader2 className="h-5 w-5 animate-spin" /> : t('orders.status.PACKAGING')}
                       </button>
                       <button
                         onClick={() => handleStatusChange(selectedOrder.id, 'CANCELLED')}
                         disabled={updatingId === selectedOrder.id}
                         className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
                       >
-                        Hủy đơn
+                        {t('orderMgmt.cancelOrder')}
                       </button>
                     </>
                   )}
@@ -303,14 +307,14 @@ const OrderManagement = () => {
                         disabled={updatingId === selectedOrder.id}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                       >
-                        Bắt đầu vận chuyển
+                        {t('orderMgmt.startShipping')}
                       </button>
                       <button
                         onClick={() => handleStatusChange(selectedOrder.id, 'CANCELLED')}
                         disabled={updatingId === selectedOrder.id}
                         className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
                       >
-                        Hủy đơn
+                        {t('orderMgmt.cancelOrder')}
                       </button>
                     </>
                   )}
@@ -320,7 +324,7 @@ const OrderManagement = () => {
                       disabled={updatingId === selectedOrder.id}
                       className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
                     >
-                      Đã giao hàng
+                      {t('orderMgmt.delivered')}
                     </button>
                   )}
                 </div>
@@ -341,18 +345,18 @@ const OrderManagement = () => {
               <div className="flex justify-between items-center mb-2">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
                   <Truck className="h-5 w-5 text-blue-600" />
-                  Bắt đầu vận chuyển
+                  {t('orderMgmt.startShipping')}
                 </h3>
                 <button type="button" onClick={closeShippingPrompt} className="text-gray-500 hover:text-gray-700">
                   <XCircle className="h-5 w-5" />
                 </button>
               </div>
               <p className="text-sm text-gray-500 mb-4">
-                Nhập mã vận đơn cho đơn <span className="font-mono font-semibold text-gray-700">{selectedOrder.orderCode}</span> để bắt đầu giao hàng.
+                {t('orderMgmt.trackingPrompt')} <span className="font-mono font-semibold text-gray-700">{selectedOrder.orderCode}</span> {t('orderMgmt.trackingPromptSuffix')}
               </p>
 
               <label htmlFor="tracking-number-input" className="block text-sm font-medium text-gray-700 mb-1">
-                Mã vận đơn <span className="text-red-600">*</span>
+                {t('orderMgmt.trackingLabel')} <span className="text-red-600">*</span>
               </label>
               <input
                 id="tracking-number-input"
@@ -360,7 +364,7 @@ const OrderManagement = () => {
                 autoFocus
                 value={trackingNumber}
                 onChange={(e) => { setTrackingNumber(e.target.value); setTrackingError(''); }}
-                placeholder="VD: VN123456789"
+                placeholder={t('orderMgmt.trackingPlaceholder')}
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono ${trackingError ? 'border-red-400' : 'border-gray-300'}`}
                 disabled={submittingTracking}
               />
@@ -378,7 +382,7 @@ const OrderManagement = () => {
                   disabled={submittingTracking}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
                 >
-                  Hủy
+                  {t('orderMgmt.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -386,7 +390,7 @@ const OrderManagement = () => {
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
                 >
                   {submittingTracking && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {submittingTracking ? 'Đang xử lý...' : 'Xác nhận vận chuyển'}
+                  {submittingTracking ? t('checkout.processing') : t('orderMgmt.startShipping')}
                 </button>
               </div>
             </form>

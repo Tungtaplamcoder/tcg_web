@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 const RARITY_ORDER = ['Common', 'Rare', 'Epic', 'Legendary'];
 
@@ -50,6 +51,7 @@ const formatDate = (iso) => {
 };
 
 const BoxThumbnail = ({ gradient, imageUrl, name, size = 'normal' }) => {
+  const { t } = useLanguage();
   const sizeClasses = size === 'large' ? 'h-24 w-24 rounded-xl' : 'h-14 w-14 rounded-lg';
   const iconClasses = size === 'large' ? 'h-9 w-9 text-white/90' : 'h-5 w-5 text-white/90';
   return (
@@ -57,7 +59,7 @@ const BoxThumbnail = ({ gradient, imageUrl, name, size = 'normal' }) => {
       {imageUrl ? (
         <img
           src={imageUrl}
-          alt={name || 'Box cover'}
+          alt={name || t('admin.virtualBoxes.colImage')}
           className="h-full w-full object-contain p-0.5"
           onError={(e) => { e.currentTarget.style.display = 'none'; }}
         />
@@ -86,6 +88,7 @@ const DropRateChips = ({ dropRates }) => (
 
 const VirtualBoxes = () => {
   const { user } = useAuthStore();
+  const { t } = useLanguage();
   const isAdmin = user?.role === 'ADMIN';
   const canDelete = isAdmin;
   const canUpload = isAdmin || user?.canManageInventory;
@@ -124,7 +127,7 @@ const VirtualBoxes = () => {
       setMeta(response.data.data.meta || { totalPages: 1 });
     } catch (err) {
       console.error('Failed to fetch virtual boxes:', err);
-      setListError(err.response?.data?.error?.message || 'Không thể tải danh sách virtual boxes.');
+      setListError(err.response?.data?.error?.message || t('admin.virtualBoxes.errLoad'));
     } finally {
       setLoading(false);
     }
@@ -223,10 +226,10 @@ const VirtualBoxes = () => {
     try {
       const url = await uploadImageFile(file);
       handleFormChange('imageUrl', url);
-      showToast('Đã upload ảnh cover.');
+      showToast(t('admin.virtualBoxes.coverUploaded'));
     } catch (err) {
       console.error(err);
-      showToast(err.response?.data?.error?.message || 'Không thể upload ảnh cover. Dán link ảnh vào ô Cover Image URL.', 'error');
+      showToast(err.response?.data?.error?.message || t('admin.virtualBoxes.errCoverUpload'), 'error');
     } finally {
       e.target.value = '';
     }
@@ -238,10 +241,10 @@ const VirtualBoxes = () => {
     try {
       const url = await uploadImageFile(file);
       handlePoolCardChange(index, 'imageUrl', url);
-      showToast('Đã upload ảnh thẻ.');
+      showToast(t('admin.virtualBoxes.cardUploaded'));
     } catch (err) {
       console.error(err);
-      showToast(err.response?.data?.error?.message || 'Không thể upload ảnh thẻ. Dán link ảnh vào ô Image URL.', 'error');
+      showToast(err.response?.data?.error?.message || t('admin.virtualBoxes.errCardUpload'), 'error');
     } finally {
       e.target.value = '';
     }
@@ -254,10 +257,10 @@ const VirtualBoxes = () => {
     for (let i = 0; i < form.pool.length; i += 1) {
       const entry = form.pool[i];
       if (!entry.name.trim()) {
-        return `Thẻ #${i + 1}: thiếu tên thẻ.`;
+        return t('admin.virtualBoxes.errPoolName', { index: i + 1 });
       }
       if (entry.imageUrl && !isValidImageSource(entry.imageUrl)) {
-        return `Thẻ #${i + 1}: link ảnh phải bắt đầu bằng http(s):// hoặc /.`;
+        return t('admin.virtualBoxes.errPoolImage', { index: i + 1 });
       }
     }
     return '';
@@ -266,12 +269,12 @@ const VirtualBoxes = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
-    if (!form.name.trim()) { setFormError('Box name is required.'); return; }
-    if (rateTotal !== 100) { setFormError(`Drop rates must total 100% (currently ${rateTotal}%).`); return; }
+    if (!form.name.trim()) { setFormError(t('admin.virtualBoxes.errNameRequired')); return; }
+    if (rateTotal !== 100) { setFormError(t('admin.virtualBoxes.errRateTotal', { current: rateTotal })); return; }
     const poolError = validatePool();
     if (poolError) { setFormError(poolError); return; }
     if (form.imageUrl && !isValidImageSource(form.imageUrl)) {
-      setFormError('Cover image URL phải bắt đầu bằng http(s):// hoặc /.');
+      setFormError(t('admin.virtualBoxes.errCoverUrl'));
       return;
     }
 
@@ -294,17 +297,17 @@ const VirtualBoxes = () => {
     try {
       if (editing) {
         await api.put(`/admin/virtual-boxes/${editing.id}`, payload);
-        showToast('Đã cập nhật virtual box.');
+        showToast(t('admin.virtualBoxes.updatedToast'));
       } else {
         await api.post('/admin/virtual-boxes', payload);
-        showToast('Đã tạo virtual box mới.');
+        showToast(t('admin.virtualBoxes.createdToast'));
       }
       closeModal();
       fetchBoxes();
     } catch (err) {
       console.error('Failed to save virtual box:', err);
       const detail = err.response?.data?.error?.details?.map((d) => `${d.field}: ${d.message}`).join('. ');
-      setFormError(detail || err.response?.data?.error?.message || 'Không thể lưu virtual box.');
+      setFormError(detail || err.response?.data?.error?.message || t('admin.virtualBoxes.errSave'));
     } finally {
       setSaving(false);
     }
@@ -316,12 +319,12 @@ const VirtualBoxes = () => {
     setListError('');
     try {
       await api.delete(`/admin/virtual-boxes/${deleteTarget.id}`);
-      showToast(deleteTarget.status === 'ARCHIVED' ? 'Đã xóa vĩnh viễn virtual box.' : 'Đã lưu trữ virtual box.');
+      showToast(deleteTarget.status === 'ARCHIVED' ? t('admin.virtualBoxes.deletedToast') : t('admin.virtualBoxes.archivedToast'));
       setDeleteTarget(null);
       fetchBoxes();
     } catch (err) {
       console.error('Failed to delete virtual box:', err);
-      setListError(err.response?.data?.error?.message || 'Không thể xóa virtual box.');
+      setListError(err.response?.data?.error?.message || t('admin.virtualBoxes.errDelete'));
       setDeleteTarget(null);
     } finally {
       setDeleting(false);
@@ -334,15 +337,15 @@ const VirtualBoxes = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Virtual Boxes</h2>
-          <p className="text-gray-500">{boxes.length} boxes total · {activeCount} active</p>
+          <h2 className="text-2xl font-bold text-gray-800">{t('admin.virtualBoxes.title')}</h2>
+          <p className="text-gray-500">{t('admin.virtualBoxes.statsLine', { total: boxes.length, active: activeCount })}</p>
         </div>
         <button
           onClick={openCreate}
           className="inline-flex items-center justify-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
         >
           <Plus className="h-5 w-5 mr-2" />
-          Create New Box
+          {t('admin.virtualBoxes.createNew')}
         </button>
       </div>
 
@@ -367,7 +370,7 @@ const VirtualBoxes = () => {
             type="text"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Search boxes by name..."
+            placeholder={t('admin.virtualBoxes.searchPlaceholder')}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
@@ -376,19 +379,19 @@ const VirtualBoxes = () => {
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
           className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
-          <option value="">All Statuses</option>
-          <option value="ACTIVE">Active</option>
-          <option value="DRAFT">Draft</option>
-          <option value="ARCHIVED">Archived</option>
+          <option value="">{t('admin.virtualBoxes.allStatuses')}</option>
+          <option value="ACTIVE">{t('admin.virtualBoxes.active')}</option>
+          <option value="DRAFT">{t('admin.virtualBoxes.draft')}</option>
+          <option value="ARCHIVED">{t('admin.virtualBoxes.archived')}</option>
         </select>
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
           className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
-          <option value="newest">Newest first</option>
-          <option value="name">Name (A–Z)</option>
-          <option value="pool-desc">Card Pool: Largest</option>
+          <option value="newest">{t('admin.virtualBoxes.sortNewest')}</option>
+          <option value="name">{t('admin.virtualBoxes.sortName')}</option>
+          <option value="pool-desc">{t('admin.virtualBoxes.sortPool')}</option>
         </select>
       </div>
 
@@ -400,19 +403,19 @@ const VirtualBoxes = () => {
             <Boxes className="h-10 w-10 mx-auto text-gray-300 mb-3" />
             {boxes.length === 0 ? (
               <>
-                <p>No virtual boxes yet.</p>
+                <p>{t('admin.virtualBoxes.emptyNoBoxes')}</p>
                 <button onClick={openCreate} className="mt-3 inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
-                  <Plus className="h-4 w-4 mr-2" />Create your first box
+                  <Plus className="h-4 w-4 mr-2" />{t('admin.virtualBoxes.createFirst')}
                 </button>
               </>
             ) : (
               <>
-                <p>No boxes match your filters.</p>
+                <p>{t('admin.virtualBoxes.emptyFiltered')}</p>
                 <button
                   onClick={() => { setSearch(''); setStatusFilter(''); }}
                   className="mt-3 text-sm text-primary-600 hover:underline"
                 >
-                  Clear filters
+                  {t('admin.virtualBoxes.clearFilters')}
                 </button>
               </>
             )}
@@ -421,11 +424,11 @@ const VirtualBoxes = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Box Image</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Card Pool Count</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Drop Rate Config</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('admin.virtualBoxes.colImage')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('admin.virtualBoxes.colName')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('admin.virtualBoxes.colPoolCount')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('admin.virtualBoxes.colDropRates')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('admin.virtualBoxes.colActions')}</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -440,23 +443,23 @@ const VirtualBoxes = () => {
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ring-1 ${STATUS_BADGES[box.status] || STATUS_BADGES.DRAFT}`}>
                         {box.status}
                       </span>
-                      <span className="text-xs text-gray-400">Updated {formatDate(box.updatedAt)}</span>
+                      <span className="text-xs text-gray-400">{t('admin.virtualBoxes.updated', { date: formatDate(box.updatedAt) })}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3">
                     <span className="inline-flex items-center gap-1.5 text-sm text-gray-600">
                       <Layers className="h-4 w-4 text-gray-400" />
-                      {box.cardPoolCount ?? 0} cards
+                      {t('admin.virtualBoxes.cardsCount', { count: box.cardPoolCount ?? 0 })}
                     </span>
                   </td>
                   <td className="px-4 py-3"><DropRateChips dropRates={box.dropRates} /></td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end space-x-1">
-                      <button onClick={() => openEdit(box)} className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg" title="Edit">
+                      <button onClick={() => openEdit(box)} className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg" title={t('admin.virtualBoxes.edit')}>
                         <Pencil className="h-5 w-5" />
                       </button>
                       {canDelete && (
-                        <button onClick={() => setDeleteTarget(box)} className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg" title="Delete">
+                        <button onClick={() => setDeleteTarget(box)} className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg" title={t('admin.virtualBoxes.delete')}>
                           <Trash2 className="h-5 w-5" />
                         </button>
                       )}
@@ -471,9 +474,9 @@ const VirtualBoxes = () => {
 
       {meta.totalPages > 1 && (
         <div className="flex justify-center items-center space-x-2">
-          <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page <= 1} className="p-2 border border-gray-300 rounded-lg disabled:opacity-40"><span className="px-2">Prev</span></button>
-          <span className="text-sm text-gray-700">Page {meta.page || page} / {meta.totalPages}</span>
-          <button onClick={() => setPage(Math.min(meta.totalPages, page + 1))} disabled={page >= meta.totalPages} className="p-2 border border-gray-300 rounded-lg disabled:opacity-40"><span className="px-2">Next</span></button>
+          <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page <= 1} className="p-2 border border-gray-300 rounded-lg disabled:opacity-40"><span className="px-2">{t('common.previous')}</span></button>
+          <span className="text-sm text-gray-700">{t('common.page', { page: meta.page || page, total: meta.totalPages })}</span>
+          <button onClick={() => setPage(Math.min(meta.totalPages, page + 1))} disabled={page >= meta.totalPages} className="p-2 border border-gray-300 rounded-lg disabled:opacity-40"><span className="px-2">{t('common.next')}</span></button>
         </div>
       )}
 
@@ -481,7 +484,7 @@ const VirtualBoxes = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[85vh] overflow-y-auto">
             <div className="flex justify-between items-center px-6 pt-6 sticky top-0 bg-white z-10">
-              <h3 className="text-lg font-semibold">{editing ? 'Edit Virtual Box' : 'Create New Box'}</h3>
+              <h3 className="text-lg font-semibold">{editing ? t('admin.virtualBoxes.editBox') : t('admin.virtualBoxes.createNew')}</h3>
               <button onClick={closeModal} className="text-gray-500 hover:text-gray-700"><X className="h-5 w-5" /></button>
             </div>
             <form onSubmit={handleSubmit} className="px-6 pb-6 pt-4 space-y-4">
@@ -489,19 +492,19 @@ const VirtualBoxes = () => {
                 <BoxThumbnail gradient={form.gradient} imageUrl={form.imageUrl} name={form.name} size="large" />
                 <div className="flex-1 space-y-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Cover / Pack Image URL</label>
+                    <label className="block text-sm font-medium text-gray-700">{t('admin.virtualBoxes.coverUrlLabel')}</label>
                     <div className="mt-1 flex gap-1.5">
                       <input
                         type="text"
                         value={form.imageUrl}
                         onChange={(e) => handleFormChange('imageUrl', e.target.value)}
-                        placeholder="https://... (booster pack artwork — ẩn khi trống, fallback về gradient)"
+                        placeholder={t('admin.virtualBoxes.coverPlaceholder')}
                         className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
                       {canUpload && (
                         <label
                           className="inline-flex items-center justify-center px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 cursor-pointer shrink-0"
-                          title="Upload ảnh cover / booster pack"
+                          title={t('admin.virtualBoxes.uploadCover')}
                         >
                           <ImagePlus className="h-4 w-4" />
                           <input
@@ -517,18 +520,18 @@ const VirtualBoxes = () => {
                           type="button"
                           onClick={() => handleFormChange('imageUrl', '')}
                           className="inline-flex items-center justify-center px-3 py-2 border border-gray-300 rounded-lg text-sm text-red-500 hover:bg-red-50 shrink-0"
-                          title="Xóa ảnh cover, dùng lại gradient"
+                          title={t('admin.virtualBoxes.removeCover')}
                         >
                           <X className="h-4 w-4" />
                         </button>
                       )}
                     </div>
                     <p className="mt-1 text-xs text-gray-400">
-                      Ảnh cover hiển thị ở catalog & 3D unboxing (khổ booster pack dọc). Bỏ trống để dùng gradient.
+                      {t('admin.virtualBoxes.coverHint')}
                     </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Gradient (fallback)</label>
+                    <label className="block text-sm font-medium text-gray-700">{t('admin.virtualBoxes.gradientFallback')}</label>
                     <select
                       value={form.gradient}
                       onChange={(e) => handleFormChange('gradient', e.target.value)}
@@ -542,42 +545,42 @@ const VirtualBoxes = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Name *</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('admin.virtualBoxes.nameLabel')}</label>
                   <input
                     type="text"
                     value={form.name}
                     onChange={(e) => handleFormChange('name', e.target.value)}
                     required
-                    placeholder="e.g. Genesis Starter Box"
+                    placeholder={t('admin.virtualBoxes.namePlaceholder')}
                     className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Status</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('admin.virtualBoxes.statusLabel')}</label>
                   <select
                     value={form.status}
                     onChange={(e) => handleFormChange('status', e.target.value)}
                     className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
-                    <option value="ACTIVE">Active</option>
-                    <option value="DRAFT">Draft</option>
-                    <option value="ARCHIVED">Archived</option>
+                    <option value="ACTIVE">{t('admin.virtualBoxes.active')}</option>
+                    <option value="DRAFT">{t('admin.virtualBoxes.draft')}</option>
+                    <option value="ARCHIVED">{t('admin.virtualBoxes.archived')}</option>
                   </select>
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center justify-between">
-                  <label className="block text-sm font-medium text-gray-700">Drop Rate Config (%) *</label>
+                  <label className="block text-sm font-medium text-gray-700">{t('admin.virtualBoxes.dropRateLabel')}</label>
                   <span className={`text-xs font-medium ${rateTotal === 100 ? 'text-emerald-600' : 'text-amber-600'}`}>
-                    Total: {rateTotal}%
+                    {t('common.total')}: {rateTotal}%
                   </span>
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-3">
                   {form.dropRates.map((item, index) => (
                     <div key={item.rarity} className="flex items-center gap-2">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-[11px] font-medium ring-1 ${RARITY_META[item.rarity]?.chip || ''}`}>
-                        {item.rarity}
+                        {t(`gacha.rarity.${RARITY_TO_ENUM[item.rarity]}`)}
                       </span>
                       <input
                         type="number"
@@ -599,10 +602,10 @@ const VirtualBoxes = () => {
                   <div>
                     <h4 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
                       <Layers className="h-4 w-4 text-primary-600" />
-                      Card Pool Manager
+                      {t('admin.virtualBoxes.poolManager')}
                     </h4>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      {form.pool.length} thẻ trong pool — số thẻ này quyết định card pool count.
+                      {t('admin.virtualBoxes.poolCount', { count: form.pool.length })}
                     </p>
                   </div>
                   <button
@@ -610,88 +613,88 @@ const VirtualBoxes = () => {
                     onClick={handleAddPoolCard}
                     className="inline-flex items-center px-3 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700"
                   >
-                    <MessageSquarePlus className="h-4 w-4 mr-1" /> Thêm thẻ
+                    <MessageSquarePlus className="h-4 w-4 mr-1" /> {t('admin.virtualBoxes.addCard')}
                   </button>
                 </div>
 
                 {form.pool.length === 0 ? (
                   <div className="text-center py-6 text-sm text-gray-500 border-2 border-dashed border-gray-300 rounded-lg">
-                    Chưa có thẻ nào. Nhấn "Thêm thẻ" để bắt đầu xây dựng pool.
+                    {t('admin.virtualBoxes.poolEmpty')}
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {form.pool.map((entry, index) => (
                       <div key={index} className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
                         <div className="flex items-start justify-between gap-2">
-                          <span className="text-xs font-semibold text-gray-500">Thẻ #{index + 1}</span>
+                          <span className="text-xs font-semibold text-gray-500">{t('admin.virtualBoxes.cardNo', { index: index + 1 })}</span>
                           <button
                             type="button"
                             onClick={() => handleRemovePoolCard(index)}
                             className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
-                            title="Xóa thẻ khỏi pool"
+                            title={t('admin.virtualBoxes.removeCard')}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <div>
-                            <label className="block text-[11px] font-medium text-gray-500 mb-1">Card Name *</label>
+                            <label className="block text-[11px] font-medium text-gray-500 mb-1">{t('admin.virtualBoxes.cardName')}</label>
                             <input
                               type="text"
                               value={entry.name}
                               onChange={(e) => handlePoolCardChange(index, 'name', e.target.value)}
-                              placeholder="VD: Celestial Dragon"
+                              placeholder={t('admin.virtualBoxes.cardNamePlaceholder')}
                               className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                             />
                           </div>
                           <div>
-                            <label className="block text-[11px] font-medium text-gray-500 mb-1">Rarity</label>
+                            <label className="block text-[11px] font-medium text-gray-500 mb-1">{t('admin.virtualBoxes.rarity')}</label>
                             <select
                               value={entry.rarity}
                               onChange={(e) => handlePoolCardChange(index, 'rarity', e.target.value)}
                               className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                             >
                               {RARITY_ORDER.map((r) => (
-                                <option key={r} value={r}>{r}</option>
+                                <option key={r} value={r}>{t(`gacha.rarity.${RARITY_TO_ENUM[r]}`)}</option>
                               ))}
                             </select>
                           </div>
                           <div>
-                            <label className="block text-[11px] font-medium text-gray-500 mb-1">Set Code</label>
+                            <label className="block text-[11px] font-medium text-gray-500 mb-1">{t('admin.virtualBoxes.setCode')}</label>
                             <input
                               type="text"
                               value={entry.setCode}
                               onChange={(e) => handlePoolCardChange(index, 'setCode', e.target.value)}
-                              placeholder="VD: CEL-001"
+                              placeholder={t('admin.virtualBoxes.setCodePlaceholder')}
                               className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                             />
                           </div>
                           <div>
-                            <label className="block text-[11px] font-medium text-gray-500 mb-1">Drop Rate (trọng số trong tier)</label>
+                            <label className="block text-[11px] font-medium text-gray-500 mb-1">{t('admin.virtualBoxes.dropRateWeight')}</label>
                             <input
                               type="number"
                               min="0"
                               step="0.1"
                               value={entry.dropRate}
                               onChange={(e) => handlePoolCardChange(index, 'dropRate', e.target.value)}
-                              placeholder="1 = đồng đều"
+                              placeholder={t('admin.virtualBoxes.dropRateHint')}
                               className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                             />
                           </div>
                           <div className="sm:col-span-2">
-                            <label className="block text-[11px] font-medium text-gray-500 mb-1">Image URL / Upload</label>
+                            <label className="block text-[11px] font-medium text-gray-500 mb-1">{t('admin.virtualBoxes.imageUrlUpload')}</label>
                             <div className="flex gap-1.5">
                               <input
                                 type="text"
                                 value={entry.imageUrl}
                                 onChange={(e) => handlePoolCardChange(index, 'imageUrl', e.target.value)}
-                                placeholder="https://... hoặc /uploads/..."
+                                placeholder={t('admin.virtualBoxes.imageUrlPlaceholder')}
                                 className="flex-1 min-w-0 px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                               />
                               {canUpload && (
                                 <label
                                   className="inline-flex items-center justify-center px-2 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 cursor-pointer shrink-0"
-                                  title="Upload ảnh thẻ"
+                                  title={t('admin.virtualBoxes.uploadCardImage')}
                                 >
                                   <ImagePlus className="h-4 w-4" />
                                   <input
@@ -707,9 +710,9 @@ const VirtualBoxes = () => {
                         </div>
                         {entry.imageUrl && (
                           <div className="flex items-center gap-2">
-                            <img src={entry.imageUrl} alt={entry.name || 'Card'} className="h-14 w-14 object-contain rounded border border-gray-200" />
+                            <img src={entry.imageUrl} alt={entry.name || t('admin.virtualBoxes.cardAlt')} className="h-14 w-14 object-contain rounded border border-gray-200" />
                             <span className="inline-flex items-center gap-1 text-[11px] text-gray-500">
-                              <Link2 className="h-3 w-3" /> Ảnh đã gắn
+                              <Link2 className="h-3 w-3" /> {t('admin.virtualBoxes.imageAttached')}
                             </span>
                           </div>
                         )}
@@ -727,11 +730,11 @@ const VirtualBoxes = () => {
 
               <div className="flex justify-end space-x-3 pt-2">
                 <button type="button" onClick={closeModal} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
-                  Cancel
+                  {t('admin.virtualBoxes.cancel')}
                 </button>
                 <button type="submit" disabled={saving} className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50">
                   {saving ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Save className="h-5 w-5 mr-2" />}
-                  {saving ? 'Đang lưu...' : editing ? 'Save Changes' : 'Create Box'}
+                  {saving ? t('admin.virtualBoxes.saving') : editing ? t('admin.virtualBoxes.save') : t('admin.virtualBoxes.createNew')}
                 </button>
               </div>
             </form>
@@ -747,23 +750,23 @@ const VirtualBoxes = () => {
                 <Trash2 className="h-6 w-6 text-red-600" />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-800">Delete Virtual Box</h3>
+                <h3 className="text-lg font-semibold text-gray-800">{t('admin.virtualBoxes.deleteTitle')}</h3>
                 <p className="mt-1 text-sm text-gray-500">
                   {deleteTarget.status === 'ARCHIVED' ? (
-                    <>Bạn sắp xóa vĩnh viễn <span className="font-medium text-gray-700">"{deleteTarget.name}"</span>. Hành động này không thể hoàn tác.</>
+                    <>{t('admin.virtualBoxes.deleteHard')} <span className="font-medium text-gray-700">"{deleteTarget.name}"</span>{t('admin.virtualBoxes.deleteIrreversible')}</>
                   ) : (
-                    <>Bạn sắp lưu trữ <span className="font-medium text-gray-700">"{deleteTarget.name}"</span>. Box sẽ bị ẩn khỏi storefront.</>
+                    <>{t('admin.virtualBoxes.deleteArchive')} <span className="font-medium text-gray-700">"{deleteTarget.name}"</span>{t('admin.virtualBoxes.deleteArchiveNote')}</>
                   )}
                 </p>
               </div>
             </div>
             <div className="mt-6 flex justify-end space-x-3">
               <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
-                Cancel
+                {t('admin.virtualBoxes.cancel')}
               </button>
               <button onClick={handleDeleteConfirmed} disabled={deleting} className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">
                 {deleting ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Trash2 className="h-5 w-5 mr-2" />}
-                {deleteTarget.status === 'ARCHIVED' ? 'Delete' : 'Archive'}
+                {deleteTarget.status === 'ARCHIVED' ? t('admin.virtualBoxes.delete') : t('admin.virtualBoxes.archive')}
               </button>
             </div>
           </div>

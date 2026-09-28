@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, Loader2, ExternalLink, MapPin, ChevronDown, ShieldCheck, Lock } from 'lucide-react';
+import { AlertCircle, Loader2, ExternalLink, MapPin, ChevronDown, ShieldCheck, Lock, TicketPercent, X } from 'lucide-react';
 import api from '../services/api';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useLanguage } from '../i18n/LanguageContext';
 import { formatVND } from '../utils/format';
+import VoucherPickerModal from '../components/VoucherPickerModal';
 import provincesData from '../province.json';
 import wardsData from '../ward.json';
 
@@ -14,6 +16,7 @@ const allWards = Object.values(wardsData);
 const Checkout = () => {
   const { items, totalItems, clearCart } = useCartStore();
   const { user } = useAuthStore();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   const [shippingAddress, setShippingAddress] = useState({
@@ -34,6 +37,17 @@ const Checkout = () => {
   const [orderData, setOrderData] = useState(null);
   const [polling, setPolling] = useState(false);
   const pollingIntervalRef = useRef(null);
+  // Phí ship động từ cấu hình admin — backend chốt lại giá trị này khi tạo đơn
+  const [shippingFee, setShippingFee] = useState(0);
+  useEffect(() => {
+    api.get('/shipping-fee')
+      .then((res) => setShippingFee(Number(res.data.data?.defaultShippingFee) || 0))
+      .catch(() => setShippingFee(0));
+  }, []);
+
+  // Voucher đã chọn: { code, discountAmount, voucher } | null
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
+  const [voucherModalOpen, setVoucherModalOpen] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -42,8 +56,19 @@ const Checkout = () => {
   }, []);
 
   const totalPrice = items.reduce((sum, item) => sum + Number(item.price || 0) * item.quantity, 0);
-  const shippingFee = items.length > 0 ? 20000 : 0; // VND
-  const grandTotal = totalPrice + shippingFee;
+  const effectiveShippingFee = items.length > 0 ? shippingFee : 0;
+  const discountAmount = appliedVoucher ? Math.min(appliedVoucher.discountAmount || 0, totalPrice) : 0;
+  const grandTotal = Math.max(0, totalPrice - discountAmount + effectiveShippingFee);
+
+  // Giỏ hàng thay đổi có thể làm voucher hết điều kiện — bỏ chọn để user xác nhận lại
+  const cartSignature = items.map((i) => `${i.productId}:${i.variantId || ''}:${i.quantity}`).sort().join('|');
+  const lastCartSignatureRef = useRef(null);
+  useEffect(() => {
+    if (lastCartSignatureRef.current !== null && lastCartSignatureRef.current !== cartSignature) {
+      setAppliedVoucher(null);
+    }
+    lastCartSignatureRef.current = cartSignature;
+  }, [cartSignature]);
 
   useEffect(() => {
     if (selectedProvince) {
@@ -78,17 +103,17 @@ const Checkout = () => {
   };
 
   const validate = () => {
-    if (!selectedProvince) { setError('Vui lòng chọn Tỉnh/Thành phố.'); return false; }
-    if (!selectedWard) { setError('Vui lòng chọn Phường/Xã/Thị trấn.'); return false; }
-    if (!shippingAddress.fullName.trim()) { setError('Vui lòng nhập họ tên người nhận.'); return false; }
-    if (!shippingAddress.phone.trim()) { setError('Vui lòng nhập số điện thoại.'); return false; }
-    if (!shippingAddress.addressLine1.trim()) { setError('Vui lòng nhập địa chỉ cụ thể (số nhà, đường...).'); return false; }
+    if (!selectedProvince) { setError(t('checkout.errProvince')); return false; }
+    if (!selectedWard) { setError(t('checkout.errWard')); return false; }
+    if (!shippingAddress.fullName.trim()) { setError(t('checkout.errName')); return false; }
+    if (!shippingAddress.phone.trim()) { setError(t('checkout.errPhone')); return false; }
+    if (!shippingAddress.addressLine1.trim()) { setError(t('checkout.errAddress')); return false; }
     return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (items.length === 0) { setError('Giỏ hàng trống.'); return; }
+    if (items.length === 0) { setError(t('checkout.errEmptyCart')); return; }
     setError('');
     if (!validate()) return;
 
@@ -122,7 +147,8 @@ const Checkout = () => {
       const response = await api.post('/orders/checkout', {
         items: checkoutItems,
         shippingAddress: addressPayload,
-        paymentMethod: 'SEPAY'
+        paymentMethod: 'SEPAY',
+        voucherCode: appliedVoucher?.code || undefined
       });
 
       const data = response.data.data;
@@ -139,7 +165,7 @@ const Checkout = () => {
       setError(
         apiMessage
           ? (detail ? `${apiMessage} (${detail})` : apiMessage)
-          : 'Không thể tạo đơn hàng. Vui lòng thử lại.'
+          : t('checkout.errCreateOrder')
       );
     } finally {
       setIsSubmitting(false);
@@ -165,7 +191,7 @@ const Checkout = () => {
           clearInterval(pollingIntervalRef.current);
           pollingIntervalRef.current = null;
           setPolling(false);
-          setError('Đơn hàng đã bị hủy.');
+          setError(t('checkout.errCancelled'));
           navigate('/payment/cancel');
         } else if (attempts >= MAX_ATTEMPTS) {
           clearInterval(pollingIntervalRef.current);
@@ -195,24 +221,24 @@ const Checkout = () => {
             <div className="mx-auto h-14 w-14 rounded-2xl bg-gradient-to-br from-primary-50 to-fuchsia-100 ring-1 ring-primary-200/60 flex items-center justify-center animate-tcg-glow-pulse">
               <Lock className="h-7 w-7 text-primary-700" />
             </div>
-            <h2 className="heading-display text-2xl mt-4">Chuyển hướng đến SePay</h2>
-            <p className="mt-2 text-ink-500 dark:text-ink-300">Nhấn nút bên dưới để tiến hành thanh toán an toàn.</p>
+            <h2 className="heading-display text-2xl mt-4">{t('checkout.redirectTitle')}</h2>
+            <p className="mt-2 text-ink-500 dark:text-ink-300">{t('checkout.redirectBody')}</p>
           </div>
 
           <div className="mt-7 rounded-2xl bg-ink-50/80 ring-1 ring-ink-100 dark:ring-white/10 p-5 space-y-3.5 text-sm">
             <div className="flex justify-between items-center">
-              <span className="text-ink-500 dark:text-ink-300">Mã đơn hàng</span>
+              <span className="text-ink-500 dark:text-ink-300">{t('checkout.orderCode')}</span>
               <span className="font-mono font-semibold text-ink-900 dark:text-white">{orderData.order.orderCode}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-ink-500 dark:text-ink-300">Số tiền (VND)</span>
+              <span className="text-ink-500 dark:text-ink-300">{t('checkout.amountVnd')}</span>
               <span className="font-display font-bold text-xl text-gradient-brand">
                 {formatVND(amount ?? orderData.order.grandTotal)}
               </span>
             </div>
             {transferContent && (
               <div className="flex justify-between items-center gap-4">
-                <span className="text-ink-500 dark:text-ink-300 shrink-0">Nội dung chuyển khoản</span>
+                <span className="text-ink-500 dark:text-ink-300 shrink-0">{t('checkout.transferContent')}</span>
                 <span className="font-mono font-semibold text-ink-900 dark:text-white break-all text-right">{transferContent}</span>
               </div>
             )}
@@ -222,7 +248,7 @@ const Checkout = () => {
             {polling && (
               <div className="inline-flex items-center gap-2 text-sm font-medium text-ink-500 dark:text-ink-300 rounded-full bg-primary-50 ring-1 ring-primary-200/70 px-4 py-2">
                 <Loader2 className="h-4 w-4 animate-spin text-primary-600" />
-                Đang chờ xác nhận thanh toán...
+                {t('checkout.waitingPayment')}
               </div>
             )}
 
@@ -239,18 +265,18 @@ const Checkout = () => {
                   className="btn-primary w-full sm:w-auto"
                 >
                   <ExternalLink className="h-5 w-5" />
-                  Thanh toán ngay
+                  {t('checkout.payNow')}
                 </button>
               </>
             ) : (
               <div className="w-full rounded-2xl bg-amber-50 dark:bg-amber-500/10 ring-1 ring-amber-200 dark:ring-amber-500/30 p-4 text-sm text-amber-700 dark:text-amber-300">
-                Không tạo được phiên thanh toán SePay từ hệ thống. Đơn hàng <span className="font-mono font-semibold">{orderData.order.orderCode}</span> đã được ghi nhận — bạn có thể thanh toán bằng chuyển khoản với nội dung ở trên, hoặc thử lại sau.
+                {t('checkout.noSePaySession', { code: orderData.order.orderCode })}
               </div>
             )}
 
             <p className="flex items-center gap-1.5 text-xs text-ink-400 dark:text-ink-300 mt-1">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-              Giao dịch được mã hóa và bảo mật
+              {t('checkout.encrypted')}
             </p>
           </div>
         </div>
@@ -261,8 +287,8 @@ const Checkout = () => {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 sm:px-6 lg:px-8 animate-tcg-reveal">
       <div className="mb-7">
-        <p className="section-eyebrow">Secure Checkout</p>
-        <h1 className="heading-display text-3xl mt-1">Thanh toán</h1>
+        <p className="section-eyebrow">{t('checkout.secureEyebrow')}</p>
+        <h1 className="heading-display text-3xl mt-1">{t('checkout.title')}</h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -270,31 +296,31 @@ const Checkout = () => {
         <div className="lg:col-span-2 rounded-3xl bg-white/85 dark:bg-[#12121a]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-8">
           <h2 className="heading-display text-lg flex items-center gap-2.5">
             <MapPin className="h-5 w-5 text-primary-600" />
-            Địa chỉ giao hàng
+            {t('checkout.shippingAddress')}
           </h2>
           <form onSubmit={handleSubmit} className="mt-6 space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
-                <label className="label-premium">Họ tên *</label>
+                <label className="label-premium">{t('checkout.fullName')} *</label>
                 <input
                   type="text"
                   name="fullName"
                   value={shippingAddress.fullName}
                   onChange={handleInputChange}
                   required
-                  placeholder="Nguyễn Văn A"
+                  placeholder={t('checkout.namePlaceholder')}
                   className="input-premium"
                 />
               </div>
               <div>
-                <label className="label-premium">Số điện thoại *</label>
+                <label className="label-premium">{t('checkout.phone')} *</label>
                 <input
                   type="text"
                   name="phone"
                   value={shippingAddress.phone}
                   onChange={handleInputChange}
                   required
-                  placeholder="0123 456 789"
+                  placeholder={t('checkout.phonePlaceholder')}
                   className="input-premium"
                 />
               </div>
@@ -302,7 +328,7 @@ const Checkout = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
-                <label className="label-premium">Tỉnh/Thành phố *</label>
+                <label className="label-premium">{t('checkout.province')} *</label>
                 <div className="relative">
                   <select
                     value={selectedProvince}
@@ -310,7 +336,7 @@ const Checkout = () => {
                     required
                     className="input-premium appearance-none pr-10 cursor-pointer"
                   >
-                    <option value="">-- Chọn Tỉnh/Thành phố --</option>
+                    <option value="">{t('checkout.selectProvince')}</option>
                     {provinces.map((prov) => (
                       <option key={prov.code} value={prov.code}>
                         {prov.name_with_type}
@@ -322,7 +348,7 @@ const Checkout = () => {
               </div>
 
               <div>
-                <label className="label-premium">Phường/Xã/Thị trấn *</label>
+                <label className="label-premium">{t('checkout.ward')} *</label>
                 <div className="relative">
                   <select
                     value={selectedWard}
@@ -331,7 +357,7 @@ const Checkout = () => {
                     disabled={!selectedProvince}
                     className="input-premium appearance-none pr-10 cursor-pointer"
                   >
-                    <option value="">{selectedProvince ? '-- Chọn Phường/Xã --' : 'Vui lòng chọn Tỉnh trước'}</option>
+                    <option value="">{selectedProvince ? t('checkout.selectWard') : t('checkout.selectProvinceFirst')}</option>
                     {filteredWards.map((ward) => (
                       <option key={ward.code} value={ward.code}>
                         {ward.name_with_type}
@@ -344,25 +370,25 @@ const Checkout = () => {
             </div>
 
             <div>
-              <label className="label-premium">Địa chỉ cụ thể (số nhà, đường, thôn/ấp...) *</label>
+              <label className="label-premium">{t('checkout.addressLine1')} *</label>
               <input
                 type="text"
                 name="addressLine1"
                 value={shippingAddress.addressLine1}
                 onChange={handleInputChange}
                 required
-                placeholder="VD: 123 Nguyễn Huệ, phường 5"
+                placeholder={t('checkout.addressLine1Placeholder')}
                 className="input-premium"
               />
             </div>
             <div>
-              <label className="label-premium">Ghi chú thêm (optional)</label>
+              <label className="label-premium">{t('checkout.addressLine2')}</label>
               <input
                 type="text"
                 name="addressLine2"
                 value={shippingAddress.addressLine2}
                 onChange={handleInputChange}
-                placeholder="VD: gần chợ Bến Thành"
+                placeholder={t('checkout.addressLine2Placeholder')}
                 className="input-premium"
               />
             </div>
@@ -382,12 +408,12 @@ const Checkout = () => {
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  Đang xử lý...
+                  {t('checkout.processing')}
                 </>
               ) : (
                 <>
                   <Lock className="h-5 w-5" />
-                  Đặt hàng & Thanh toán
+                  {t('checkout.submit')}
                 </>
               )}
             </button>
@@ -397,25 +423,81 @@ const Checkout = () => {
         {/* Order Summary */}
         <div className="lg:col-span-1">
           <div className="sticky top-24 rounded-3xl bg-white/85 dark:bg-[#12121a]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-7">
-            <h2 className="heading-display text-lg">Tóm tắt đơn hàng</h2>
+            <h2 className="heading-display text-lg">{t('checkout.orderSummary')}</h2>
+
+            {/* Voucher selector */}
+            <button
+              type="button"
+              onClick={() => setVoucherModalOpen(true)}
+              className={`mt-4 w-full flex items-center gap-3 p-3.5 rounded-2xl border transition-all duration-300 text-left ${
+                appliedVoucher
+                  ? 'border-primary-300 bg-primary-50/60 dark:bg-primary-400/10'
+                  : 'border-dashed border-ink-200 dark:border-white/15 hover:border-primary-400 hover:bg-primary-50/40 dark:hover:bg-white/5'
+              }`}
+            >
+              <div className={`h-9 w-9 rounded-xl flex items-center justify-center ring-1 flex-shrink-0 ${
+                appliedVoucher
+                  ? 'bg-brand-gradient-soft ring-primary-200/60'
+                  : 'bg-ink-50 ring-ink-200 dark:bg-white/5 dark:ring-white/10'
+              }`}>
+                <TicketPercent className={`h-5 w-5 ${appliedVoucher ? 'text-primary-700 dark:text-white' : 'text-ink-400'}`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                {appliedVoucher ? (
+                  <>
+                    <p className="text-sm font-semibold text-ink-900 dark:text-white truncate">
+                      {appliedVoucher.voucher?.title || appliedVoucher.code}
+                    </p>
+                    <p className="font-mono text-[11px] tracking-widest text-primary-700 dark:text-primary-300">
+                      {appliedVoucher.code}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm font-semibold text-ink-600 dark:text-ink-200">
+                    {t('checkout.chooseVoucher')}
+                  </p>
+                )}
+              </div>
+              {appliedVoucher ? (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); setAppliedVoucher(null); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); setAppliedVoucher(null); } }}
+                  className="p-1 rounded-lg text-ink-400 hover:text-rose-500 hover:bg-rose-50 transition-colors flex-shrink-0"
+                  aria-label={t('checkout.unselectVoucher')}
+                >
+                  <X className="h-4 w-4" />
+                </span>
+              ) : (
+                <ChevronDown className="h-4 w-4 text-ink-300 flex-shrink-0" />
+              )}
+            </button>
+
             <div className="mt-5 space-y-3 text-sm">
               <div className="flex justify-between text-ink-600 dark:text-ink-200">
-                <span>Sản phẩm ({totalItems})</span>
+                <span>{t('checkout.products', { count: totalItems })}</span>
                 <span className="font-semibold text-ink-800 dark:text-white">{formatVND(totalPrice)}</span>
               </div>
+              {appliedVoucher && (
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-300">
+                  <span>{t('checkout.discount')}</span>
+                  <span className="font-semibold">-{formatVND(discountAmount)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-ink-600 dark:text-ink-200">
-                <span>Phí vận chuyển</span>
-                <span className="font-semibold text-ink-800 dark:text-white">{formatVND(shippingFee)}</span>
+                <span>{t('checkout.shippingFee')}</span>
+                <span className="font-semibold text-ink-800 dark:text-white" data-testid="checkout-shipping-fee">{formatVND(effectiveShippingFee)}</span>
               </div>
               <div className="h-px bg-gradient-to-r from-transparent via-ink-200 to-transparent my-4" />
               <div className="flex justify-between items-baseline">
-                <span className="font-semibold text-ink-900 dark:text-white">Tổng cộng</span>
-                <span className="text-2xl font-display font-bold text-gradient-brand">{formatVND(grandTotal)}</span>
+                <span className="font-semibold text-ink-900 dark:text-white">{t('checkout.grandTotal')}</span>
+                <span className="text-2xl font-display font-bold text-gradient-brand" data-testid="checkout-grand-total">{formatVND(grandTotal)}</span>
               </div>
             </div>
 
             <div className="mt-6">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-3">Sản phẩm</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-3">{t('checkout.products', { count: items.length })}</h3>
               <ul className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
                 {items.map((item, idx) => (
                   <li key={idx} className="flex justify-between gap-3 text-sm">
@@ -428,11 +510,20 @@ const Checkout = () => {
 
             <div className="mt-6 flex items-center justify-center gap-1.5 text-xs text-ink-400 dark:text-ink-300 border-t border-ink-100 dark:border-white/10 pt-5">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-              Thanh toán bảo mật qua SePay
+              {t('checkout.securePayment')}
             </div>
           </div>
         </div>
       </div>
+
+      <VoucherPickerModal
+        isOpen={voucherModalOpen}
+        onClose={() => setVoucherModalOpen(false)}
+        cartItems={items}
+        subtotal={totalPrice}
+        selectedCode={appliedVoucher?.code || null}
+        onApply={setAppliedVoucher}
+      />
     </div>
   );
 };
