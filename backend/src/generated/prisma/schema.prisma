@@ -1,0 +1,588 @@
+generator client {
+  provider      = "prisma-client-js"
+  // Custom output — the generated client (including the query-engine
+  // binaries) is committed as source and shipped inside the deploy zip, so
+  // `prisma generate` NEVER needs to run on the production server
+  // (cPanel/CloudLinux LVE kills the Prisma CLI's Wasm schema validation
+  // with "Out of memory: Cannot allocate Wasm memory").
+  output        = "../src/generated/prisma"
+  // Engine targets: native (local dev/build machine) + the runtime targets
+  // used by cPanel/CloudLinux (RHEL-family glibc) and Debian-based images.
+  binaryTargets = ["native", "debian-openssl-1.0.x", "debian-openssl-1.1.x", "debian-openssl-3.0.x", "rhel-openssl-1.1.x", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ENUMS ====================
+
+enum Role {
+  CUSTOMER
+  ADMIN
+  MODERATOR
+  STAFF
+}
+
+enum UserStatus {
+  ACTIVE
+  BANNED
+  DELETED
+}
+
+enum OrderStatus {
+  PENDING
+  CANCELLED
+  PACKAGING
+  SHIPPING
+  DELIVERED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  SEPAy
+}
+
+enum PaymentLogStatus {
+  PENDING
+  COMPLETED
+  MISMATCH
+  SIGNATURE_MISMATCH
+  INVALID_PAYLOAD
+  AMOUNT_MISMATCH
+  DUPLICATE
+  ERROR
+}
+
+enum CardCondition {
+  MINT
+  NEAR_MINT
+  LIGHTLY_PLAYED
+  MODERATELY_PLAYED
+  HEAVILY_PLAYED
+  EXCELLENT
+  GOOD
+  POOR
+}
+
+enum CardStatus {
+  AVAILABLE
+  RESERVED
+  SOLD
+  INACTIVE
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  DRAFT
+  DELETED
+}
+
+enum VirtualBoxStatus {
+  ACTIVE
+  DRAFT
+  ARCHIVED
+}
+
+enum GachaRarity {
+  COMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+enum UserCardSource {
+  GACHA
+  PURCHASE
+  PROMOTION
+}
+
+enum DiscountType {
+  PERCENT
+  FIXED
+}
+
+enum VoucherScope {
+  ALL
+  CATEGORY
+  PRODUCT
+}
+
+// ==================== MODELS ====================
+
+model User {
+  id                 String     @id @default(uuid())
+  email              String?    @unique
+  passwordHash       String
+  fullName           String
+  phone              String     @unique
+  address            String?
+  avatarUrl          String?
+  role               Role       @default(CUSTOMER)
+  status             UserStatus @default(ACTIVE)
+  emailVerified      Boolean    @default(false)
+  canManageInventory Boolean    @default(false)
+  canManagePosts     Boolean    @default(false)
+  balance            Decimal    @default(0) @db.Decimal(12, 2)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  orders              Order[]
+  posts               Post[]
+  userCards           UserCard[]
+  virtualBoxOpenings  VirtualBoxOpening[]
+  userVouchers        UserVoucher[]
+}
+
+model Post {
+  id           String   @id @default(uuid())
+  title        String
+  content      String
+  excerpt      String?
+  thumbnailUrl String?
+  authorId     String
+  author       User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([authorId])
+}
+
+model RefreshToken {
+  id              String   @id @default(uuid())
+  // JWT refresh tokens are ~210 chars (HS256) — VARCHAR(191) overflowed with
+  // P2000. @db.Text is NOT allowed with @unique on MySQL/MariaDB (TEXT cannot
+  // be uniquely indexed), so the fix is a wider VARCHAR instead.
+  // 512 chars * 4 bytes (utf8mb4) = 2048B < 3072B InnoDB index key limit.
+  token           String   @unique @db.VarChar(512)
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt       DateTime
+  revoked         Boolean  @default(false)
+  // Stores a full refresh token when rotation records its replacement —
+  // widen alongside `token` to avoid the same P2000 on the nullable column.
+  replacedByToken String?  @db.VarChar(512)
+  createdByIp     String?
+  createdAt       DateTime @default(now())
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// Hierarchical category tree — Level 1 roots (Single Cards, Sealed
+// Products, Accessories) → Level 2 series/eras (Sun & Moon Series…) →
+// Level 3 expansion sets (Cosmic Eclipse…). `parentId` null = root.
+model Category {
+  id          String     @id @default(uuid())
+  name        String     @unique
+  slug        String     @unique
+  description String?
+  imageUrl    String?
+  isActive    Boolean    @default(true)
+  parentId    String?
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[] @relation("CategoryHierarchy")
+  products    Product[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([parentId])
+}
+
+model Set {
+  id          String    @id @default(uuid())
+  name        String
+  slug        String    @unique
+  // Short expansion code, e.g. "S12a" (VSTAR Universe), "SVI" (Scarlet &
+  // Violet base). Powers `?set=S12a` filtering without hardcoding anything
+  // into categories.
+  code        String?
+  releaseDate DateTime?
+  description String?
+  imageUrl    String?
+  products    Product[] @relation("ProductSets")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([code])
+}
+
+model Product {
+  id          String        @id @default(uuid())
+  name        String
+  shortName   String?
+  slug        String        @unique
+  description String?
+  cardNumber  String?
+  rarity      String?
+  // TCG metadata for single cards — language of the print (JP, ENG, …)
+  language    String?
+  // Card set / expansion name (e.g. "Surging Sparks", "151")
+  cardSet     String?
+  artist      String?
+  tcgplayerId String?
+  categoryId  String?
+  category    Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  sets        Set[]         @relation("ProductSets")
+  images      Json          @default("[]")
+  backImage   String?
+  attributes  Json?
+  status      ProductStatus @default(ACTIVE)
+  version     Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+
+  variants   ProductVariant[]
+  cards      Card[]
+  orderItems OrderItem[]
+
+  // Composite indexes for the common multi-attribute filter pattern
+  // `?category=...&language=...&rarity=...` — column order matches filter
+  // selectivity (category first, then language, then rarity). Single-column
+  // language/cardSet/rarity indexes remain for narrower queries.
+  @@index([categoryId])
+  @@index([status])
+  @@index([slug])
+  @@index([language])
+  @@index([cardSet])
+  @@index([rarity])
+  @@index([artist])
+  @@index([categoryId, language, rarity])
+  @@index([categoryId, cardSet])
+}
+
+model ProductVariant {
+  id            String        @id @default(uuid())
+  productId     String
+  product       Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  condition     CardCondition @default(NEAR_MINT)
+  variant       String        @default("Normal")
+  price         Decimal       @db.Decimal(10, 2)
+  stockQuantity Int           @default(0)
+  status        ProductStatus @default(ACTIVE)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  orderItems OrderItem[]
+
+  @@index([productId])
+  @@index([condition])
+  @@index([variant])
+}
+
+model Card {
+  id            String        @id @default(uuid())
+  sku           String        @unique
+  productId     String
+  product       Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  condition     CardCondition @default(NEAR_MINT)
+  status        CardStatus    @default(AVAILABLE)
+  purchasePrice Decimal?      @db.Decimal(10, 2)
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  orderItems    OrderItem[]
+
+  @@index([productId])
+  @@index([status])
+  @@index([sku])
+}
+
+model Order {
+  id              String        @id @default(uuid())
+  orderCode       String        @unique
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  status          OrderStatus   @default(PENDING)
+  totalAmount     Decimal       @db.Decimal(10, 2)
+  shippingFee     Decimal       @default(0) @db.Decimal(10, 2)
+  discountAmount  Decimal       @default(0) @db.Decimal(10, 2)
+  grandTotal      Decimal       @db.Decimal(10, 2)
+  // Snapshot mã voucher đã dùng — dữ liệu lịch sử không đổi dù voucher bị sửa sau này
+  voucherCode     String?
+  voucher         Voucher?      @relation(fields: [voucherCode], references: [code], onDelete: SetNull, onUpdate: Cascade)
+  shippingAddress Json
+  trackingNumber  String?
+  paymentMethod   PaymentMethod @default(SEPAy)
+  paymentStatus   PaymentStatus @default(PENDING)
+  expiresAt       DateTime
+  paidAt          DateTime?
+  cancelledAt     DateTime?
+  completedAt     DateTime?
+  version         Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  items         OrderItem[]
+  payments      Payment[]
+  paymentLogs   PaymentLog[]
+  statusHistory OrderStatusHistory[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([orderCode])
+  @@index([expiresAt])
+}
+
+model OrderItem {
+  id         String          @id @default(uuid())
+  orderId    String
+  order      Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId  String?
+  product    Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variantId  String?
+  variant    ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  cardId     String?
+  card       Card?           @relation(fields: [cardId], references: [id], onDelete: SetNull)
+  quantity   Int             @default(1)
+  unitPrice  Decimal         @db.Decimal(10, 2)
+  totalPrice Decimal         @db.Decimal(10, 2)
+  createdAt  DateTime        @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([variantId])
+  @@index([cardId])
+}
+
+model Payment {
+  id                 String        @id @default(uuid())
+  orderId            String
+  order              Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  paymentMethod      PaymentMethod @default(SEPAy)
+  amount             Decimal       @db.Decimal(10, 2)
+  status             PaymentStatus @default(PENDING)
+  sepayOrderCode     String?
+  sepayTransactionId String?
+  paymentUrl         String?
+  qrCodeUrl          String?
+  paidAt             DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  paymentLogs PaymentLog[]
+
+  @@index([orderId])
+  @@index([status])
+}
+
+model PaymentLog {
+  id                 String           @id @default(uuid())
+  sepayTransactionId String?          @unique
+  orderId            String?
+  order              Order?           @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  paymentId          String?
+  payment            Payment?         @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  rawPayload         Json
+  amount             Decimal?         @db.Decimal(10, 2)
+  content            String?
+  status             PaymentLogStatus @default(PENDING)
+  errorMessage       String?
+  processedAt        DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([orderId])
+  @@index([sepayTransactionId])
+  @@index([status])
+}
+
+model OrderStatusHistory {
+  id              String       @id @default(uuid())
+  orderId         String
+  order           Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  oldStatus       OrderStatus?
+  newStatus       OrderStatus
+  note            String?
+  changedByUserId String?
+  createdAt       DateTime     @default(now())
+
+  @@index([orderId])
+}
+
+// ==================== VOUCHERS / DISCOUNTS ====================
+
+// Mã giảm giá do admin tạo. Đơn hàng lưu `voucherCode` snapshot nên chỉnh sửa
+// voucher sau này không làm thay đổi dữ liệu lịch sử của đơn đã dùng nó.
+model Voucher {
+  id                String       @id @default(uuid())
+  code              String       @unique
+  title             String
+  discountType      DiscountType @default(PERCENT)
+  discountValue     Decimal      @db.Decimal(10, 2)
+  // Chỉ áp dụng cho PERCENT: giảm tối đa bao nhiêu (VND)
+  maxDiscountAmount Decimal?     @db.Decimal(10, 2)
+  minOrderAmount    Decimal      @default(0) @db.Decimal(10, 2)
+  // Giới hạn phát hành: tổng lượt dùng toàn hệ thống (null = không giới hạn)
+  totalQuantity     Int?
+  usedQuantity      Int          @default(0)
+  // Giới hạn số lượt dùng của một user
+  limitPerUser      Int          @default(1)
+  startAt           DateTime?
+  endAt             DateTime?
+  isActive          Boolean      @default(true)
+  scope             VoucherScope @default(ALL)
+  // Danh sách id Category/Product áp dụng khi scope != ALL (JSON array)
+  scopeIds          Json         @default("[]")
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  users  UserVoucher[]
+  orders Order[]
+
+  @@index([isActive])
+  @@index([endAt])
+}
+
+// Ví voucher của user: 1 voucher chỉ có 1 dòng/user, usage_count cộng dồn.
+// `usage_count` tăng khi đơn tạo thành công, hoàn lại khi đơn bị hủy.
+model UserVoucher {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  voucherId  String
+  voucher    Voucher  @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  usageCount Int      @default(0)
+  claimedAt  DateTime @default(now())
+
+  @@unique([userId, voucherId])
+  @@index([userId])
+  @@index([voucherId])
+}
+
+// ==================== APP SETTINGS ====================
+
+// Simple key-value store for admin-editable runtime configuration
+// (SePay gateway, shop identity, site title/favicon/support chat URL,
+// shipping fee). `value` is VARCHAR(512) so long URLs fit comfortably
+// (512 * 4 bytes utf8mb4 = 2048B < 3072B InnoDB index key limit).
+model AppSetting {
+  key       String   @id
+  value     String   @db.VarChar(512)
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
+}
+
+// ==================== VIRTUAL BOXES (GACHA) ====================
+// Fully decoupled from the retail Shop Inventory: gacha pools are made of
+// dedicated GachaCard rows, never Product/Card (shop) rows.
+
+// A collectible card that only exists inside the gacha ecosystem.
+// Self-contained artwork/name/set metadata — nothing is inherited from
+// the shop Product catalog.
+model GachaCard {
+  id        String      @id @default(uuid())
+  name      String
+  slug      String      @unique
+  imageUrl  String?
+  rarity    GachaRarity
+  setCode   String?
+  // Optional per-card weight used when a box pools cards of the same rarity
+  // (0/null → uniform). Kept on the card so pools stay trivially simple.
+  dropRate  Float       @default(1)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  poolItems VirtualBoxPoolItem[]
+  userCards UserCard[]
+
+  @@index([rarity])
+  @@index([setCode])
+}
+
+model VirtualBox {
+  id          String           @id @default(uuid())
+  name        String
+  slug        String           @unique
+  description String?
+  imageUrl    String?
+  gradient    String?
+  price       Decimal          @db.Decimal(10, 2)
+  status      VirtualBoxStatus @default(DRAFT)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  dropRates VirtualBoxDropRate[]
+  poolItems VirtualBoxPoolItem[]
+  openings  VirtualBoxOpening[]
+
+  @@index([status])
+}
+
+model VirtualBoxDropRate {
+  id        String      @id @default(uuid())
+  boxId     String
+  box       VirtualBox  @relation(fields: [boxId], references: [id], onDelete: Cascade)
+  rarity    GachaRarity
+  rate      Float
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([boxId, rarity])
+  @@index([boxId])
+}
+
+model VirtualBoxPoolItem {
+  id          String      @id @default(uuid())
+  boxId       String
+  box         VirtualBox  @relation(fields: [boxId], references: [id], onDelete: Cascade)
+  gachaCardId String
+  gachaCard   GachaCard   @relation(fields: [gachaCardId], references: [id], onDelete: Cascade)
+  rarity      GachaRarity
+  createdAt   DateTime    @default(now())
+
+  @@unique([boxId, gachaCardId])
+  @@index([boxId, rarity])
+  @@index([gachaCardId])
+}
+
+model UserCard {
+  id          String         @id @default(uuid())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gachaCardId String
+  gachaCard   GachaCard      @relation(fields: [gachaCardId], references: [id], onDelete: Restrict)
+  rarity      GachaRarity
+  source      UserCardSource @default(GACHA)
+  openingId   String?        @unique
+  obtainedAt  DateTime       @default(now())
+
+  @@index([userId])
+  @@index([gachaCardId])
+  @@index([rarity])
+}
+
+model VirtualBoxOpening {
+  id         String      @id @default(uuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  boxId      String
+  box        VirtualBox  @relation(fields: [boxId], references: [id], onDelete: Cascade)
+  userCardId String?     @unique
+  rarity     GachaRarity
+  pricePaid  Decimal     @db.Decimal(10, 2)
+  createdAt  DateTime    @default(now())
+
+  @@index([userId])
+  @@index([boxId])
+  @@index([createdAt])
+}
