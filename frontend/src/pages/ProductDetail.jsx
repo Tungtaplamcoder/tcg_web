@@ -89,13 +89,13 @@ const ProductDetail = () => {
      "Rendered more hooks than during the previous render"). */
   const breadcrumbItems = useMemo(() => {
     if (!product) return [];
-    const items = [{ label: 'Catalog', to: '/catalog' }];
+    const items = [{ label: t('nav.catalog'), to: '/catalog' }];
     if (categoryMeta) {
       items.push({ label: categoryMeta.description || categoryMeta.label, to: `/catalog?category=${categoryMeta.slug || (categoryMeta.value === 'BOX' ? 'sealed-products' : 'single-cards')}` });
     }
     items.push({ label: product.shortName || product.name });
     return items;
-  }, [product, categoryMeta]);
+  }, [product, categoryMeta, t]);
 
   const formatCurrency = (value) => {
     if (value === null || value === undefined || isNaN(Number(value))) return 'N/A';
@@ -133,7 +133,7 @@ const ProductDetail = () => {
         // ── Payload validation: never render a malformed record ──
         if (!data || typeof data !== 'object' || !data.id) {
           console.error('[ProductDetail] API returned invalid product payload:', response?.data);
-          setError('Product not found.');
+          setError(t('product.errors.notFound'));
           return;
         }
 
@@ -158,19 +158,20 @@ const ProductDetail = () => {
         const status = err?.response?.status;
         if (status === 404) {
           console.error(`[ProductDetail] Product ${id} not found (404):`, err?.response?.data);
-          setError('This product does not exist or has been removed.');
+          setError(t('product.errors.removed'));
         } else if (!err?.response) {
           console.error('[ProductDetail] Network error while loading product:', err);
-          setError('Cannot reach the server. Please check your connection and try again.');
+          setError(t('product.errors.network'));
         } else {
           console.error(`[ProductDetail] Failed to load product (HTTP ${status}):`, err?.response?.data || err);
-          setError('Failed to load this product. Please try again.');
+          setError(t('product.errors.loadFailed'));
         }
       } finally {
         setLoading(false);
       }
     };
     fetchProduct();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const selectedVariant = product?.variants?.find(v => v.id === selectedVariantId);
@@ -277,9 +278,9 @@ const ProductDetail = () => {
   if (error || !product) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-20 text-center">
-        <p className="text-rose-500 font-medium">{error || 'Product not found'}</p>
+        <p className="text-rose-500 font-medium">{error || t('product.errors.notFound')}</p>
         <button onClick={() => navigate('/catalog')} className="btn-ghost mt-4">
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back to catalog
+          <ArrowLeft className="h-4 w-4 mr-2" /> {t('product.errors.backToCatalog')}
         </button>
       </div>
     );
@@ -341,7 +342,7 @@ const ProductDetail = () => {
           {formatVND(data.marketPrice * USD_TO_VND_RATE)}
         </div>
         <div className="text-ink-500 dark:text-ink-300 text-sm">
-          {data.quantitySold} items sold
+          {data.quantitySold} {t('product.itemsSold')}
         </div>
         {(data.lowPrice !== null || data.highPrice !== null) && (
           <div className="text-ink-500 dark:text-ink-300 text-sm">
@@ -371,7 +372,7 @@ const ProductDetail = () => {
                 : 'bg-primary-400/15 text-primary-700 dark:text-primary-300 ring-1 ring-primary-400/30'
             }`}>
               {isBox ? <Package className="h-3 w-3" /> : <Zap className="h-3 w-3" />}
-              {isBox ? 'Sealed Box' : 'Single Card'}
+              {isBox ? t('product.sealedBox') : t('product.singleCard')}
             </span>
             {parsed?.franchise?.label && (
               <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-faint">
@@ -535,7 +536,7 @@ const ProductDetail = () => {
               <h2 className="heading-display text-xl mt-1 mb-4">
                 {isBox ? t('product.boxDetailsTitle') : t('product.cardDetailsTitle')}
               </h2>
-              <div className="rounded-2xl bg-white/80 dark:bg-[#12121a]/90 md:bg-white/50 dark:md:bg-white/5 ring-1 ring-ink-900/5 dark:ring-white/10 backdrop-blur-sm md:backdrop-blur-md p-6">
+              <div className="rounded-2xl bg-white/80 dark:bg-[#1c1216]/90 md:bg-white/50 dark:md:bg-white/5 ring-1 ring-ink-900/5 dark:ring-white/10 backdrop-blur-sm md:backdrop-blur-md p-6">
                 <p className="text-sm text-ink-600 dark:text-ink-300 leading-relaxed whitespace-pre-wrap font-medium">
                   {product.description}
                 </p>
@@ -655,29 +656,29 @@ const ProductDetail = () => {
                   {/* Legend */}
                   <div className="mt-4 flex items-center justify-center flex-wrap gap-x-6 gap-y-2 text-xs text-ink-500 dark:text-ink-300">
                     <div className="flex items-center">
-                      <span className="w-3 h-3 rounded-sm bg-primary-400/25 dark:bg-primary-500/30 ring-1 ring-primary-200 dark:ring-primary-400/30 mr-1.5"></span>
-                      Items Sold
-                    </div>
-                    <div className="flex items-center">
-                      <span className="w-3 h-3 rounded-full bg-gradient-to-r from-primary-600 to-fuchsia-500 mr-1.5"></span>
-                      Market Price
-                    </div>
+                        <span className="w-3 h-3 rounded-sm bg-primary-400/25 dark:bg-primary-500/30 ring-1 ring-primary-200 dark:ring-primary-400/30 mr-1.5"></span>
+                        {t('product.itemsSold')}
+                      </div>
+                      <div className="flex items-center">
+                        <span className="w-3 h-3 rounded-full bg-gradient-to-r from-primary-600 to-primary-400 mr-1.5"></span>
+                        {t('product.legendMarketPrice')}
+                      </div>
                   </div>
                 </div>
 
                 {/* Right column: Stats */}
                 <div className="space-y-4">
                   <div className="rounded-2xl bg-gradient-to-br from-primary-50/80 to-fuchsia-50/60 ring-1 ring-primary-200/50 p-5 dark:from-white/5 dark:to-aura-violet/10 dark:ring-white/10">
-                    <h3 className="font-display font-bold text-ink-900 dark:text-white">Price & Market Stats</h3>
+                    <h3 className="font-display font-bold text-ink-900 dark:text-white">{t('product.priceMarketStats')}</h3>
                     <div className="mt-4 space-y-3">
                       <div className="flex justify-between items-baseline">
-                        <span className="text-sm text-ink-500 dark:text-ink-300">Market Price</span>
+                        <span className="text-sm text-ink-500 dark:text-ink-300">{t('product.marketPriceLabel')}</span>
                         <span className="text-xl font-bold text-gradient-brand">
                           {metrics?.price_points ? formatCurrency(metrics.price_points.marketPrice) : 'N/A'}
                         </span>
                       </div>
                       <div className="flex justify-between items-baseline">
-                        <span className="text-sm text-ink-500 dark:text-ink-300">Most Recent Sale</span>
+                        <span className="text-sm text-ink-500 dark:text-ink-300">{t('product.mostRecentSale')}</span>
                         <span className="text-sm font-semibold text-ink-700 dark:text-ink-100">
                           {metrics?.price_points ? formatCurrency(metrics.price_points.mostRecentSale) : 'N/A'}
                         </span>
@@ -686,7 +687,7 @@ const ProductDetail = () => {
                         <span className="text-sm text-ink-500 dark:text-ink-300">
                           {metrics?.price_points?.volatility || 'Med Volatility'}
                         </span>
-                        <div className="w-full h-1.5 bg-white/80 dark:bg-[#12121a]/80 rounded-full mt-1.5 overflow-hidden">
+                        <div className="w-full h-1.5 bg-white/80 dark:bg-[#1c1216]/80 rounded-full mt-1.5 overflow-hidden">
                           <div className="h-1.5 rounded-full bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500" style={{ width: '50%' }} />
                         </div>
                       </div>
@@ -694,7 +695,7 @@ const ProductDetail = () => {
 
                     {(Array.isArray(metrics?.comparison_prices) ? metrics.comparison_prices : []).length > 0 && (
                       <div className="mt-4 pt-4 border-t border-primary-200/40">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2.5">Near Mint Comparison Prices</p>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-300 mb-2.5">{t('product.nearMintComparison')}</p>
                         <div className="flex flex-wrap gap-2">
                           {metrics.comparison_prices.map((item, idx) => (
                             <div key={idx} className="flex items-center gap-2 bg-white/85 dark:bg-white/10 rounded-lg px-3 py-1.5 ring-1 ring-primary-200/50 dark:ring-white/10 shadow-sm">
@@ -712,19 +713,19 @@ const ProductDetail = () => {
                     {metrics?.snapshot && typeof metrics.snapshot === 'object' ? (
                       <div className="grid grid-cols-2 gap-2.5 mt-4">
                         <div className="rounded-xl surface-2 p-3 text-center">
-                          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">Low Sale Price</p>
+                          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">{t('product.snapshot.lowSalePrice')}</p>
                           <p className="font-bold text-ink-800 dark:text-white mt-1">{formatCurrency(metrics.snapshot.lowSalePrice)}</p>
                         </div>
                         <div className="rounded-xl surface-2 p-3 text-center">
-                          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">High Sale Price</p>
+                          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">{t('product.snapshot.highSalePrice')}</p>
                           <p className="font-bold text-ink-800 dark:text-white mt-1">{formatCurrency(metrics.snapshot.highSalePrice)}</p>
                         </div>
                         <div className="rounded-xl surface-2 p-3 text-center">
-                          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">Total Sold</p>
+                          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">{t('product.snapshot.totalSold')}</p>
                           <p className="font-bold text-ink-800 dark:text-white mt-1">{formatNumber(metrics.snapshot.totalSold)}</p>
                         </div>
                         <div className="rounded-xl surface-2 p-3 text-center">
-                          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">Avg. Daily Sold</p>
+                          <p className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-ink-300 font-semibold">{t('product.snapshot.avgDailySold')}</p>
                           <p className="font-bold text-ink-800 dark:text-white mt-1">{formatNumber(metrics.snapshot.avgDailySold)}</p>
                         </div>
                       </div>

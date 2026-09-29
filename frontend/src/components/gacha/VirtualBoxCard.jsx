@@ -79,7 +79,7 @@ const DropRateBar = ({ dropRates }) => {
 const PackCountBadge = ({ count }) => {
   const { t } = useLanguage();
   return (
-    <span className="absolute right-3.5 top-3.5 z-10 inline-flex items-center gap-1.5 rounded-full border border-purple-100/80 dark:border-white/10 bg-white/85 md:bg-white/75 dark:bg-[#12121a]/85 md:dark:bg-[#12121a]/75 px-2.5 py-1 text-[10px] font-bold tracking-wide text-ink-600 dark:text-ink-200 shadow-sm backdrop-blur-sm">
+    <span className="absolute right-3.5 top-3.5 z-10 inline-flex items-center gap-1.5 rounded-full border border-purple-100/80 dark:border-white/10 bg-white/85 md:bg-white/75 dark:bg-[#1c1216]/85 md:dark:bg-[#1c1216]/75 px-2.5 py-1 text-[10px] font-bold tracking-wide text-ink-600 dark:text-ink-200 shadow-sm backdrop-blur-sm">
       <Layers className="h-3 w-3" />
       <span className="tabular-nums">{count ?? 0}</span>
       <span className="font-medium opacity-80">{t('virtualBox.cards')}</span>
@@ -151,7 +151,7 @@ const VirtualBoxCard = ({ box, index = 0, onPlay }) => {
   const { t } = useLanguage();
   return (
   <div className="h-full animate-tcg-reveal will-change-transform translate-z-0" style={{ animationDelay: `${Math.min(index * 0.06, 0.42)}s` }}>
-    <article className="group vb-lift will-change-transform translate-z-0 flex h-full flex-col overflow-hidden rounded-2xl border border-purple-100/60 dark:border-white/10 bg-white/90 md:bg-white/80 dark:bg-[#12121a]/90 md:dark:bg-[#12121a]/80 shadow-xl shadow-purple-500/5 dark:shadow-black/40 dark:shadow-2xl backdrop-blur-sm md:backdrop-blur-md transition-all duration-300 hover:-translate-y-2 hover:scale-[1.02] hover:shadow-2xl hover:shadow-purple-500/10 dark:hover:shadow-black/60">
+    <article className="group vb-lift will-change-transform translate-z-0 flex h-full flex-col overflow-hidden rounded-2xl border border-purple-100/60 dark:border-white/10 bg-white/90 md:bg-white/80 dark:bg-[#1c1216]/90 md:dark:bg-[#1c1216]/80 shadow-xl shadow-purple-500/5 dark:shadow-black/40 dark:shadow-2xl backdrop-blur-sm md:backdrop-blur-md transition-all duration-300 hover:-translate-y-2 hover:scale-[1.02] hover:shadow-2xl hover:shadow-purple-500/10 dark:hover:shadow-black/60">
       <PackHero box={box} />
 
       {/* Copy block — high-contrast ink text directly on the light glass card */}

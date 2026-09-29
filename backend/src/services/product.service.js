@@ -31,6 +31,36 @@ const resolveCategoryTreeIds = async (value) => {
   return [category.id, ...children.map((c) => c.id), ...grandchildren.map((c) => c.id)];
 };
 
+/* Derive the storefront main type (SEALED_PRODUCT / SINGLE_CARD) from a
+ * category's ancestry: walk parentId up to the root and treat anything
+ * rooted under the sealed-products category as sealed. The public product
+ * payload ships only the immediate category (e.g. "E2E Booster Box …" or a
+ * bare "a5"), so the storefront cannot reconstruct the root itself — expose
+ * the resolved type explicitly instead of relying on name heuristics. */
+const SEALED_ROOT_SLUG = PRODUCT_CATEGORIES.BOX.slug;
+const resolveMainTypeFromCategories = (categories) => {
+  const byId = new Map(categories.map((c) => [c.id, c]));
+  return (categoryId) => {
+    let cur = categoryId ? byId.get(categoryId) : null;
+    let guard = 0;
+    while (cur?.parentId && guard++ < 20) cur = byId.get(cur.parentId);
+    const root = cur;
+    const isSealed = Boolean(root) && (
+      root.slug === SEALED_ROOT_SLUG
+      || String(root.slug || '').toLowerCase().includes('sealed')
+      || String(root.name || '').toLowerCase().includes('sealed')
+    );
+    return isSealed ? 'SEALED_PRODUCT' : 'SINGLE_CARD';
+  };
+};
+
+const getCategoryMainTypeResolver = async () => {
+  const categories = await prisma.category.findMany({
+    select: { id: true, slug: true, name: true, parentId: true }
+  });
+  return resolveMainTypeFromCategories(categories);
+};
+
 /* Shared where-builder for the public catalog and the facet counts —
  * every filter is combinable: category (hierarchical, descendants
  * included), set (slug or expansion code), language, rarity, card set,
@@ -93,7 +123,7 @@ const listProducts = async (query) => {
   const skip = (query.page - 1) * query.limit;
   const take = query.limit;
 
-  const [items, totalItems] = await Promise.all([
+  const [items, totalItems, resolveMainType] = await Promise.all([
     prisma.product.findMany({
       where,
       skip,
@@ -108,11 +138,12 @@ const listProducts = async (query) => {
         }
       }
     }),
-    prisma.product.count({ where })
+    prisma.product.count({ where }),
+    getCategoryMainTypeResolver()
   ]);
 
   return {
-    items,
+    items: items.map((item) => ({ ...item, mainType: resolveMainType(item.categoryId) })),
     meta: {
       page: query.page,
       limit: query.limit,
@@ -123,17 +154,20 @@ const listProducts = async (query) => {
 };
 
 const getProductById = async (id) => {
-  const product = await prisma.product.findUnique({
-    where: { id },
-    include: {
-      sets: true,
-      category: { select: { id: true, name: true, slug: true, parentId: true } },
-      variants: {
-        where: { status: 'ACTIVE' },
-        orderBy: [{ condition: 'asc' }, { variant: 'asc' }]
+  const [product, resolveMainType] = await Promise.all([
+    prisma.product.findUnique({
+      where: { id },
+      include: {
+        sets: true,
+        category: { select: { id: true, name: true, slug: true, parentId: true } },
+        variants: {
+          where: { status: 'ACTIVE' },
+          orderBy: [{ condition: 'asc' }, { variant: 'asc' }]
+        }
       }
-    }
-  });
+    }),
+    getCategoryMainTypeResolver()
+  ]);
 
   if (!product || product.status === 'DELETED') {
     throw new NotFoundError('Product not found');
@@ -144,7 +178,7 @@ const getProductById = async (id) => {
     // không xử lý ở đây, chỉ trả về
   }
 
-  return product;
+  return { ...product, mainType: resolveMainType(product.categoryId) };
 };
 
 const listSets = async () => {

@@ -113,7 +113,7 @@ const Register = () => {
       <div className="pointer-events-none absolute inset-0 opacity-[0.05]" style={{ backgroundImage: 'linear-gradient(rgba(124,88,237,0.55) 1px, transparent 1px), linear-gradient(90deg, rgba(124,88,237,0.55) 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
 
       <div className="relative w-full max-w-lg animate-tcg-reveal">
-        <div className="rounded-3xl bg-white/80 dark:bg-[#12121a]/80 backdrop-blur-xl border border-white/60 shadow-2xl shadow-primary-900/10 p-8 sm:p-10">
+        <div className="rounded-3xl bg-white/80 dark:bg-[#1c1216]/80 backdrop-blur-xl border border-white/60 shadow-2xl shadow-primary-900/10 p-8 sm:p-10">
           <div className="text-center mb-8">
             <div className="mx-auto h-14 w-14 rounded-2xl bg-brand-gradient flex items-center justify-center shadow-glow">
               <Sparkles className="h-7 w-7 text-white" />

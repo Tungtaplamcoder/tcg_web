@@ -32,13 +32,13 @@ export const DEFAULT_HERO_CONTENT = {
 };
 
 const POWER_TYPE_KEYS = [
-  { id: 'fighter', key: 'home.powerTypeFighter', Icon: Swords, iconCls: 'from-orange-400 to-rose-500 text-white' },
-  { id: 'fire', key: 'home.powerTypeFire', Icon: Flame, iconCls: 'from-red-400 to-orange-500 text-white' },
-  { id: 'ghost', key: 'home.powerTypeGhost', Icon: Ghost, iconCls: 'from-violet-400 to-indigo-500 text-white' },
-  { id: 'normal', key: 'home.powerTypeNormal', Icon: Circle, iconCls: 'from-stone-300 to-stone-500 text-white' },
-  { id: 'ice', key: 'home.powerTypeIce', Icon: Snowflake, iconCls: 'from-cyan-300 to-sky-500 text-white' },
-  { id: 'psychic', key: 'home.powerTypePsychic', Icon: Brain, iconCls: 'from-fuchsia-400 to-purple-500 text-white' },
-  { id: 'electric', key: 'home.powerTypeElectric', Icon: Zap, iconCls: 'from-amber-300 to-yellow-500 text-white' }
+  { id: 'fighter', key: 'home.powerTypeFighter', Icon: Swords, iconCls: 'from-orange-300 to-primary-400 text-white' },
+  { id: 'fire', key: 'home.powerTypeFire', Icon: Flame, iconCls: 'from-primary-300 to-primary-500 text-white' },
+  { id: 'ghost', key: 'home.powerTypeGhost', Icon: Ghost, iconCls: 'from-blush-400 to-primary-400 text-white' },
+  { id: 'normal', key: 'home.powerTypeNormal', Icon: Circle, iconCls: 'from-ink-300 to-ink-500 text-white' },
+  { id: 'ice', key: 'home.powerTypeIce', Icon: Snowflake, iconCls: 'from-cyan-200 to-sky-400 text-white' },
+  { id: 'psychic', key: 'home.powerTypePsychic', Icon: Brain, iconCls: 'from-blush-500 to-primary-600 text-white' },
+  { id: 'electric', key: 'home.powerTypeElectric', Icon: Zap, iconCls: 'from-amber-200 to-amber-400 text-white' }
 ];
 
 /*
@@ -90,21 +90,21 @@ const FAN_SLOTS = [
     z: 'z-10 hover:z-30',
     cls: 'rotate-[-26deg] scale-[0.85] sm:scale-[0.87] md:scale-[0.89] lg:scale-[0.9] xl:scale-[0.92] translate-x-[-96px] sm:translate-x-[-150px] md:translate-x-[-220px] lg:translate-x-[-300px] xl:translate-x-[-360px]',
     w: 'w-40 sm:w-48 md:w-56 lg:w-64 xl:w-72',
-    shadow: 'shadow-[0_18px_44px_-18px_rgba(124,58,237,0.38)] dark:shadow-[0_26px_64px_-22px_rgba(147,51,234,0.65)]'
+    shadow: 'shadow-[0_18px_44px_-18px_rgba(225,29,72,0.28)] dark:shadow-[0_26px_64px_-22px_rgba(244,114,182,0.5)]'
   },
   {
     key: 'mid-left',
     z: 'z-[15] hover:z-30',
     cls: 'rotate-[-13deg] scale-[0.93] sm:scale-[0.95] md:scale-[0.97] lg:scale-[0.98] xl:scale-100 translate-x-[-52px] sm:translate-x-[-84px] md:translate-x-[-124px] lg:translate-x-[-170px] xl:translate-x-[-205px]',
     w: 'w-40 sm:w-48 md:w-56 lg:w-64 xl:w-72',
-    shadow: 'shadow-[0_18px_44px_-18px_rgba(124,58,237,0.38)] dark:shadow-[0_26px_64px_-22px_rgba(147,51,234,0.65)]'
+    shadow: 'shadow-[0_18px_44px_-18px_rgba(225,29,72,0.28)] dark:shadow-[0_26px_64px_-22px_rgba(244,114,182,0.5)]'
   },
   {
     key: 'center',
     z: 'z-20 hover:z-30',
     cls: 'scale-[0.98] sm:scale-100 lg:scale-105',
     w: 'w-44 sm:w-52 md:w-60 lg:w-72 xl:w-80',
-    shadow: 'shadow-[0_32px_72px_-22px_rgba(192,38,211,0.45)] dark:shadow-[0_44px_100px_-26px_rgba(217,70,239,0.7)]',
+    shadow: 'shadow-[0_32px_72px_-22px_rgba(225,29,72,0.35)] dark:shadow-[0_44px_100px_-26px_rgba(244,114,182,0.55)]',
     center: true
   },
   {
@@ -112,14 +112,14 @@ const FAN_SLOTS = [
     z: 'z-[15] hover:z-30',
     cls: 'rotate-[13deg] scale-[0.93] sm:scale-[0.95] md:scale-[0.97] lg:scale-[0.98] xl:scale-100 translate-x-[52px] sm:translate-x-[84px] md:translate-x-[124px] lg:translate-x-[170px] xl:translate-x-[205px]',
     w: 'w-40 sm:w-48 md:w-56 lg:w-64 xl:w-72',
-    shadow: 'shadow-[0_18px_44px_-18px_rgba(124,58,237,0.38)] dark:shadow-[0_26px_64px_-22px_rgba(147,51,234,0.65)]'
+    shadow: 'shadow-[0_18px_44px_-18px_rgba(225,29,72,0.28)] dark:shadow-[0_26px_64px_-22px_rgba(244,114,182,0.5)]'
   },
   {
     key: 'far-right',
     z: 'z-10 hover:z-30',
     cls: 'rotate-[26deg] scale-[0.85] sm:scale-[0.87] md:scale-[0.89] lg:scale-[0.9] xl:scale-[0.92] translate-x-[96px] sm:translate-x-[150px] md:translate-x-[220px] lg:translate-x-[300px] xl:translate-x-[360px]',
     w: 'w-40 sm:w-48 md:w-56 lg:w-64 xl:w-72',
-    shadow: 'shadow-[0_18px_44px_-18px_rgba(124,58,237,0.38)] dark:shadow-[0_26px_64px_-22px_rgba(147,51,234,0.65)]'
+    shadow: 'shadow-[0_18px_44px_-18px_rgba(225,29,72,0.28)] dark:shadow-[0_26px_64px_-22px_rgba(244,114,182,0.5)]'
   }
 ];
 
@@ -136,7 +136,7 @@ const FanCard = ({ card, slot, delay = 0 }) => (
           glitch={Boolean(slot.center)}
           edge={Boolean(slot.center)}
           rarity={card.rarity}
-          className={`aspect-[5/7] rounded-[1.15rem] bg-white p-2 ring-1 ring-black/[0.04] dark:bg-white/90 dark:ring-white/10 ${slot.w} ${slot.shadow}`}
+          className={`aspect-[5/7] rounded-[1.15rem] bg-white p-2 ring-1 ring-primary-100/70 dark:bg-white/90 dark:ring-white/10 ${slot.w} ${slot.shadow}`}
         >
           {/* Art layer lifted at its own depth for parallax drift */}
           <div
@@ -168,7 +168,7 @@ const SHOP_CATEGORY_CONFIG = [
     nameKey: 'home.categoryBoxName',
     taglineKey: 'home.categoryBoxTagline',
     Icon: Box,
-    iconCls: 'from-amber-400 to-orange-500'
+    iconCls: 'from-amber-300 to-primary-400'
   },
   {
     key: 'CARD',
@@ -176,7 +176,7 @@ const SHOP_CATEGORY_CONFIG = [
     nameKey: 'home.categoryCardName',
     taglineKey: 'home.categoryCardTagline',
     Icon: Layers,
-    iconCls: 'from-fuchsia-500 to-purple-500'
+    iconCls: 'from-blush-400 to-primary-500'
   }
 ];
 
@@ -234,36 +234,20 @@ const Home = ({ hero: heroProp }) => {
   ];
 
   return (
-    <div className="app-bg min-h-screen dark:bg-[#0d0714]">
-      {/* ===================== DREAMY HERO ===================== */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-rose-50/60 via-purple-50/40 to-pink-50/80 dark:from-[#130924] dark:via-[#0f081d] dark:to-[#09040e]">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              'radial-gradient(58% 46% at 50% 0%, rgba(244,114,182,0.20) 0%, rgba(168,85,247,0.12) 42%, transparent 70%)'
-          }}
-        />
-        {/* Neon violet tint at the crown in dark mode */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 hidden dark:block"
-          style={{
-            background:
-              'radial-gradient(58% 46% at 50% 0%, rgba(168,85,247,0.20) 0%, rgba(217,70,239,0.12) 42%, transparent 70%)'
-          }}
-        />
-        <div className="pointer-events-none absolute inset-0 opacity-50 dark:opacity-70">
+    <div className="min-h-screen">
+      {/* ===================== PASTEL EDITORIAL HERO ===================== */}
+      <section className="relative overflow-hidden">
+        {/* Soft drifting orbs */}
+        <div className="pointer-events-none absolute inset-0 opacity-60 dark:opacity-80">
           <div aria-hidden="true" className="absolute -left-24 -top-16 h-[24rem] w-[24rem]">
             <div
-              className="h-full w-full animate-tcg-drift rounded-full bg-rose-200/60 blur-[110px] dark:bg-purple-600/20"
+              className="h-full w-full animate-tcg-drift rounded-full bg-blush-300/50 blur-[110px] dark:bg-primary-500/20"
               style={{ maskImage: SOFT_ORB_MASK, WebkitMaskImage: SOFT_ORB_MASK }}
             />
           </div>
           <div aria-hidden="true" className="absolute -right-20 top-1/4 h-[22rem] w-[22rem]">
             <div
-              className="h-full w-full animate-tcg-drift rounded-full bg-violet-200/60 blur-[110px] dark:bg-fuchsia-600/15"
+              className="h-full w-full animate-tcg-drift rounded-full bg-primary-300/40 blur-[110px] dark:bg-primary-400/15"
               style={{ animationDelay: '2.4s', maskImage: SOFT_ORB_MASK, WebkitMaskImage: SOFT_ORB_MASK }}
             />
           </div>
@@ -274,10 +258,10 @@ const Home = ({ hero: heroProp }) => {
           {heroContent.badge && (
             <div className="flex justify-center">
               <span className="animate-tcg-reveal">
-                <span className="animate-tcg-bob motion-reduce:animate-none inline-flex items-center gap-2 rounded-full border border-fuchsia-200/80 bg-white/80 px-4 py-1.5 text-sm font-semibold text-fuchsia-700 shadow-[0_10px_30px_-10px_rgba(217,70,239,0.45)] backdrop-blur-sm dark:border-white/10 dark:bg-white/5 dark:text-purple-200 dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+                <span className="animate-tcg-bob motion-reduce:animate-none pill-badge">
                   <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-fuchsia-400 opacity-75 motion-reduce:animate-none" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-fuchsia-500 dark:bg-pink-400" />
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary-400 opacity-75 motion-reduce:animate-none" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-primary-500" />
                   </span>
                   {t('home.heroBadge')}
                 </span>
@@ -285,76 +269,65 @@ const Home = ({ hero: heroProp }) => {
             </div>
           )}
 
-          {/* Headline + subheadline — Latin-Ext display font, tight but
-              diacritic-safe leading (1.2) so stacked Vietnamese vowels
-              ("hiếm", "Bạn") never clip or collide with the previous
-              line's descenders; balanced wrapping via text-wrap:balance
-              keeps the 3-line rhythm on mobile. The sm:/lg: leading
-              overrides are REQUIRED: text-5xl/6xl bundle line-height:1
-              and responsive utilities compile after base ones, so a
-              bare leading-[1.2] is silently defeated at >=640px. */}
+          {/* Headline + subheadline — clean sans display, editorial serif
+              accent on the focus phrase. Leading 1.2 keeps stacked
+              Vietnamese diacritics from clipping across lines. */}
           <h1 className="mx-auto mt-7 max-w-3xl text-center font-display text-4xl font-extrabold leading-[1.2] tracking-tight text-ink-950 dark:text-white [text-wrap:balance] animate-tcg-reveal sm:text-5xl sm:leading-[1.2] lg:text-6xl lg:leading-[1.2]" style={{ animationDelay: '0.08s' }}>
             {t('home.heroHeadlinePre')}{' '}
-            <span className="bg-gradient-to-r from-fuchsia-600 via-purple-500 to-violet-600 bg-clip-text text-transparent dark:from-pink-400 dark:via-purple-400 dark:to-fuchsia-400 dark:drop-shadow-[0_0_20px_rgba(244,114,182,0.4)]">
+            <span className="editorial-serif text-gradient-brand">
               {t('home.heroHeadlineHighlight')}
             </span>{' '}
             {t('home.heroHeadlinePost')}
           </h1>
           {heroContent.subtext && (
-            <p className="mx-auto mt-5 max-w-xl text-center text-base leading-[1.65] text-ink-600 dark:text-purple-200/70 animate-tcg-reveal sm:text-lg" style={{ animationDelay: '0.16s' }}>
+            <p className="mx-auto mt-5 max-w-xl text-center text-base leading-[1.65] text-ink-600 dark:text-ink-300 animate-tcg-reveal sm:text-lg" style={{ animationDelay: '0.16s' }}>
               {t('home.heroSubtext')}
             </p>
           )}
 
-          {/* 3D card fan showcase — wide cinematic spread */}
+          {/* 3D card fan showcase — layered rotation layout */}
           <div className="relative mx-auto mt-14 h-72 w-full max-w-6xl overflow-x-clip sm:mt-16 sm:h-[340px] md:h-[400px] lg:h-[460px]" role="group" aria-label="Featured card fan showcase">
-            {/* Neon aura glows behind the fan */}
+            {/* Pastel aura glows behind the fan */}
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute left-1/2 top-1/2 h-[360px] w-[680px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-fuchsia-300/40 via-violet-300/30 to-rose-300/40 blur-3xl dark:from-purple-600/20 dark:via-fuchsia-600/20 dark:to-purple-500/20"
+              className="pointer-events-none absolute left-1/2 top-1/2 h-[360px] w-[680px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-blush-300/50 via-primary-200/40 to-blush-200/50 blur-3xl dark:from-primary-500/20 dark:via-primary-400/20 dark:to-primary-600/20"
             />
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute left-[4%] top-1/2 h-44 w-44 -translate-y-1/2 animate-aura-pulse rounded-full bg-violet-300/30 blur-3xl dark:bg-purple-600/20 sm:h-52 sm:w-52 lg:left-[2%] lg:h-64 lg:w-64"
+              className="pointer-events-none absolute left-[4%] top-1/2 h-44 w-44 -translate-y-1/2 animate-aura-pulse rounded-full bg-primary-300/30 blur-3xl dark:bg-primary-500/20 sm:h-52 sm:w-52 lg:left-[2%] lg:h-64 lg:w-64"
             />
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute right-[4%] top-1/2 h-44 w-44 -translate-y-1/2 animate-aura-pulse rounded-full bg-fuchsia-300/30 blur-3xl dark:bg-fuchsia-600/20 sm:h-52 sm:w-52 lg:right-[2%] lg:h-64 lg:w-64"
+              className="pointer-events-none absolute right-[4%] top-1/2 h-44 w-44 -translate-y-1/2 animate-aura-pulse rounded-full bg-blush-400/30 blur-3xl dark:bg-primary-400/20 sm:h-52 sm:w-52 lg:right-[2%] lg:h-64 lg:w-64"
               style={{ animationDelay: '1.4s' }}
             />
-            <div aria-hidden="true" className="pointer-events-none absolute bottom-2 left-1/2 h-12 w-[72%] -translate-x-1/2 rounded-[100%] bg-fuchsia-400/25 blur-2xl dark:bg-purple-600/25" />
+            <div aria-hidden="true" className="pointer-events-none absolute bottom-2 left-1/2 h-12 w-[72%] -translate-x-1/2 rounded-[100%] bg-primary-400/25 blur-2xl dark:bg-primary-500/25" />
             {FAN_SLOTS.map((slot, i) => (
               <FanCard key={slot.key} slot={slot} card={FAN_CARDS[i]} delay={0.2 + i * 0.09} />
             ))}
           </div>
 
-          {/* Decorative editorial typography — key phrases get the
-              Vietnamese-safe script replacement (Plus Jakarta Sans,
-              Latin Ext + vn subsets) with subtle gradient ink accents
-              instead of the broken Caveat cursive: Caveat has no
-              Vietnamese subset, so "Chúng tôi/Biến/có thật" rendered
-              with missing glyphs, and its leading-none/1.3em inline
-              spans clipped stacked diacritics. The replacement spans
-              inherit the 1.4 line box so accents never clip. */}
+          {/* Editorial text block — mixed typography, serif italic focus
+              words. 1.4 line box keeps Vietnamese diacritics from clipping. */}
           <div className="mx-auto mt-16 max-w-3xl text-center sm:mt-20">
             <p className="font-display text-2xl font-bold leading-[1.4] tracking-tight text-ink-950 dark:text-white animate-tcg-reveal sm:text-3xl sm:leading-[1.4] lg:text-[2.4rem] lg:leading-[1.4]" style={{ animationDelay: '0.28s' }}>
-              <span className="-rotate-2 inline-block bg-gradient-to-r from-fuchsia-600 to-purple-600 bg-clip-text px-1 font-script font-extrabold text-transparent dark:from-pink-400 dark:to-purple-400">{t('home.scriptWeAre')}</span>{' '}
+              <span className="editorial-serif -rotate-2 inline-block bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text px-2 text-transparent">{t('home.scriptWeAre')}</span>{' '}
               {t('home.scriptHereTo')}{' '}
-              <Flame className="mx-0.5 inline-block h-[0.8em] w-[0.8em] -translate-y-[0.06em] text-orange-500 dark:text-orange-400" aria-hidden="true" />{' '}
-              <span className="-rotate-1 inline-block bg-gradient-to-r from-fuchsia-600 to-purple-600 bg-clip-text px-1 font-script font-extrabold text-transparent dark:from-pink-400 dark:to-purple-400">{t('home.scriptTurn')}</span>{' '}
+              <Flame className="mx-0.5 inline-block h-[0.8em] w-[0.8em] -translate-y-[0.06em] text-primary-500" aria-hidden="true" />{' '}
+              <span className="editorial-serif -rotate-1 inline-block bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text px-2 text-transparent">{t('home.scriptTurn')}</span>{' '}
               {t('home.scriptPassion')}{' '}
-              <span className="rotate-1 inline-block bg-gradient-to-r from-fuchsia-600 to-purple-600 bg-clip-text px-1 font-script font-extrabold text-transparent dark:from-pink-400 dark:to-purple-400">{t('home.scriptReal')}</span>
-              <Sparkles className="mx-1 inline-block h-[0.85em] w-[0.85em] -translate-y-[0.08em] text-amber-500 dark:text-amber-300" aria-hidden="true" />
+              <span className="editorial-serif rotate-1 inline-block bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text px-2 text-transparent">{t('home.scriptReal')}</span>
+              <Sparkles className="mx-1 inline-block h-[0.85em] w-[0.85em] -translate-y-[0.08em] text-amber-400" aria-hidden="true" />
               <span className="animate-tcg-bob motion-reduce:animate-none mx-2 mt-2 inline-block align-middle">
                 <Link
                   to="/catalog"
-                  className="group inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-fuchsia-600 to-violet-600 px-6 py-3 align-middle text-base font-bold text-white shadow-[0_14px_34px_-10px_rgba(192,38,211,0.55)] ring-1 ring-inset ring-white/30 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg hover:shadow-purple-500/25 hover:brightness-110 active:translate-y-0 active:scale-[0.98] dark:shadow-[0_14px_34px_-10px_rgba(192,38,211,0.4)]"
+                  className="group inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-primary-600 to-primary-400 px-6 py-3 align-middle text-base font-bold text-white shadow-soft-lg ring-1 ring-inset ring-white/30 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:scale-[0.98]"
                 >
                   {t('home.shopNow')} <ArrowRight className="h-4 w-4 -translate-y-px transition-transform duration-300 group-hover:translate-x-0.5" aria-hidden="true" />
                 </Link>
               </span>
             </p>
-            <p className="mx-auto mt-5 max-w-xl text-sm text-ink-600 dark:text-purple-200/70 animate-tcg-reveal sm:text-base" style={{ animationDelay: '0.36s' }}>
+            <p className="mx-auto mt-5 max-w-xl text-sm text-ink-500 dark:text-ink-300 animate-tcg-reveal sm:text-base" style={{ animationDelay: '0.36s' }}>
               {t('home.heroFooterNote')}
             </p>
           </div>
@@ -363,7 +336,7 @@ const Home = ({ hero: heroProp }) => {
           <div className="mt-14 pb-20 sm:mt-16 sm:pb-24">
             <h2 className="sr-only">{t('home.powerTypes')}</h2>
             <div
-              className="animate-tcg-reveal mx-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-transparent bg-white/70 px-4 py-3 shadow-lg ring-1 ring-white/70 backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] dark:ring-white/10 sm:justify-center sm:px-6"
+              className="animate-tcg-reveal mx-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-primary-100/70 bg-white/70 px-4 py-3 shadow-soft backdrop-blur-md dark:border-white/10 dark:bg-white/5 sm:justify-center sm:px-6"
               role="list"
               aria-label={t('home.powerTypes')}
               style={{ animationDelay: '0.42s' }}
@@ -373,12 +346,12 @@ const Home = ({ hero: heroProp }) => {
                   key={id}
                   role="listitem"
                   aria-label={t(key)}
-                  className="group inline-flex shrink-0 cursor-default select-none items-center gap-2 rounded-full px-3 py-1.5 transition-[transform,background-color] duration-300 ease-out hover:-translate-y-1.5 hover:bg-white/80 dark:hover:bg-white/10 motion-reduce:transition-none"
+                  className="group inline-flex shrink-0 cursor-default select-none items-center gap-2 rounded-full px-3 py-1.5 transition-[transform,background-color] duration-300 ease-out hover:-translate-y-1.5 hover:bg-white/90 dark:hover:bg-white/10 motion-reduce:transition-none"
                 >
-                  <span className={`flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br shadow-sm transition-transform duration-300 group-hover:scale-110 ${iconCls}`}>
+                  <span className={`flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br shadow-soft transition-transform duration-300 group-hover:scale-110 ${iconCls}`}>
                     <Icon className="h-4 w-4" aria-hidden="true" />
                   </span>
-                  <span className="text-sm font-semibold text-ink-700 dark:text-purple-100">{t(key)}</span>
+                  <span className="text-sm font-semibold text-ink-700 dark:text-ink-100">{t(key)}</span>
                 </span>
               ))}
             </div>
@@ -393,15 +366,15 @@ const Home = ({ hero: heroProp }) => {
             {features.map((f, i) => (
               <div
                 key={f.title}
-                className="flex items-center gap-4 p-5 surface rounded-2xl hover:-translate-y-1 transition-all duration-300 animate-tcg-reveal hover:ring-iridescent dark:bg-white/5 dark:border-white/10 dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+                className="flex items-center gap-4 p-5 surface-editorial animate-tcg-reveal"
                 style={{ animationDelay: `${0.1 + i * 0.06}s` }}
               >
-                <div className="h-12 w-12 shrink-0 rounded-2xl bg-gradient-to-br from-fuchsia-50 to-violet-100 dark:from-white/10 dark:to-aura-violet/20 flex items-center justify-center">
-                  <f.icon className="h-6 w-6 text-fuchsia-600 dark:text-fuchsia-400" />
+                <div className="h-12 w-12 shrink-0 rounded-2xl bg-gradient-to-br from-blush-100 to-primary-100 dark:from-white/10 dark:to-primary-400/20 flex items-center justify-center">
+                  <f.icon className="h-6 w-6 text-primary-600 dark:text-primary-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-strong dark:text-white">{f.title}</h3>
-                  <p className="text-sm text-muted dark:text-purple-200/70">{f.desc}</p>
+                  <h3 className="font-semibold text-ink-900 dark:text-white">{f.title}</h3>
+                  <p className="text-sm text-ink-500 dark:text-ink-300">{f.desc}</p>
                 </div>
               </div>
             ))}
@@ -410,36 +383,38 @@ const Home = ({ hero: heroProp }) => {
       </section>
 
       {/* ===================== CATEGORIES ===================== */}
-      <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Transparent wrapper — the global pastel canvas shows through
+          uninterrupted; only the cards below carry the white surface. */}
+      <section className="pt-20 bg-transparent">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 bg-transparent">
           <div className="flex items-end justify-between mb-8">
             <div>
-              <p className="section-eyebrow dark:from-pink-400 dark:to-purple-400">{t('home.collectionsEyebrow')}</p>
+              <p className="section-eyebrow">{t('home.collectionsEyebrow')}</p>
               <h2 className="mt-2 heading-display text-3xl dark:text-white">{t('home.shopByCategory')}</h2>
             </div>
-            <Link to="/catalog" className="text-fuchsia-600 hover:text-fuchsia-700 dark:text-fuchsia-400 dark:hover:text-white font-medium flex items-center shrink-0">
+            <Link to="/catalog" className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-white font-medium flex items-center shrink-0">
               {t('home.viewAll')} <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
           </div>
           <div className="grid grid-cols-2 gap-4 sm:gap-6 max-w-3xl mx-auto">
-            {SHOP_CATEGORY_CONFIG.map(({ key, slug, nameKey, taglineKey, Icon, iconCls }, i) => {
+            {SHOP_CATEGORY_CONFIG.map(({ key, slug, nameKey, taglineKey, Icon }, i) => {
               const count = categoryCount(slug);
               return (
                 <Link
                   key={key}
                   to={`/catalog?category=${slug}`}
-                  className="group relative overflow-hidden rounded-3xl h-36 sm:h-44 flex flex-col items-center justify-center text-center p-5 surface hover:-translate-y-1 transition-all duration-300 animate-tcg-reveal dark:bg-white/5 dark:border-white/10 dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+                  className="group relative overflow-hidden h-36 sm:h-44 flex flex-col items-center justify-center text-center p-6 bg-white/80 backdrop-blur-md border border-pink-100/70 rounded-3xl shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 animate-tcg-reveal"
                   style={{ animationDelay: `${i * 0.06}s` }}
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-fuchsia-500/0 to-violet-500/0 group-hover:from-fuchsia-500/20 group-hover:to-violet-500/20 dark:group-hover:from-fuchsia-500/15 dark:group-hover:to-purple-500/15 transition-colors duration-500" />
-                  <div aria-hidden="true" className="absolute -top-10 -right-10 h-28 w-28 rounded-full bg-purple-600/0 blur-2xl transition-colors duration-500 group-hover:bg-purple-600/20 dark:bg-purple-600/10" />
-                  <span className={`relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br shadow-lg group-hover:scale-110 transition-transform duration-300 ${iconCls}`}>
-                    <Icon className="h-7 w-7 text-white" aria-hidden="true" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary-500/0 to-blush-500/0 group-hover:from-primary-500/10 group-hover:to-blush-500/15 transition-colors duration-500" />
+                  <div aria-hidden="true" className="absolute -top-10 -right-10 h-28 w-28 rounded-full bg-primary-400/0 blur-2xl transition-colors duration-500 group-hover:bg-primary-400/20" />
+                  <span className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-pink-100/60 text-pink-700 group-hover:scale-110 transition-transform duration-300">
+                    <Icon className="h-7 w-7 text-pink-700" aria-hidden="true" />
                   </span>
-                  <span className="relative mt-3 font-display text-lg font-bold text-strong dark:text-white group-hover:text-fuchsia-700 dark:group-hover:text-pink-300 transition-colors">{t(nameKey)}</span>
-                  <span className="relative mt-1 text-xs text-muted dark:text-purple-200/70">{t(taglineKey)}</span>
+                  <span className="relative mt-3 font-display text-lg font-bold text-ink-900 dark:text-white group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">{t(nameKey)}</span>
+                  <span className="relative mt-1 text-xs text-ink-500 dark:text-ink-300 break-words line-clamp-2">{t(taglineKey)}</span>
                   {count !== null && (
-                    <span className="relative mt-1.5 text-[11px] font-semibold text-faint dark:text-purple-200/50">{t('home.productsCount', { count })}</span>
+                    <span className="relative mt-1.5 text-[11px] font-semibold text-ink-400 dark:text-ink-400">{t('home.productsCount', { count })}</span>
                   )}
                 </Link>
               );
@@ -448,26 +423,20 @@ const Home = ({ hero: heroProp }) => {
         </div>
       </section>
 
-      {/* ===================== FEATURED PRODUCTS ===================== */}
-      <section className="py-20 bg-gradient-to-b from-transparent to-primary-50/30 dark:to-purple-500/[0.03]">
+      {/* ===================== FEATURED / PACKS ===================== */}
+      <section className="mt-10 pb-20 bg-gradient-to-b from-blush-100/60 to-transparent dark:from-primary-400/[0.04]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-end justify-between mb-8">
-            <div>
-              <p className="section-eyebrow dark:from-pink-400 dark:to-purple-400">{t('home.hotPicksEyebrow')}</p>
-              <h2 className="mt-2 heading-display text-3xl dark:text-white">{t('home.featuredTitle')}</h2>
-            </div>
-            <Link to="/catalog" className="text-fuchsia-600 hover:text-fuchsia-700 dark:text-fuchsia-400 dark:hover:text-white font-medium flex items-center shrink-0">
-              {t('home.viewAll')} <ArrowRight className="ml-1 h-4 w-4" />
-            </Link>
+          <div className="mb-8">
+            <h2 className="heading-display text-3xl dark:text-white">{t('home.featuredTitle')}</h2>
           </div>
 
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {[...Array(4)].map((_, idx) => (
-                <div key={idx} className="rounded-3xl surface p-2 animate-pulse dark:bg-white/5 dark:border-white/10 dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
-                  <div className="h-64 bg-ink-100 dark:bg-white/5 rounded-2xl mb-3" />
-                  <div className="h-4 bg-ink-100 dark:bg-white/5 rounded w-3/4 mx-auto mb-2" />
-                  <div className="h-5 bg-ink-100 dark:bg-white/5 rounded w-1/3 mx-auto" />
+                <div key={idx} className="surface-editorial p-2 animate-pulse">
+                  <div className="h-64 bg-primary-50 dark:bg-white/5 rounded-2xl mb-3" />
+                  <div className="h-4 bg-primary-50 dark:bg-white/5 rounded w-3/4 mx-auto mb-2" />
+                  <div className="h-5 bg-primary-50 dark:bg-white/5 rounded w-1/3 mx-auto" />
                 </div>
               ))}
             </div>
@@ -486,16 +455,15 @@ const Home = ({ hero: heroProp }) => {
       {/* ===================== PROMO / CTA ===================== */}
       <section className="relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
-          <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-violet-700 via-fuchsia-600 to-pink-500 text-white p-8 sm:p-14 text-center dark:from-[#1b0f33] dark:via-[#150b28] dark:to-[#0d0714] dark:ring-1 dark:ring-white/10">
-            <div className="absolute -top-20 -right-10 h-72 w-72 rounded-full bg-white/15 blur-[100px] animate-tcg-float dark:bg-purple-600/25" />
-            <div className="absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-pink-300/20 blur-[100px] animate-tcg-float-slow dark:bg-fuchsia-600/20" />
-            <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+          <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-primary-500 via-primary-400 to-blush-400 text-white p-8 sm:p-14 text-center shadow-soft-lg dark:from-[#2a1520] dark:via-[#241220] dark:to-[#1a0f18] dark:ring-1 dark:ring-white/10">
+            <div className="absolute -top-20 -right-10 h-72 w-72 rounded-full bg-white/20 blur-[100px] animate-tcg-float dark:bg-primary-500/25" />
+            <div className="absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-blush-200/25 blur-[100px] animate-tcg-float-slow dark:bg-primary-400/20" />
             <div className="relative">
-              <Sparkles className="h-10 w-10 mx-auto text-pink-100 dark:text-purple-200" />
-              <h2 className="mt-4 text-3xl sm:text-4xl font-extrabold">{t('home.ctaTitle')}</h2>
-              <p className="mt-3 text-white/80 max-w-xl mx-auto">{t('home.ctaBody')}</p>
-              <Link to="/catalog" className="btn-aura mt-8">
-                {t('home.ctaBtn')} <ArrowRight className="ml-2 h-5 w-5" />
+              <Sparkles className="h-10 w-10 mx-auto text-white/90" />
+              <h2 className="mt-4 font-display text-3xl sm:text-4xl font-extrabold">{t('home.ctaTitle')}</h2>
+              <p className="mt-3 text-white/85 max-w-xl mx-auto">{t('home.ctaBody')}</p>
+              <Link to="/catalog" className="mt-8 inline-flex items-center justify-center gap-2 rounded-full bg-white px-8 py-3.5 font-semibold text-primary-700 shadow-soft-lg transition-all duration-300 hover:-translate-y-0.5 hover:brightness-105 active:scale-[0.98]">
+                {t('home.ctaBtn')} <ArrowRight className="ml-1 h-5 w-5" />
               </Link>
             </div>
           </div>

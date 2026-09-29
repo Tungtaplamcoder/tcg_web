@@ -80,7 +80,7 @@ const ProgressBar = ({ status }) => {
 
 /* ── skeleton loader mirroring the result card layout ──────────────────── */
 const LookupSkeleton = () => (
-  <div className="mt-8 rounded-3xl bg-white/85 dark:bg-[#12121a]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-8 animate-pulse">
+  <div className="mt-8 rounded-3xl bg-white/85 dark:bg-[#1c1216]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-8 animate-pulse">
     <div className="flex items-center justify-between gap-4 mb-6">
       <div className="h-5 bg-ink-100 dark:bg-white/10 rounded-lg w-40" />
       <div className="h-7 bg-ink-100 dark:bg-white/10 rounded-full w-28" />
@@ -117,7 +117,7 @@ const OrderResult = ({ order }) => {
   const StatusIcon = config.icon;
 
   return (
-    <div className="mt-8 rounded-3xl bg-white/85 dark:bg-[#12121a]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-8 animate-tcg-reveal">
+    <div className="mt-8 rounded-3xl bg-white/85 dark:bg-[#1c1216]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-8 animate-tcg-reveal">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-wider text-ink-400 dark:text-ink-300">{t('checkout.orderCode')}</p>
@@ -265,7 +265,7 @@ const OrderLookup = () => {
   };
 
   return (
-    <div className="w-full min-h-screen app-bg">
+    <div className="w-full min-h-screen">
       <div className="relative max-w-3xl mx-auto px-4 py-12">
         {/* Ambient background — entirely contained within the page wrapper */}
         <div className="pointer-events-none absolute -top-10 left-6 h-64 w-64 rounded-full bg-primary-400/10 blur-[100px] animate-tcg-float" />
@@ -287,7 +287,7 @@ const OrderLookup = () => {
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-3xl bg-white/80 dark:bg-[#12121a]/80 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-7 animate-tcg-reveal"
+          className="rounded-3xl bg-white/80 dark:bg-[#1c1216]/80 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-7 animate-tcg-reveal"
           style={{ animationDelay: '0.08s' }}
         >
           <label htmlFor="lookup-input" className="label-premium">
@@ -341,7 +341,7 @@ const OrderLookup = () => {
         {loading && <LookupSkeleton />}
 
         {!loading && error && (
-          <div className="mt-8 relative overflow-hidden rounded-3xl bg-white/85 dark:bg-[#12121a]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-8 text-center animate-tcg-scale-in">
+          <div className="mt-8 relative overflow-hidden rounded-3xl bg-white/85 dark:bg-[#1c1216]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-8 text-center animate-tcg-scale-in">
             <div className="pointer-events-none absolute -top-16 left-1/3 h-48 w-48 rounded-full bg-rose-300/15 blur-[80px]" />
             <div className="relative">
               <div className="mx-auto h-14 w-14 rounded-2xl bg-rose-50 ring-1 ring-rose-200 flex items-center justify-center">

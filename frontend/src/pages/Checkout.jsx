@@ -216,7 +216,7 @@ const Checkout = () => {
         <div className="pointer-events-none absolute -top-24 left-1/4 h-64 w-64 rounded-full bg-primary-400/15 blur-[100px] animate-tcg-float" />
         <div className="pointer-events-none absolute -bottom-24 right-1/4 h-64 w-64 rounded-full bg-fuchsia-400/15 blur-[100px] animate-tcg-float-slow" />
 
-        <div className="relative rounded-3xl bg-white/85 dark:bg-[#12121a]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-9">
+        <div className="relative rounded-3xl bg-white/85 dark:bg-[#1c1216]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-9">
           <div className="text-center">
             <div className="mx-auto h-14 w-14 rounded-2xl bg-gradient-to-br from-primary-50 to-fuchsia-100 ring-1 ring-primary-200/60 flex items-center justify-center animate-tcg-glow-pulse">
               <Lock className="h-7 w-7 text-primary-700" />
@@ -293,7 +293,7 @@ const Checkout = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Shipping Form */}
-        <div className="lg:col-span-2 rounded-3xl bg-white/85 dark:bg-[#12121a]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-8">
+        <div className="lg:col-span-2 rounded-3xl bg-white/85 dark:bg-[#1c1216]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-8">
           <h2 className="heading-display text-lg flex items-center gap-2.5">
             <MapPin className="h-5 w-5 text-primary-600" />
             {t('checkout.shippingAddress')}
@@ -422,7 +422,7 @@ const Checkout = () => {
 
         {/* Order Summary */}
         <div className="lg:col-span-1">
-          <div className="sticky top-24 rounded-3xl bg-white/85 dark:bg-[#12121a]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-7">
+          <div className="sticky top-24 rounded-3xl bg-white/85 dark:bg-[#1c1216]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-7">
             <h2 className="heading-display text-lg">{t('checkout.orderSummary')}</h2>
 
             {/* Voucher selector */}

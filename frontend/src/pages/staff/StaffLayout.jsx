@@ -81,8 +81,8 @@ const StaffLayout = () => {
               className={({ isActive }) =>
                 `group flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 ${
                   isActive
-                    ? 'bg-gradient-to-r from-primary-600 to-fuchsia-600 text-white shadow-[0_6px_20px_-6px_rgba(124,58,237,0.6)]'
-                    : 'text-muted hover:bg-primary-50 dark:hover:bg-white/5 hover:text-strong dark:hover:text-white'
+                    ? 'bg-gradient-to-r from-[#E11D48] to-[#F472B6] text-white shadow-[0_8px_20px_-8px_rgba(225,29,72,0.7)]'
+                    : 'text-muted hover:bg-pink-50 dark:hover:bg-white/5 hover:text-[#E11D48] dark:hover:text-white'
                 }`
               }
             >

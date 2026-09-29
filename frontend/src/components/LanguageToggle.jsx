@@ -16,12 +16,12 @@ const LanguageToggle = ({ className = '' }) => {
       role="group"
       aria-label={t('common.language')}
       title={t('common.language')}
-      className={`relative flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-lg ring-1 ring-inset ring-slate-200/80 dark:ring-slate-700/70 ${className}`}
+      className={`relative flex items-center bg-primary-50/80 dark:bg-white/5 p-1 rounded-full ring-1 ring-inset ring-primary-100 dark:ring-white/10 ${className}`}
     >
       {/* Sliding active thumb */}
       <span
         aria-hidden="true"
-        className="absolute top-1 bottom-1 w-[calc(50%-0.25rem)] rounded-md bg-slate-900 dark:bg-white shadow-sm transition-[left] duration-300 ease-out"
+        className="absolute top-1 bottom-1 w-[calc(50%-0.25rem)] rounded-full bg-gradient-to-r from-primary-600 to-primary-400 shadow-soft transition-[left] duration-300 ease-out"
         style={{ left: language === 'en' ? 'calc(50% + 0rem)' : '0.25rem' }}
       />
       {LANGUAGES.map((lang) => (
@@ -30,10 +30,10 @@ const LanguageToggle = ({ className = '' }) => {
           type="button"
           onClick={() => setLanguage(lang.code)}
           aria-pressed={language === lang.code}
-          className={`relative z-10 flex items-center justify-center min-w-[28px] h-6 px-2 rounded-md text-xs font-semibold tracking-wide select-none transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60 ${
+          className={`relative z-10 flex items-center justify-center min-w-[28px] h-6 px-2 rounded-full text-xs font-semibold tracking-wide select-none transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400/60 ${
             language === lang.code
-              ? 'text-white dark:text-slate-900'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+              ? 'text-white'
+              : 'text-ink-500 dark:text-ink-300 hover:text-primary-700 dark:hover:text-primary-300'
           }`}
         >
           {lang.label}

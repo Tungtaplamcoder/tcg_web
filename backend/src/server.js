@@ -37,8 +37,11 @@ const startServer = async () => {
     await connectWithRetry();
     console.log('✅ Database connected successfully');
 
-    const server = app.listen(env.port, () => {
-      console.log(`🚀 Server running on port ${env.port} in ${env.nodeEnv} mode`);
+    // Bind to all interfaces by default so the API is reachable across the
+    // local network (override with HOST, e.g. HOST=127.0.0.1 to lock it down).
+    const host = process.env.HOST || '0.0.0.0';
+    const server = app.listen(env.port, host, () => {
+      console.log(`🚀 Server running on http://${host}:${env.port} in ${env.nodeEnv} mode`);
     });
 
     // Start order expiry cron

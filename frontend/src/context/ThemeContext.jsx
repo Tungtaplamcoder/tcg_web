@@ -17,7 +17,7 @@ const getInitialTheme = () => {
 const syncMetaThemeColor = (theme) => {
   const meta = document.querySelector('meta[name="theme-color"]:not([media])') ||
     document.querySelector(`meta[name="theme-color"][media*="${theme}"]`);
-  if (meta) meta.setAttribute('content', theme === 'dark' ? '#0a0a0f' : '#f6f5fb');
+  if (meta) meta.setAttribute('content', theme === 'dark' ? '#120b0e' : '#fdfbf7');
 };
 
 export const ThemeProvider = ({ children }) => {

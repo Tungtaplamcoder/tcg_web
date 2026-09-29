@@ -27,6 +27,8 @@ const en = {
     tryAgain: 'Try Again',
     backToHome: 'Back to Home',
     language: 'Language',
+    switchToLight: 'Switch to light mode',
+    switchToDark: 'Switch to dark mode',
     showPassword: 'Toggle password visibility',
     total: 'total'
   },
@@ -50,7 +52,10 @@ const en = {
     noProducts: 'No products found.',
     noProductsHint: 'Try adjusting the filters or search keywords.',
     chipCategory: 'Category: {label}',
-    chipStock: 'In stock'
+    chipStock: 'In stock',
+    artist: 'Artist',
+    rarity: 'Rarity',
+    loadFailed: 'Failed to load products.'
   },
   virtualBox: {
     arcadeTitle: 'Virtual Box',
@@ -258,6 +263,30 @@ const en = {
       quarter: '3 Months',
       'semi-annual': '6 Months',
       annual: '1 Year'
+    },
+    sealedBox: 'Sealed Box',
+    singleCard: 'Single Card',
+    badgeCard: 'CARD',
+    badgeSealed: 'SEALED',
+    stockLeft: '{count} in stock',
+    itemsSold: 'Items Sold',
+    legendMarketPrice: 'Market Price',
+    priceMarketStats: 'Price & Market Stats',
+    marketPriceLabel: 'Market Price',
+    mostRecentSale: 'Most Recent Sale',
+    nearMintComparison: 'Near Mint Comparison Prices',
+    snapshot: {
+      lowSalePrice: 'Low Sale Price',
+      highSalePrice: 'High Sale Price',
+      totalSold: 'Total Sold',
+      avgDailySold: 'Avg. Daily Sold'
+    },
+    errors: {
+      notFound: 'Product not found.',
+      removed: 'This product does not exist or has been removed.',
+      network: 'Cannot reach the server. Please check your connection and try again.',
+      loadFailed: 'Failed to load this product. Please try again.',
+      backToCatalog: 'Back to catalog'
     }
   },
   auth: {
@@ -328,6 +357,7 @@ const en = {
     productsCount: '{count} products',
     hotPicksEyebrow: 'Hot Picks',
     featuredTitle: 'Featured Products',
+    getThisPack: 'Get This Pack Now',
     errFeatured: 'Failed to load featured products.',
     ctaTitle: 'Ready to expand your collection?',
     ctaBody: 'Browse our catalog and find your next chase card.',
@@ -437,6 +467,14 @@ const en = {
   admin: {
     portalTitle: 'Admin Portal',
     storefrontLink: '← Storefront',
+    backToStore: 'Back to store',
+    quickCreateProduct: 'New product',
+    searchPlaceholder: 'Quick search…',
+    greetings: {
+      morning: 'Good Morning',
+      day: 'Good Day',
+      evening: 'Good Evening'
+    },
     logout: 'Logout',
     pageTitles: {
       '/admin': 'Dashboard',
@@ -705,7 +743,10 @@ const en = {
       noRecentOrders: 'No recent orders.',
       revenue: 'Revenue',
       totalOrders: 'Total Orders',
-      totalStock: 'Total Stock'
+      totalStock: 'Total Stock',
+      vsPrevDays: 'vs prior period',
+      ofOrders: 'of orders',
+      orderDistribution: 'Order Distribution'
     },
     sepay: {
       title: 'SePay Configuration',

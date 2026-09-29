@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { NavLink, Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom';
 import {
   Users, Settings, LogOut, Menu, X, Shield, Store, Truck,
-  BarChart3, ScrollText, Package, ClipboardList, FileText, Boxes, TicketPercent
+  BarChart3, ScrollText, Package, ClipboardList, FileText, Boxes, TicketPercent,
+  Plus, ArrowLeft
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useLanguage } from '../../i18n/LanguageContext';
 import ThemeToggle from '../../components/ThemeToggle';
 
-/* Route path → i18n key for the sidebar nav + header title */
+/* Route path → i18n key for the sidebar nav labels */
 const PAGE_TITLE_KEYS = {
   '/admin': 'admin.pageTitles./admin',
   '/admin/orders': 'admin.pageTitles./admin/orders',
@@ -27,7 +28,6 @@ const AdminLayout = () => {
   const { user, logout } = useAuthStore();
   const { t } = useLanguage();
   const navigate = useNavigate();
-  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => { await logout(); navigate('/'); };
@@ -44,98 +44,140 @@ const AdminLayout = () => {
     { to: '/admin/sepay-config', labelKey: PAGE_TITLE_KEYS['/admin/sepay-config'], icon: Settings },
     { to: '/admin/shop-settings', labelKey: PAGE_TITLE_KEYS['/admin/shop-settings'], icon: Store },
     { to: '/admin/shipping-settings', labelKey: PAGE_TITLE_KEYS['/admin/shipping-settings'], icon: Truck },
-  ];
-
-  const pageTitle = t(PAGE_TITLE_KEYS[location.pathname]) || t('admin.pageTitles.fallback');
+  ].map((item) => ({ ...item, label: t(item.labelKey) }));
 
   return (
-    <div className="min-h-screen app-bg flex">
+    <div
+      data-testid="admin-shell"
+      className="min-h-screen app-bg flex bg-gradient-to-b from-[#FFF0F5] via-[#FDFBF7] to-[#FFF0F5]"
+    >
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 lg:hidden animate-tcg-fade-in"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden animate-tcg-fade-in"
           onClick={() => setSidebarOpen(false)}
         />
       )}
+
+      {/* ── Left Sidebar — white rounded editorial container ─────────── */}
       <aside
-        className={`fixed lg:sticky top-0 lg:h-screen inset-y-0 left-0 z-40 w-64 flex flex-col glass-panel-strong !rounded-none border-r border-subtle transform transition-transform duration-300 ${
+        data-testid="admin-sidebar"
+        className={`fixed lg:sticky top-0 lg:h-screen inset-y-0 left-0 z-40 w-72 shrink-0 p-3 transform transition-transform duration-300 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        <div className="flex items-center justify-between h-16 px-5 border-b border-subtle">
-          <Link to="/admin" className="flex items-center gap-2.5 group">
-            <div className="h-8 w-8 rounded-lg bg-brand-gradient flex items-center justify-center shadow-glow transition-transform duration-300 group-hover:scale-105">
-              <Shield className="h-4 w-4 text-white" />
-            </div>
-            <span className="font-display text-lg font-bold tracking-tight text-strong">{t('admin.portalTitle')}</span>
-          </Link>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1 text-muted hover:text-strong transition-colors">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="px-5 py-4 border-b border-subtle flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary-500/30 to-fuchsia-500/30 ring-1 ring-primary-300/30 dark:ring-white/15 flex items-center justify-center overflow-hidden">
-            {user?.avatarUrl ? (
-              <img src={user.avatarUrl} alt={user?.fullName} className="h-10 w-10 object-cover" />
-            ) : (
-              <Shield className="h-5 w-5 text-primary-700 dark:text-white/80" />
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-strong truncate">{user?.fullName}</p>
-            <p className="text-xs text-faint truncate">{user?.email}</p>
-          </div>
-        </div>
-
-        <nav className="mt-4 flex-1 px-3 space-y-1 overflow-y-auto">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
+        <div className="h-full flex flex-col rounded-2xl bg-white dark:bg-neutral-900 border border-pink-100/60 dark:border-white/10 shadow-soft overflow-hidden">
+          {/* Branding */}
+          <div className="flex items-center justify-between px-5 h-16 border-b border-pink-100/60 dark:border-white/10">
+            <Link to="/admin" className="flex items-center gap-2.5 group">
+              <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-[#E11D48] to-[#F472B6] flex items-center justify-center shadow-[0_6px_18px_-6px_rgba(225,29,72,0.6)] transition-transform duration-300 group-hover:scale-105">
+                <Shield className="h-4 w-4 text-white" />
+              </div>
+              <span className="font-serif italic text-lg font-bold tracking-tight text-[#9F1239] dark:text-white">
+                {t('admin.portalTitle')}
+              </span>
+            </Link>
+            <button
               onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `group flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 ${
-                  isActive
-                    ? 'bg-gradient-to-r from-primary-600 to-fuchsia-600 text-white shadow-[0_6px_20px_-6px_rgba(124,58,237,0.6)]'
-                    : 'text-muted hover:bg-primary-50 dark:hover:bg-white/5 hover:text-strong dark:hover:text-white'
-                }`
-              }
+              className="lg:hidden p-1 text-ink-400 hover:text-[#E11D48] transition-colors"
+              aria-label="Close menu"
             >
-              <item.icon className="h-5 w-5" />
-              {t(item.labelKey)}
-            </NavLink>
-          ))}
-        </nav>
+              <X className="h-5 w-5" />
+            </button>
+          </div>
 
-        <div className="p-3 border-t border-subtle">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 text-sm font-medium text-muted hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-all duration-300"
-          >
-            <LogOut className="h-5 w-5" />
-            {t('admin.logout')}
-          </button>
+          {/* Quick action */}
+          <div className="px-4 pt-4">
+            <Link
+              to="/admin/inventory"
+              onClick={() => setSidebarOpen(false)}
+              className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-[#E11D48] via-[#EC4899] to-[#F472B6] shadow-[0_8px_20px_-8px_rgba(225,29,72,0.7)] hover:brightness-110 active:scale-[0.98] transition-all duration-300"
+            >
+              <Plus className="h-4 w-4" />
+              {t('admin.quickCreateProduct')}
+            </Link>
+          </div>
+
+          {/* Navigation */}
+          <nav className="mt-4 flex-1 px-3 space-y-1 overflow-y-auto">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `group flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 ${
+                    isActive
+                      ? 'bg-gradient-to-r from-[#E11D48] to-[#F472B6] text-white shadow-[0_8px_20px_-8px_rgba(225,29,72,0.7)]'
+                      : 'text-ink-600 dark:text-ink-300 hover:bg-pink-50 dark:hover:bg-white/5 hover:text-[#E11D48] dark:hover:text-white'
+                  }`
+                }
+              >
+                <item.icon className="h-[18px] w-[18px]" />
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+
+          {/* User + logout */}
+          <div className="p-3 border-t border-pink-100/60 dark:border-white/10">
+            <div className="flex items-center gap-3 px-2 py-2">
+              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#E11D48] to-[#F472B6] ring-1 ring-pink-100 dark:ring-white/15 flex items-center justify-center overflow-hidden shrink-0">
+                {user?.avatarUrl ? (
+                  <img src={user.avatarUrl} alt={user?.fullName} className="h-10 w-10 object-cover" />
+                ) : (
+                  <Shield className="h-5 w-5 text-white/85" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-ink-800 dark:text-white truncate">{user?.fullName}</p>
+                <p className="text-xs text-ink-400 dark:text-ink-300 truncate">{user?.email}</p>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-3.5 py-2.5 mt-1 text-sm font-medium text-ink-500 dark:text-ink-300 hover:text-rose-600 hover:bg-pink-50 dark:hover:bg-rose-500/10 rounded-xl transition-all duration-300"
+            >
+              <LogOut className="h-[18px] w-[18px]" />
+              {t('admin.logout')}
+            </button>
+          </div>
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0 bg-[var(--bg-app-2)] dark:bg-[var(--bg-app-2)]">
-        <header className="glass-panel !rounded-none border-b border-subtle h-16 flex items-center gap-3 px-4 lg:px-6 sticky top-16 lg:top-[72px] z-20">
+      {/* ── Main column ──────────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Seamless header — transparent, no box, actions right-aligned */}
+        <header
+          data-testid="admin-header-banner"
+          data-variant="seamless"
+          className="flex items-center gap-2 sm:gap-3 bg-transparent border-none shadow-none px-4 lg:px-6 pt-4 pb-1"
+        >
           <button
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-2 rounded-lg text-muted hover:bg-ink-900/5 dark:hover:bg-white/10 transition-colors"
+            className="lg:hidden p-2 -ml-2 rounded-full text-pink-700 hover:bg-white/70 transition-colors"
+            aria-label="Open menu"
           >
-            <Menu className="h-6 w-6" />
+            <Menu className="h-5 w-5" />
           </button>
-          <h1 className="font-display text-lg font-bold text-strong tracking-tight flex-1 truncate">
-            {pageTitle}
-          </h1>
-          <Link to="/" className="hidden sm:inline-flex text-sm font-medium text-muted hover:text-primary-700 dark:hover:text-aura-cyan transition-colors">
-            {t('admin.storefrontLink')}
+
+          {/* Spacer — pushes the action cluster to the top-right corner */}
+          <div className="flex-1" />
+
+          <ThemeToggle />
+          <Link
+            data-testid="admin-back-to-store"
+            to="/"
+            className="inline-flex items-center gap-1.5 bg-white/80 hover:bg-pink-100/60 text-pink-700 border border-pink-200/60 rounded-full px-4 py-1.5 text-sm font-medium shadow-sm transition-all backdrop-blur-sm"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {t('admin.backToStore')}
           </Link>
-          <ThemeToggle className="p-2" iconClassName="h-5 w-5" />
         </header>
-        <main className="dash-scope flex-1 p-4 lg:p-6 overflow-y-auto"><Outlet /></main>
+
+        <main className="dash-scope flex-1 p-3 lg:p-4 overflow-y-auto">
+          <Outlet />
+        </main>
       </div>
     </div>
   );

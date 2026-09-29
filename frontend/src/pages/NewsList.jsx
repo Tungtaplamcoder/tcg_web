@@ -92,7 +92,7 @@ const NewsList = () => {
       )}
 
       {articles.length === 0 ? (
-        <div className="relative overflow-hidden text-center py-20 rounded-3xl bg-white/85 dark:bg-[#12121a]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card">
+        <div className="relative overflow-hidden text-center py-20 rounded-3xl bg-white/85 dark:bg-[#1c1216]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card">
           <div className="pointer-events-none absolute -top-16 right-1/4 h-56 w-56 rounded-full bg-primary-300/15 blur-[80px]" />
           <div className="relative">
             <Newspaper className="h-12 w-12 mx-auto text-ink-300" />

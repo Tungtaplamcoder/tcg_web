@@ -56,28 +56,39 @@ function getMinMaxFromBuckets(buckets, lowKeys, highKeys) {
   return { low, high };
 }
 
+// TCGplayer returns conditions as "Near Mint" (space) and variants as
+// "Reverse Holofoil" (space), while our DB/frontend uses enum slugs such as
+// "NEAR_MINT" / "REVERSE_HOLOFOIL". Normalize both to a single canonical
+// uppercase-underscore form so matching works in either direction.
+function normalizeCondition(value) {
+  return String(value || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+}
+
+function normalizeVariant(value) {
+  return String(value || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+}
+
 function findSelectedItem(resultArray, condition, variant) {
   if (!resultArray || resultArray.length === 0) return null;
 
-  if (variant) {
+  const targetCondition = normalizeCondition(condition);
+  const targetVariant = normalizeVariant(variant);
+
+  if (targetVariant) {
     const exactMatch = resultArray.find(item => {
-      const itemVariant = (item.variant || item.printing || '').toLowerCase();
-      const itemCondition = (item.condition || '').toUpperCase();
-      return itemVariant === variant.toLowerCase() && itemCondition === condition.toUpperCase();
+      return normalizeVariant(item.variant || item.printing) === targetVariant &&
+        normalizeCondition(item.condition) === targetCondition;
     });
     if (exactMatch) return exactMatch;
   }
 
   // Lọc theo condition
-  let candidates = resultArray.filter(item => {
-    const itemCondition = (item.condition || '').toUpperCase();
-    return itemCondition === condition.toUpperCase();
-  });
+  let candidates = resultArray.filter(item => normalizeCondition(item.condition) === targetCondition);
 
   if (candidates.length === 0) {
     candidates = resultArray.filter(item => {
-      const itemCondition = (item.condition || '').toUpperCase();
-      return itemCondition === 'NEAR_MINT' || itemCondition === 'NM' || itemCondition === 'MINT';
+      const c = normalizeCondition(item.condition);
+      return c === 'NEAR_MINT' || c === 'NEAR_MINT_' || c === 'NM' || c === 'MINT';
     });
   }
 
@@ -85,8 +96,8 @@ function findSelectedItem(resultArray, condition, variant) {
 
   // Ưu tiên variant không phải Reverse
   const nonReverse = candidates.find(item => {
-    const v = (item.variant || item.printing || '').toLowerCase();
-    return v === 'normal' || v === 'holofoil' || v === 'standard' || v === '';
+    const v = normalizeVariant(item.variant || item.printing);
+    return v === 'NORMAL' || v === 'HOLOFOIL' || v === 'STANDARD' || v === '';
   });
 
   return nonReverse || candidates[0];
@@ -150,12 +161,24 @@ router.get('/price-history/:tcgplayerId', apiLimiter, async (req, res) => {
     }
 
     const fetchTCGData = async (rangeParam) => {
-      const url = `https://infinite-api.tcgplayer.com/price/history/${tcgplayerId}/detailed?range=${rangeParam}`;
+      const url = `https://infinite-api.tcgplayer.com/price/history/${encodeURIComponent(tcgplayerId)}/detailed?range=${encodeURIComponent(rangeParam)}`;
+      // TCGplayer's Infinite API rejects requests without a browser-like
+      // User-Agent (403). Node's default undici UA is blocked, so always send
+      // a realistic desktop UA plus matching Accept/Referer headers.
       const response = await fetch(url, {
-        headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/json, text/plain, */*',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Referer': 'https://www.tcgplayer.com/',
+          'Origin': 'https://www.tcgplayer.com',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        signal: AbortSignal.timeout(20000)
       });
       if (!response.ok) {
-        throw new Error(`TCGplayer API error: ${response.status}`);
+        throw new Error(`TCGplayer API error: ${response.status} ${response.statusText}`);
       }
       return response.json();
     };
@@ -177,82 +200,85 @@ router.get('/price-history/:tcgplayerId', apiLimiter, async (req, res) => {
 
     console.log(`[TCGplayer] Selected item: condition=${selectedItem?.condition}, variant=${selectedItem?.variant}`);
 
-    // Tạo map tổng quantitySold từ tất cả items
-    const quantityMap = new Map();
+    // Chart data MUST be driven by the SELECTED item's own price buckets.
+    //
+    // Bug history: we used to build the date axis from the union of every
+    // variant's buckets. TCGplayer reports each condition/variant on its own
+    // rolling grid, so for `quarter` (3-day buckets) the union produced a
+    // dense DAILY axis with dates that belong to *other* variants. Prices were
+    // then forward-filled onto those mismatched dates, yielding a flat
+    // staircase line, zero-volume days and jittery bars. For `semi-annual`
+    // (weekly buckets aligned to the same weekday) the union happened to match
+    // the selected item, which is why 6M looked smooth and 3M did not.
+    //
+    // Fix: iterate the selected item's real buckets (one chart point per
+    // bucket, exactly like 6M), and compute quantitySold by summing every
+    // item's buckets that fall inside that bucket's [start, nextStart) window.
+    const normalizedBuckets = (selectedItem && Array.isArray(selectedItem.buckets) ? selectedItem.buckets : [])
+      .map((bucket) => {
+        const startDate = findValue(bucket, ['bucketStartDate', 'date', 'dateLabel', 'time', 'timestamp', 'label']) || '';
+        return { bucket, startDate, time: new Date(startDate).getTime() };
+      })
+      .filter((entry) => entry.startDate && !isNaN(entry.time))
+      .sort((a, b) => a.time - b.time);
+
+    // Only 6M/1Y reuse the `annual` payload, so trim it back to 180/365 days.
+    // Native payloads (1M/3M) already span the correct window.
+    const startMs = getRangeStartMs(range);
+    const rangeBuckets = startMs
+      ? normalizedBuckets.filter((entry) => entry.time >= startMs)
+      : normalizedBuckets;
+
+    // Flatten every item's buckets once so quantity windows are O(buckets).
+    const quantitySources = [];
     for (const item of resultArray) {
       if (!item.buckets || !Array.isArray(item.buckets)) continue;
       for (const bucket of item.buckets) {
-        const startDate = findValue(bucket, ['bucketStartDate', 'date', 'dateLabel', 'time', 'timestamp', 'label']) || '';
-        if (!startDate) continue;
-        const qty = extractNumeric(bucket, ['quantitySold', 'soldQuantity', 'quantity']) || 0;
-        quantityMap.set(startDate, (quantityMap.get(startDate) || 0) + qty);
+        const bDate = findValue(bucket, ['bucketStartDate', 'date', 'dateLabel', 'time', 'timestamp', 'label']) || '';
+        const bTime = new Date(bDate).getTime();
+        if (!bDate || isNaN(bTime)) continue;
+        quantitySources.push({
+          time: bTime,
+          qty: extractNumeric(bucket, ['quantitySold', 'soldQuantity', 'quantity']) || 0
+        });
       }
-    }
-
-    // Lấy buckets của selectedItem cho giá line
-    const selectedBuckets = selectedItem && Array.isArray(selectedItem.buckets) ? selectedItem.buckets : [];
-    const selectedPriceMap = new Map();
-    for (const bucket of selectedBuckets) {
-      const startDate = findValue(bucket, ['bucketStartDate', 'date', 'dateLabel', 'time', 'timestamp', 'label']) || '';
-      if (!startDate) continue;
-      selectedPriceMap.set(startDate, bucket);
-    }
-
-    let allDates = Array.from(quantityMap.keys()).sort((a, b) => new Date(a) - new Date(b));
-
-    // Lọc theo range nếu fetchRange không phải là range tương ứng (chỉ áp dụng cho semi-annual dùng annual)
-    const startMs = getRangeStartMs(range);
-    if (startMs && (range === 'semi-annual')) {
-      allDates = allDates.filter(date => {
-        const dt = new Date(date);
-        return !isNaN(dt.getTime()) && dt.getTime() >= startMs;
-      });
-    } else if (range === 'month' || range === 'quarter') {
-      // Với 1M và 3M, API đã trả đúng range, không cần lọc thêm, nhưng vẫn lọc an toàn
-      allDates = allDates.filter(date => {
-        const dt = new Date(date);
-        return !isNaN(dt.getTime()) && (!startMs || dt.getTime() >= startMs);
-      });
     }
 
     const chart_data = [];
     let lastPrice = 0;
 
-    for (let i = 0; i < allDates.length; i++) {
-      const date = allDates[i];
-      const quantity = quantityMap.get(date) || 0;
+    for (let i = 0; i < rangeBuckets.length; i++) {
+      const { bucket, startDate, time } = rangeBuckets[i];
+      const nextTime = rangeBuckets[i + 1] ? rangeBuckets[i + 1].time : Infinity;
 
-      let price = 0;
-      let lowPrice = null;
-      let highPrice = null;
+      let quantity = 0;
+      for (const src of quantitySources) {
+        if (src.time >= time && src.time < nextTime) quantity += src.qty;
+      }
 
-      const selectedBucket = selectedPriceMap.get(date);
-      if (selectedBucket) {
-        price = extractNumeric(selectedBucket, ['marketPrice', 'price', 'value']) || 0;
-        lowPrice = extractNumeric(selectedBucket, ['lowSalePriceWithShipping', 'lowSalePrice', 'lowPrice']);
-        highPrice = extractNumeric(selectedBucket, ['highSalePriceWithShipping', 'highSalePrice', 'highPrice']);
-        if (price > 0) lastPrice = price;
+      let price = extractNumeric(bucket, ['marketPrice', 'price', 'value']) || 0;
+      const lowPrice = extractNumeric(bucket, ['lowSalePriceWithShipping', 'lowSalePrice', 'lowPrice']);
+      const highPrice = extractNumeric(bucket, ['highSalePriceWithShipping', 'highSalePrice', 'highPrice']);
+      // Carry the previous price forward only when this bucket genuinely has
+      // none, so the line never collapses to 0 / the y-axis floor.
+      if (price > 0) {
+        lastPrice = price;
       } else {
         price = lastPrice;
       }
 
-      const nextDate = allDates[i + 1] || null;
-      let dateLabel = date;
-      let endDate = date;
-      if (nextDate) {
-        const start = new Date(date);
-        const end = new Date(nextDate);
+      let dateLabel = formatDateShortLabel(startDate);
+      let endDate = startDate;
+      if (nextTime !== Infinity) {
+        const start = new Date(time);
+        const end = new Date(nextTime);
         end.setDate(end.getDate() - 1);
         endDate = end.toISOString().split('T')[0];
-        if (!isNaN(start) && !isNaN(end)) {
-          dateLabel = `${start.toLocaleString('en-US', { month: 'short', day: '2-digit' })} - ${end.toLocaleString('en-US', { month: 'short', day: '2-digit' })}`;
-        }
-      } else {
-        dateLabel = formatDateShortLabel(date);
+        dateLabel = `${start.toLocaleString('en-US', { month: 'short', day: '2-digit' })} - ${end.toLocaleString('en-US', { month: 'short', day: '2-digit' })}`;
       }
 
       chart_data.push({
-        date,
+        date: startDate,
         endDate,
         dateLabel,
         price,
@@ -285,13 +311,42 @@ router.get('/price-history/:tcgplayerId', apiLimiter, async (req, res) => {
 
     // ------------------- PRICE POINTS -------------------
     let price_points = null;
-    if (selectedItem) {
-      const firstBucket = selectedItem.buckets && selectedItem.buckets.length > 0 ? selectedItem.buckets[0] : {};
-      const marketPrice = extractNumeric(firstBucket, ['marketPrice', 'price']);
-      const mostRecentSale = extractNumeric(firstBucket, ['lowSalePriceWithShipping', 'lowSalePrice', 'mostRecentSale']);
+    if (selectedItem && Array.isArray(selectedItem.buckets) && selectedItem.buckets.length > 0) {
+      // Buckets may arrive in any order — pick the most recent one that
+      // actually carries a market price. Fall back to whichever bucket has a
+      // valid price, then to the last known chart price.
+      const datedBuckets = [...selectedItem.buckets].map(bucket => {
+        const rawDate = findValue(bucket, ['bucketStartDate', 'date', 'dateLabel', 'time', 'timestamp', 'label']) || '';
+        return { bucket, time: new Date(rawDate).getTime() };
+      });
+      datedBuckets.sort((a, b) => {
+        const ta = isNaN(a.time) ? -Infinity : a.time;
+        const tb = isNaN(b.time) ? -Infinity : b.time;
+        return tb - ta;
+      });
+
+      const bucketWithPrice = datedBuckets.find(({ bucket }) =>
+        extractNumeric(bucket, ['marketPrice', 'price']) !== null
+      ) || datedBuckets[0];
+
+      const marketPrice = extractNumeric(bucketWithPrice.bucket, ['marketPrice', 'price']);
+      const mostRecentSale = extractNumeric(bucketWithPrice.bucket, ['lowSalePriceWithShipping', 'lowSalePrice', 'mostRecentSale'])
+        ?? (bucketWithPrice.bucket !== datedBuckets[0].bucket
+          ? extractNumeric(datedBuckets[0].bucket, ['lowSalePriceWithShipping', 'lowSalePrice', 'mostRecentSale'])
+          : null);
+
       price_points = {
-        marketPrice: marketPrice,
-        mostRecentSale: mostRecentSale,
+        marketPrice: marketPrice !== null ? marketPrice : (lastPrice > 0 ? lastPrice : null),
+        mostRecentSale,
+        volatility: null,
+        listedMedian: null,
+        currentQuantity: null,
+        currentSellers: null
+      };
+    } else if (chart_data.length > 0) {
+      price_points = {
+        marketPrice: lastPrice > 0 ? lastPrice : null,
+        mostRecentSale: null,
         volatility: null,
         listedMedian: null,
         currentQuantity: null,

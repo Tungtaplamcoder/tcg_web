@@ -1,8 +1,6 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import Navbar from './components/Navbar.jsx';
-import Footer from './components/Footer.jsx';
-import ChatWidget from './components/ChatWidget.jsx';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
+import StorefrontLayout from './components/StorefrontLayout.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 
@@ -43,12 +41,20 @@ import ShippingSettings from './pages/admin/ShippingSettings.jsx';
 import VirtualBoxes from './pages/admin/VirtualBoxes.jsx';
 import AdminVouchers from './pages/admin/Vouchers.jsx';
 
+/* Legacy/pluralized product URLs (/products/:id) → canonical /product/:id
+ * so old bookmarks and shared links never hit the 404 route. */
+const LegacyProductRedirect = () => {
+  const { id } = useParams();
+  return <Navigate to={`/product/${id}`} replace />;
+};
+
 function App() {
   return (
-    <div className="flex flex-col min-h-screen">
-      <Navbar />
-      <main className="flex-1">
-        <Routes>
+    <div className="flex flex-col min-h-screen bg-gradient-to-b from-[#FFF0F5] via-[#FDFBF7] to-[#FFF0F5] text-neutral-800 antialiased dark:from-[#120b0e] dark:via-[#170e12] dark:to-[#120b0e] dark:text-neutral-100">
+      <Routes>
+        {/* Storefront chrome (topbar + footer + chat) — public & customer routes only.
+            Admin/Staff routes below are rendered WITHOUT this chrome. */}
+        <Route element={<StorefrontLayout />}>
           {/* Public routes */}
           <Route path="/" element={<Home />} />
           <Route path="/catalog" element={<Catalog />} />
@@ -62,6 +68,7 @@ function App() {
               </ErrorBoundary>
             }
           />
+          <Route path="/products/:id" element={<LegacyProductRedirect />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/order-lookup" element={<OrderLookup />} />
@@ -81,38 +88,6 @@ function App() {
             <Route path="/user/vouchers" element={<Vouchers />} />
           </Route>
 
-          {/* Staff routes */}
-          <Route element={<ProtectedRoute allowedRoles={['STAFF', 'ADMIN']} />}>
-            <Route path="/staff" element={<StaffLayout />}>
-              <Route index element={<StaffOverview />} />
-              <Route path="orders" element={<OrderManagement />} />
-              <Route path="inventory" element={<Navigate to="/staff/products" replace />} />
-              <Route path="products" element={<InventoryManager />} />
-              <Route path="categories" element={<CategoryManagement />} />
-              <Route path="virtual-boxes" element={<VirtualBoxes />} />
-              <Route path="posts" element={<PostEditor />} />
-              <Route path="vouchers" element={<AdminVouchers />} />
-            </Route>
-          </Route>
-
-          {/* Admin routes */}
-          <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<AnalyticsDashboard />} />
-              <Route path="orders" element={<OrderManagement />} />
-              <Route path="inventory" element={<InventoryManager />} />
-              <Route path="virtual-boxes" element={<VirtualBoxes />} />
-              <Route path="categories" element={<CategoryManagement />} />
-              <Route path="posts" element={<PostEditor />} />
-              <Route path="users" element={<UserManagement />} />
-              <Route path="vouchers" element={<AdminVouchers />} />
-              <Route path="payment-logs" element={<PaymentLogAudit />} />
-              <Route path="sepay-config" element={<SePayConfig />} />
-              <Route path="shop-settings" element={<ShopSettings />} />
-              <Route path="shipping-settings" element={<ShippingSettings />} />
-            </Route>
-          </Route>
-
           {/* 404 */}
           <Route path="*" element={
             <div className="relative overflow-hidden min-h-[60vh] flex items-center justify-center px-4">
@@ -126,10 +101,40 @@ function App() {
               </div>
             </div>
           } />
-        </Routes>
-      </main>
-      <Footer />
-      <ChatWidget />
+        </Route>
+
+        {/* Staff routes — isolated from the storefront topbar/footer */}
+        <Route element={<ProtectedRoute allowedRoles={['STAFF', 'ADMIN']} />}>
+          <Route path="/staff" element={<StaffLayout />}>
+            <Route index element={<StaffOverview />} />
+            <Route path="orders" element={<OrderManagement />} />
+            <Route path="inventory" element={<Navigate to="/staff/products" replace />} />
+            <Route path="products" element={<InventoryManager />} />
+            <Route path="categories" element={<CategoryManagement />} />
+            <Route path="virtual-boxes" element={<VirtualBoxes />} />
+            <Route path="posts" element={<PostEditor />} />
+            <Route path="vouchers" element={<AdminVouchers />} />
+          </Route>
+        </Route>
+
+        {/* Admin routes — isolated from the storefront topbar/footer */}
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AnalyticsDashboard />} />
+            <Route path="orders" element={<OrderManagement />} />
+            <Route path="inventory" element={<InventoryManager />} />
+            <Route path="virtual-boxes" element={<VirtualBoxes />} />
+            <Route path="categories" element={<CategoryManagement />} />
+            <Route path="posts" element={<PostEditor />} />
+            <Route path="users" element={<UserManagement />} />
+            <Route path="vouchers" element={<AdminVouchers />} />
+            <Route path="payment-logs" element={<PaymentLogAudit />} />
+            <Route path="sepay-config" element={<SePayConfig />} />
+            <Route path="shop-settings" element={<ShopSettings />} />
+            <Route path="shipping-settings" element={<ShippingSettings />} />
+          </Route>
+        </Route>
+      </Routes>
     </div>
   );
 }

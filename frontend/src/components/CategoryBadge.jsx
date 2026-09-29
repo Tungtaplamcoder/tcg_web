@@ -12,8 +12,8 @@ import { resolveCategoryKey, MAIN_TYPES } from '../constants/productCategories';
  * the category is absent).
  */
 const BADGE_META = {
-  BOX: { label: 'SEALED', cls: 'from-emerald-400 via-emerald-500 to-teal-600', Icon: Box },
-  CARD: { label: 'CARD', cls: 'from-fuchsia-500 via-violet-500 to-purple-500', Icon: Layers }
+  BOX: { label: 'SEALED', cls: 'bg-emerald-600 ring-emerald-700/40', Icon: Box },
+  CARD: { label: 'CARD', cls: 'bg-fuchsia-600 ring-fuchsia-700/40', Icon: Layers }
 };
 
 const CategoryBadge = ({ category, rarity, mainType, size = 'sm', className = '' }) => {
@@ -30,14 +30,10 @@ const CategoryBadge = ({ category, rarity, mainType, size = 'sm', className = ''
   const sizing = size === 'lg' ? 'text-[12px] px-3 py-1.5' : 'text-[10px] px-2.5 py-1';
   return (
     <span
-      className={`relative inline-flex items-center gap-1 rounded-full font-bold uppercase tracking-[0.14em] text-white shadow-lg overflow-hidden ${sizing} ${className}`}
+      className={`relative inline-flex items-center gap-1 rounded-full font-bold uppercase tracking-[0.14em] text-white ring-1 ${sizing} ${meta.cls} ${className}`}
     >
-      <span className={`absolute inset-0 bg-gradient-to-r ${meta.cls}`} />
-      <span className="foil-sheen absolute inset-0" />
-      <span className="relative z-10 inline-flex items-center gap-1">
-        {Icon && <Icon className={size === 'lg' ? 'h-3.5 w-3.5' : 'h-3 w-3'} aria-hidden="true" />}
-        {meta.label}
-      </span>
+      {Icon && <Icon className={size === 'lg' ? 'h-3.5 w-3.5' : 'h-3 w-3'} aria-hidden="true" />}
+      {meta.label}
     </span>
   );
 };

@@ -83,7 +83,7 @@ const VirtualBoxesPage = () => {
   const closeModal = () => setActiveBox(null);
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-b from-violet-50/70 via-white to-white dark:from-[#0d0714] dark:via-[#0a050f] dark:to-[#09040e]">
+    <div className="relative min-h-screen">
       <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8 lg:py-16">
         {/* ===================== HEADER — clean, high-contrast ===================== */}
         <header className="mb-10 flex flex-col items-start justify-between gap-5 sm:mb-12 sm:flex-row sm:items-end lg:mb-14">
@@ -118,7 +118,7 @@ const VirtualBoxesPage = () => {
             {[...Array(6)].map((_, idx) => (
               <div
                 key={idx}
-                className="animate-pulse overflow-hidden rounded-2xl border border-purple-100/60 bg-white/90 md:bg-white/80 dark:border-white/10 dark:bg-[#12121a]/90 md:dark:bg-[#12121a]/80 shadow-xl shadow-purple-500/5 backdrop-blur-sm"
+                className="animate-pulse overflow-hidden rounded-2xl border border-purple-100/60 bg-white/90 md:bg-white/80 dark:border-white/10 dark:bg-[#1c1216]/90 md:dark:bg-[#1c1216]/80 shadow-xl shadow-purple-500/5 backdrop-blur-sm"
               >
                 <div className="aspect-[4/5] bg-ink-100/70 dark:bg-white/5" />
                 <div className="space-y-3 p-5 text-left">
@@ -132,7 +132,7 @@ const VirtualBoxesPage = () => {
           </div>
         ) : boxes.length === 0 ? (
           <div className="py-24 text-center">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-white/80 shadow-lg shadow-purple-500/10 ring-1 ring-purple-100 dark:bg-[#12121a]/80 dark:shadow-purple-500/20 dark:ring-white/10">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-white/80 shadow-lg shadow-purple-500/10 ring-1 ring-purple-100 dark:bg-[#1c1216]/80 dark:shadow-purple-500/20 dark:ring-white/10">
               <Boxes className="h-10 w-10 text-violet-400" />
             </div>
             <p className="mt-5 text-lg font-medium text-ink-900 dark:text-white">{t('virtualBox.noBoxes')}</p>
@@ -151,7 +151,7 @@ const VirtualBoxesPage = () => {
                   type="button"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page <= 1}
-                  className="inline-flex items-center rounded-xl border border-purple-100/80 bg-white/90 md:bg-white/80 dark:border-white/10 dark:bg-[#12121a]/90 md:dark:bg-[#12121a]/80 p-2.5 text-ink-700 dark:text-ink-200 shadow-sm shadow-purple-500/5 backdrop-blur-sm touch-manipulation transition-all duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-md hover:shadow-purple-500/10 dark:hover:bg-[#1a1a26] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#0a050f] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+                  className="inline-flex items-center rounded-xl border border-purple-100/80 bg-white/90 md:bg-white/80 dark:border-white/10 dark:bg-[#1c1216]/90 md:dark:bg-[#1c1216]/80 p-2.5 text-ink-700 dark:text-ink-200 shadow-sm shadow-purple-500/5 backdrop-blur-sm touch-manipulation transition-all duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-md hover:shadow-purple-500/10 dark:hover:bg-[#1a1a26] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#0a050f] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
                   aria-label="Previous page"
                 >
                   <ChevronLeft className="h-5 w-5" />
@@ -163,7 +163,7 @@ const VirtualBoxesPage = () => {
                   type="button"
                   onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
                   disabled={page >= meta.totalPages}
-                  className="inline-flex items-center rounded-xl border border-purple-100/80 bg-white/90 md:bg-white/80 dark:border-white/10 dark:bg-[#12121a]/90 md:dark:bg-[#12121a]/80 p-2.5 text-ink-700 dark:text-ink-200 shadow-sm shadow-purple-500/5 backdrop-blur-sm touch-manipulation transition-all duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-md hover:shadow-purple-500/10 dark:hover:bg-[#1a1a26] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#0a050f] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+                  className="inline-flex items-center rounded-xl border border-purple-100/80 bg-white/90 md:bg-white/80 dark:border-white/10 dark:bg-[#1c1216]/90 md:dark:bg-[#1c1216]/80 p-2.5 text-ink-700 dark:text-ink-200 shadow-sm shadow-purple-500/5 backdrop-blur-sm touch-manipulation transition-all duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-md hover:shadow-purple-500/10 dark:hover:bg-[#1a1a26] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#0a050f] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
                   aria-label="Next page"
                 >
                   <ChevronRight className="h-5 w-5" />

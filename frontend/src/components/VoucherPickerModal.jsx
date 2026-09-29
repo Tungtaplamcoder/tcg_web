@@ -98,7 +98,7 @@ const VoucherPickerModal = ({ isOpen, onClose, cartItems, subtotal, selectedCode
     >
       <div
         ref={modalRef}
-        className="relative w-full max-w-2xl max-h-[85vh] flex flex-col rounded-3xl bg-white/95 dark:bg-[#14141e]/95 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-2xl animate-tcg-scale-in"
+        className="relative w-full max-w-2xl max-h-[85vh] flex flex-col rounded-3xl bg-white/95 dark:bg-[#1e1318]/95 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-2xl animate-tcg-scale-in"
       >
         <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-primary-400/60 to-transparent" />
 

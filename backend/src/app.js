@@ -54,12 +54,37 @@ app.use(compression({
 const devOrigins = ['http://localhost:3000', 'http://localhost:5173', 'http://localhost', 'http://127.0.0.1'];
 const allowedCorsOrigins = [...new Set([...corsOrigins, frontendUrl, ...devOrigins].filter(Boolean))];
 
+// LAN testing: allow any origin that resolves to a private/loopback host so
+// other devices (http://192.168.x.x, http://10.x.x.x, *.local) can call the API.
+const isLanOrigin = (origin) => {
+  try {
+    const { hostname, protocol } = new URL(origin);
+    if (!/^https?:$/.test(protocol)) return false;
+    return (
+      hostname === 'localhost' ||
+      hostname.endsWith('.local') ||
+      /^10\./.test(hostname) ||
+      /^192\.168\./.test(hostname) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(hostname) ||
+      /^169\.254\./.test(hostname)
+    );
+  } catch {
+    return false;
+  }
+};
+// Escape hatch for internal testing: CORS_ALLOWED_ORIGINS=* or CORS_ALLOW_ALL=true
+const allowAllCors =
+  String(process.env.CORS_ALLOW_ALL || '').toLowerCase() === 'true' ||
+  allowedCorsOrigins.includes('*');
+
 app.use(
   cors({
     origin: (requestOrigin, callback) => {
       // No origin (same-origin via Nginx proxy, curl, server-to-server IPN) -> allow
       if (!requestOrigin) return callback(null, true);
+      if (allowAllCors) return callback(null, requestOrigin);
       if (allowedCorsOrigins.includes(requestOrigin)) return callback(null, true);
+      if (isLanOrigin(requestOrigin)) return callback(null, requestOrigin); // LAN devices
       if (!isProduction) return callback(null, requestOrigin); // dev: reflect LAN origins
       // Production: unknown origin -> rejected (không echo để tránh CORS abuse)
       console.warn(`[CORS] Rejected origin: ${requestOrigin}`);

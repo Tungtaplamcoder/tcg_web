@@ -35,10 +35,10 @@ const Cart = () => {
   if (items.length === 0) {
     return (
       <div className="relative overflow-hidden min-h-[60vh] flex items-center justify-center px-4 py-20">
-        <div className="pointer-events-none absolute -top-20 left-1/3 h-72 w-72 rounded-full bg-primary-400/15 blur-[110px] animate-tcg-float" />
-        <div className="pointer-events-none absolute -bottom-20 right-1/4 h-64 w-64 rounded-full bg-fuchsia-400/15 blur-[100px] animate-tcg-float-slow" />
+        <div className="pointer-events-none absolute -top-20 left-1/3 h-72 w-72 rounded-full bg-primary-300/20 blur-[110px] animate-tcg-float" />
+        <div className="pointer-events-none absolute -bottom-20 right-1/4 h-64 w-64 rounded-full bg-blush-400/20 blur-[100px] animate-tcg-float-slow" />
         <div className="relative text-center animate-tcg-reveal">
-          <div className="mx-auto h-20 w-20 rounded-3xl bg-white/80 dark:bg-[#12121a]/80 backdrop-blur ring-1 ring-ink-100 dark:ring-white/10 shadow-glass flex items-center justify-center">
+          <div className="mx-auto h-20 w-20 rounded-3xl bg-white/80 dark:bg-[#1c1216]/80 backdrop-blur ring-1 ring-primary-100 dark:ring-white/10 shadow-soft flex items-center justify-center">
             <ShoppingBag className="h-10 w-10 text-primary-400" />
           </div>
           <h2 className="mt-6 heading-display text-2xl">{t('cart.emptyTitle')}</h2>
@@ -132,7 +132,7 @@ const Cart = () => {
 
         {/* Order Summary */}
         <div className="lg:col-span-1">
-          <div className="sticky top-24 rounded-3xl bg-white/85 dark:bg-[#12121a]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-7">
+          <div className="sticky top-24 rounded-3xl bg-white/85 dark:bg-[#1c1216]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-7">
             <h2 className="heading-display text-lg">{t('cart.summary')}</h2>
             <div className="mt-5 space-y-3 text-sm">
               <div className="flex justify-between text-ink-600 dark:text-ink-200">

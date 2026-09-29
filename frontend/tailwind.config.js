@@ -8,18 +8,39 @@ export default {
   theme: {
     extend: {
       colors: {
+        /* Pastel editorial accent — soft pink → deep rose.
+           400 (#F472B6) is the soft accent, 600 (#E11D48) the strong one. */
         primary: {
-          50: '#f6f3ff',
-          100: '#ede9fe',
-          200: '#ddd6fe',
-          300: '#c4b5fd',
-          400: '#a78bfa',
-          500: '#8b5cf6',
-          600: '#7c3aed',
-          700: '#6d28d9',
-          800: '#5b21b6',
-          900: '#4c1d95',
-          950: '#2e1065'
+          50: '#fff1f4',
+          100: '#ffe4ea',
+          200: '#fecdd8',
+          300: '#fda4ba',
+          400: '#f472b6',
+          500: '#ec4899',
+          600: '#e11d48',
+          700: '#be123c',
+          800: '#9f1239',
+          900: '#881337',
+          950: '#4c0519'
+        },
+        /* Soft blush pink — backgrounds, badges and washed panels */
+        blush: {
+          50: '#fff7fa',
+          100: '#fff0f5',
+          200: '#ffe4ef',
+          300: '#ffd0e4',
+          400: '#fbb6ce',
+          500: '#f472b6',
+          600: '#db2777',
+          700: '#be185d'
+        },
+        /* Warm editorial paper */
+        cream: {
+          DEFAULT: '#fdfbf7',
+          50: '#fefdfb',
+          100: '#fdfbf7',
+          200: '#f8f3ec',
+          300: '#f1e9de'
         },
         secondary: {
           50: '#f5f3ff',
@@ -47,18 +68,19 @@ export default {
           900: '#701a75',
           950: '#4a044e'
         },
+        /* Warm neutral ink — pairs with cream/blush paper instead of cold slate */
         ink: {
-          50: '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          300: '#cbd5e1',
-          400: '#94a3b8',
-          500: '#64748b',
-          600: '#475569',
-          700: '#334155',
-          800: '#1e293b',
-          900: '#0f172a',
-          950: '#020617'
+          50: '#faf9f7',
+          100: '#f4f1ec',
+          200: '#e8e2da',
+          300: '#d6cec4',
+          400: '#a89f95',
+          500: '#78706a',
+          600: '#57504b',
+          700: '#3f3936',
+          800: '#2a2523',
+          900: '#1c1917',
+          950: '#120f0e'
         },
         obsidian: {
           50: '#16161f',
@@ -87,19 +109,21 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['"Space Grotesk"', 'Inter', 'system-ui', 'sans-serif'],
-        /* script: viết tay — Caveat KHÔNG có subset tiếng Việt nên dấu
-           tiếng Việt rơi về fallback cursive gây vỡ glyph. Plus Jakarta
-           Sans (Latin Extended + Vietnamese subsets) giữ đường nét
-           đậm/highlight không cần viết tay. */
-        script: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif']
+        display: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],
+        /* Editorial serif accent — Playfair Display ships a Vietnamese
+           subset, so italic focus words keep their diacritics intact. */
+        serif: ['"Playfair Display"', 'Georgia', 'Cambria', 'Times New Roman', 'serif'],
+        /* script: editorial italic focus words ("We're", "Real") */
+        script: ['"Playfair Display"', 'Georgia', 'Cambria', 'serif']
       },
       letterSpacing: {
         tightest: '-0.04em'
       },
       boxShadow: {
-        'card': '0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.06)',
-        'card-hover': '0 12px 32px -8px rgba(76, 29, 149, 0.18), 0 4px 12px rgba(15, 23, 42, 0.06)',
+        'soft': '0 1px 2px rgba(120, 80, 90, 0.04), 0 6px 20px -8px rgba(225, 29, 72, 0.10)',
+        'soft-lg': '0 10px 34px -12px rgba(225, 29, 72, 0.18), 0 4px 12px rgba(120, 80, 90, 0.06)',
+        'card': '0 1px 2px rgba(120, 80, 90, 0.04), 0 4px 16px rgba(120, 80, 90, 0.06)',
+        'card-hover': '0 12px 32px -8px rgba(225, 29, 72, 0.16), 0 4px 12px rgba(120, 80, 90, 0.06)',
         'glass': '0 8px 32px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
         'glass-dark': '0 8px 40px -8px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.08)',
         'glow': '0 0 24px -4px rgba(139, 92, 246, 0.45)',
@@ -108,7 +132,14 @@ export default {
         'inner-glow': 'inset 0 1px 0 rgba(255, 255, 255, 0.12)'
       },
       backgroundImage: {
-        'brand-gradient': 'linear-gradient(135deg, #7c3aed 0%, #c026d3 55%, #f43f5e 120%)',
+        /* Soft pastel mesh overlays — transparent base so the app canvas
+           gradient flows seamlessly behind the transparent header (no hard
+           rectangular block boundary at the top of the page). */
+        'mesh-editorial':
+          'radial-gradient(60% 55% at 12% 8%, rgba(244, 114, 182, 0.16), transparent 62%), radial-gradient(50% 50% at 88% 4%, rgba(225, 29, 72, 0.10), transparent 60%), radial-gradient(55% 60% at 55% 100%, rgba(255, 208, 228, 0.42), transparent 70%)',
+        'mesh-editorial-dark':
+          'radial-gradient(60% 55% at 12% 8%, rgba(225, 29, 72, 0.20), transparent 62%), radial-gradient(50% 50% at 88% 4%, rgba(244, 114, 182, 0.14), transparent 60%), radial-gradient(55% 60% at 55% 100%, rgba(120, 20, 50, 0.30), transparent 70%)',
+        'brand-gradient': 'linear-gradient(135deg, #e11d48 0%, #ec4899 55%, #f472b6 120%)',
         'brand-gradient-soft': 'linear-gradient(135deg, rgba(124,58,237,0.10), rgba(217,70,239,0.08))',
         'radial-fade': 'radial-gradient(80% 80% at 50% 0%, rgba(139,92,246,0.12), transparent)',
         'iridescent': 'linear-gradient(120deg, #22d3ee 0%, #8b5cf6 30%, #d946ef 55%, #e9c46a 80%, #22d3ee 100%)',
@@ -161,7 +192,14 @@ export default {
           '40%': { transform: 'translateX(5px)' },
           '60%': { transform: 'translateX(-3px)' },
           '80%': { transform: 'translateX(3px)' }
+        },
+        'marquee': {
+          '0%': { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(-50%)' }
         }
+      },
+      backdropBlur: {
+        xs: '2px'
       },
       animation: {
         'foil-shimmer': 'foil-shimmer 6s linear infinite',
@@ -174,7 +212,8 @@ export default {
         'fade-in': 'fade-in 0.2s ease-out both',
         'tcg-float': 'tcg-float 7s ease-in-out infinite',
         'tcg-bob': 'tcg-bob 3.4s ease-in-out infinite',
-        'shake': 'shake 0.4s ease-in-out both'
+        'shake': 'shake 0.4s ease-in-out both',
+        'marquee': 'marquee 28s linear infinite'
       }
     }
   },

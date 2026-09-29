@@ -41,14 +41,20 @@ const LEGACY_ALIASES = {
 // Level-2 sealed sub-types (slug / normalized name) — these live UNDER the
 // Sealed Products root, so they must resolve to BOX instead of falling back
 // to the CARD default. Kept in sync with backend/prisma SEALED_TYPES.
-const SEALED_TYPE_ALIASES = new Set([
+//
+// Real labels carry store prefixes/suffixes (e.g. "E2E Booster Box
+// 1790023487846", slug "e2e-booster-box-1790023487846"), so the compacted
+// token is matched as a SUBSTRING — an exact Set lookup misses every such
+// category and wrongly defaults sealed boxes to CARD/THẺ.
+const SEALED_TYPE_HINTS = [
   'boosterbox',
   'elitetrainerbox',
   'elitetrainerboxetb',
   'boosterpack',
   'specialcollectionbox',
-  'tinbox'
-]);
+  'tinbox',
+  'sealed'
+];
 
 export const resolveCategoryKey = (category) => {
   if (!category) return null;
@@ -56,7 +62,7 @@ export const resolveCategoryKey = (category) => {
   const source = typeof category === 'string' ? category : (category.slug || category.name || '');
   const norm = String(source).toLowerCase().replace(/[^a-z]/g, '');
   if (LEGACY_ALIASES[norm]) return LEGACY_ALIASES[norm];
-  if (SEALED_TYPE_ALIASES.has(norm) || norm.includes('sealed')) return 'BOX';
+  if (SEALED_TYPE_HINTS.some((hint) => norm.includes(hint))) return 'BOX';
   const canonical = PRODUCT_CATEGORIES.find((cat) => cat.slug.replace(/-/g, '') === norm);
   return canonical ? canonical.value : null;
 };

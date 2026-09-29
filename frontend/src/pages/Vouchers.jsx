@@ -217,7 +217,7 @@ const Vouchers = () => {
       </div>
 
       {/* Claim form */}
-      <div className="mb-7 rounded-3xl bg-white/85 dark:bg-[#12121a]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-5 sm:p-6">
+      <div className="mb-7 rounded-3xl bg-white/85 dark:bg-[#1c1216]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-5 sm:p-6">
         <form onSubmit={handleClaim} className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Gift className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-ink-300" />
@@ -299,7 +299,7 @@ const Vouchers = () => {
       ) : (
         <div className="space-y-4">
           {grouped[tab].length === 0 ? (
-            <div className="relative overflow-hidden text-center py-20 rounded-3xl bg-white/85 dark:bg-[#12121a]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card">
+            <div className="relative overflow-hidden text-center py-20 rounded-3xl bg-white/85 dark:bg-[#1c1216]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card">
               <div className="pointer-events-none absolute -top-16 right-1/4 h-56 w-56 rounded-full bg-primary-300/15 blur-[80px]" />
               <div className="relative">
                 <div className="mx-auto h-16 w-16 rounded-2xl bg-ink-50 dark:bg-white/5 ring-1 ring-ink-100 dark:ring-white/10 flex items-center justify-center">

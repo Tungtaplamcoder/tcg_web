@@ -29,6 +29,8 @@ const vi = {
     tryAgain: 'Thử lại',
     backToHome: 'Về trang chủ',
     language: 'Ngôn ngữ',
+    switchToLight: 'Chuyển sang chế độ sáng',
+    switchToDark: 'Chuyển sang chế độ tối',
     showPassword: 'Hiện/ẩn mật khẩu',
     total: 'tổng'
   },
@@ -52,7 +54,10 @@ const vi = {
     noProducts: 'Không tìm thấy sản phẩm.',
     noProductsHint: 'Thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm.',
     chipCategory: 'Danh mục: {label}',
-    chipStock: 'Còn hàng'
+    chipStock: 'Còn hàng',
+    artist: 'Họa sĩ',
+    rarity: 'Độ hiếm',
+    loadFailed: 'Không tải được sản phẩm.'
   },
   virtualBox: {
     arcadeTitle: 'Hộp Ảo',
@@ -260,6 +265,30 @@ const vi = {
       quarter: '3 tháng',
       'semi-annual': '6 tháng',
       annual: '1 năm'
+    },
+    sealedBox: 'Hộp niêm phong',
+    singleCard: 'Thẻ lẻ',
+    badgeCard: 'THẺ',
+    badgeSealed: 'SEALED',
+    stockLeft: '{count} còn hàng',
+    itemsSold: 'Đã bán',
+    legendMarketPrice: 'Giá thị trường',
+    priceMarketStats: 'Giá & Thống kê thị trường',
+    marketPriceLabel: 'Giá thị trường',
+    mostRecentSale: 'Giao dịch gần nhất',
+    nearMintComparison: 'Giá so sánh Near Mint',
+    snapshot: {
+      lowSalePrice: 'Giá bán thấp nhất',
+      highSalePrice: 'Giá bán cao nhất',
+      totalSold: 'Tổng đã bán',
+      avgDailySold: 'Bán trung bình/ngày'
+    },
+    errors: {
+      notFound: 'Không tìm thấy sản phẩm.',
+      removed: 'Sản phẩm này không tồn tại hoặc đã bị xóa.',
+      network: 'Không kết nối được máy chủ. Vui lòng kiểm tra kết nối và thử lại.',
+      loadFailed: 'Không tải được sản phẩm này. Vui lòng thử lại.',
+      backToCatalog: 'Về danh mục'
     }
   },
   auth: {
@@ -331,6 +360,7 @@ const vi = {
     productsCount: '{count} sản phẩm',
     hotPicksEyebrow: 'Lựa chọn hot',
     featuredTitle: 'Sản phẩm nổi bật',
+    getThisPack: 'Nhận bộ thẻ này ngay',
     errFeatured: 'Không tải được sản phẩm nổi bật.',
     ctaTitle: 'Sẵn sàng mở rộng bộ sưu tập?',
     ctaBody: 'Duyệt catalog và tìm thẻ săn tiếp theo của bạn.',
@@ -440,6 +470,14 @@ const vi = {
   admin: {
     portalTitle: 'Khu vực Admin',
     storefrontLink: '← Cửa hàng',
+    backToStore: 'Quay lại cửa hàng',
+    quickCreateProduct: 'Tạo sản phẩm',
+    searchPlaceholder: 'Tìm kiếm nhanh…',
+    greetings: {
+      morning: 'Chúc buổi sáng tốt lành',
+      day: 'Chúc ngày tốt lành',
+      evening: 'Chúc buổi tối tốt lành'
+    },
     logout: 'Đăng xuất',
     pageTitles: {
       '/admin': 'Bảng điều khiển',
@@ -708,7 +746,10 @@ const vi = {
       noRecentOrders: 'Không có đơn hàng gần đây.',
       revenue: 'Doanh thu',
       totalOrders: 'Tổng đơn hàng',
-      totalStock: 'Tổng tồn kho'
+      totalStock: 'Tổng tồn kho',
+      vsPrevDays: 'so với kỳ trước',
+      ofOrders: 'tổng đơn',
+      orderDistribution: 'Phân bổ đơn hàng'
     },
     sepay: {
       title: 'Cấu hình SePay',
