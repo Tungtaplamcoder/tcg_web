@@ -286,8 +286,7 @@ const getProductFacets = async (query = {}) => {
   };
 };
 
-const getProductStock = async (id) => {
-  const product = await prisma.product.findUnique({
+const getProductStock = async (id) => {  const product = await prisma.product.findUnique({
     where: { id },
     include: {
       variants: { where: { status: 'ACTIVE' }, select: { stockQuantity: true } }
@@ -347,10 +346,20 @@ const getCardById = async (id) => {
   return card;
 };
 
+/* Active rarity options for the public/admin product modal. Ordered by code
+ * so the dropdown reads consistently regardless of creation order. */
+const listRarities = async () => {
+  return prisma.rarity.findMany({
+    where: { isActive: true },
+    orderBy: { code: 'asc' }
+  });
+};
+
 module.exports = {
   listProducts,
   getProductById,
   listSets,
+  listRarities,
   getProductStock,
   listCategories,
   getProductFacets,

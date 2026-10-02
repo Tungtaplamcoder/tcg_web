@@ -61,7 +61,10 @@ const ProductDetail = () => {
   const [priceData, setPriceData] = useState(null);
   const [isLoadingRange, setIsLoadingRange] = useState(false);
   const [added, setAdded] = useState(false);
+  const [toast, setToast] = useState(null);
   const cacheRef = useRef(new Map());
+  const addedTimerRef = useRef(null);
+  const toastTimerRef = useRef(null);
   const { addItem } = useCartStore();
   const { isAuthenticated } = useAuthStore();
   const { theme } = useTheme();
@@ -219,12 +222,16 @@ const ProductDetail = () => {
     }
   }, [product?.tcgplayerId, priceRange, selectedVariant, loadPriceData]);
 
+  useEffect(() => () => {
+    window.clearTimeout(addedTimerRef.current);
+    window.clearTimeout(toastTimerRef.current);
+  }, []);
+
+  /* ── "Thêm vào giỏ": cart-state update + success toast ONLY ──
+     Stays on the current product page. No navigate('/cart'), no redirect
+     for guests either — the cart is a local, persistent store. */
   const handleAddToCart = () => {
-    if (!isAuthenticated) {
-      navigate('/login', { state: { from: `/product/${id}` } });
-      return;
-    }
-    if (!selectedVariantId || !selectedVariant) return;
+    if (!selectedVariantId || !selectedVariant?.stockQuantity) return;
 
     addItem({
       id: product.id,
@@ -236,7 +243,12 @@ const ProductDetail = () => {
     playTick();
     vibrate([12]);
     setAdded(true);
-    setTimeout(() => navigate('/cart'), 750);
+    setToast({ message: t('product.addToCartSuccess'), type: 'success' });
+
+    window.clearTimeout(addedTimerRef.current);
+    window.clearTimeout(toastTimerRef.current);
+    addedTimerRef.current = window.setTimeout(() => setAdded(false), 2200);
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 3200);
   };
 
   const handleBuyNow = () => {
@@ -741,6 +753,21 @@ const ProductDetail = () => {
       )}
 
       </div>
+
+      {/* ── Add-to-cart success toast (no navigation) ─────────── */}
+      {toast && (
+        <div
+          data-testid="cart-toast"
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-6 right-6 z-[80] flex items-center gap-3 rounded-2xl bg-emerald-600 text-white px-4 py-3 shadow-2xl shadow-emerald-900/25 ring-1 ring-white/20 animate-tcg-reveal"
+        >
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20">
+            <Check className="h-4 w-4" />
+          </span>
+          <span className="text-sm font-semibold">{toast.message}</span>
+        </div>
+      )}
     </div>
   );
 };

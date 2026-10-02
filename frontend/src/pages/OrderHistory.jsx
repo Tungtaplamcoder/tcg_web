@@ -223,7 +223,7 @@ const OrderHistory = () => {
               >
                 {/* Summary row */}
                 <div
-                  className="p-4 sm:p-5 cursor-pointer transition-colors hover:bg-primary-50/40"
+                  className="p-4 sm:p-5 cursor-pointer transition-colors hover:bg-primary-50/40 dark:hover:bg-white/5"
                   onClick={() => handleToggleExpand(order.id)}
                 >
                   <div className="flex items-center justify-between gap-4">
@@ -257,9 +257,9 @@ const OrderHistory = () => {
                   style={{ gridTemplateRows: expanded ? '1fr' : '0fr' }}
                 >
                   <div className="overflow-hidden">
-                    <div className="border-t border-ink-100 dark:border-white/10 p-4 sm:p-5 bg-ink-50/60">
+                    <div className="border-t border-neutral-200 dark:border-neutral-800/80 p-4 sm:p-5 bg-neutral-100/90 dark:bg-neutral-900/90 transition-colors">
                       {/* Progress timeline */}
-                      <div className="mb-6 rounded-2xl bg-white dark:bg-white/5 ring-1 ring-ink-100 dark:ring-white/10 p-5">
+                      <div className="mb-6 rounded-2xl p-5 bg-white/60 dark:bg-neutral-950/60 border border-neutral-200/60 dark:border-neutral-800/60">
                         <div className="flex items-center justify-between">
                           {TIMELINE_STEPS.map((step, idx) => {
                             const status = getStepStatus(order.status, step.key);
@@ -298,11 +298,11 @@ const OrderHistory = () => {
                       {/* Items list */}
                       <div className="space-y-2">
                         {order.items.map((item, idx) => (
-                          <div key={idx} className="flex justify-between gap-3 text-sm bg-white dark:bg-white/5 p-3.5 rounded-xl border border-ink-100 dark:border-white/10">
-                            <span className="text-ink-700 dark:text-ink-100 truncate">
-                              {item.product?.name || item.card?.sku || t('orders.product')} <span className="text-ink-400 dark:text-ink-300">x {item.quantity}</span>
+                          <div key={idx} className="flex justify-between gap-3 text-sm p-3.5 rounded-xl bg-white/70 dark:bg-neutral-950/70 border border-neutral-200/60 dark:border-neutral-800/60 text-neutral-900 dark:text-neutral-100">
+                            <span className="text-neutral-700 dark:text-neutral-200 truncate">
+                              {item.product?.name || item.card?.sku || t('orders.product')} <span className="text-neutral-600 dark:text-neutral-400">x {item.quantity}</span>
                             </span>
-                            <span className="font-semibold text-ink-900 dark:text-white flex-shrink-0">{formatVND(item.totalPrice)}</span>
+                            <span className="font-semibold text-neutral-900 dark:text-white flex-shrink-0">{formatVND(item.totalPrice)}</span>
                           </div>
                         ))}
                       </div>
@@ -321,9 +321,9 @@ const OrderHistory = () => {
 
                       {/* Tracking number (visible once the order ships) */}
                       {order.trackingNumber && ['SHIPPING', 'DELIVERED'].includes(order.status) && (
-                        <div className="mt-4 text-sm bg-white dark:bg-white/5 p-4 rounded-xl border border-indigo-100 dark:border-indigo-400/20 flex items-center gap-2.5">
+                        <div className="mt-4 text-sm p-4 rounded-xl bg-white/70 dark:bg-neutral-950/70 border border-indigo-100 dark:border-indigo-400/20 flex items-center gap-2.5">
                           <Truck className="h-4 w-4 text-indigo-600 flex-shrink-0" />
-                          <span className="text-ink-600 dark:text-ink-200">
+                          <span className="text-neutral-600 dark:text-neutral-400">
                             {t('orders.trackingNumber', { code: order.trackingNumber })}
                           </span>
                           <span className="font-mono font-semibold text-ink-900 dark:text-white">{order.trackingNumber}</span>
@@ -331,13 +331,13 @@ const OrderHistory = () => {
                       )}
 
                       {/* Shipping address */}
-                      <div className="mt-4 text-sm text-ink-600 dark:text-ink-200 bg-white dark:bg-white/5 p-4 rounded-xl border border-ink-100 dark:border-white/10">
-                        <p className="font-semibold flex items-center text-ink-800 dark:text-white mb-1.5">
+                      <div className="mt-4 text-sm p-4 rounded-xl bg-white/70 dark:bg-neutral-950/70 border border-neutral-200/60 dark:border-neutral-800/60 text-neutral-900 dark:text-neutral-100">
+                        <p className="font-semibold flex items-center text-neutral-900 dark:text-white mb-1.5">
                           <MapPin className="h-4 w-4 mr-1.5 text-primary-600" /> {t('checkout.shippingAddress')}
                         </p>
                         <p>{order.shippingAddress?.fullName} - {order.shippingAddress?.phone}</p>
-                        <p className="text-ink-500 dark:text-ink-300">{order.shippingAddress?.addressLine1}</p>
-                        <p className="text-ink-500 dark:text-ink-300">{order.shippingAddress?.wardName}, {order.shippingAddress?.provinceName}</p>
+                        <p className="text-neutral-600 dark:text-neutral-400">{order.shippingAddress?.addressLine1}</p>
+                        <p className="text-neutral-600 dark:text-neutral-400">{order.shippingAddress?.wardName}, {order.shippingAddress?.provinceName}</p>
                       </div>
 
                       {/* Action buttons */}

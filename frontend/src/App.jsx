@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import StorefrontLayout from './components/StorefrontLayout.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+import PermissionRoute from './components/PermissionRoute.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import { useAuthStore } from './store/useAuthStore.js';
 
 // Public pages
 import Home from './pages/Home.jsx';
@@ -40,6 +42,7 @@ import ShopSettings from './pages/admin/ShopSettings.jsx';
 import ShippingSettings from './pages/admin/ShippingSettings.jsx';
 import VirtualBoxes from './pages/admin/VirtualBoxes.jsx';
 import AdminVouchers from './pages/admin/Vouchers.jsx';
+import CatalogConfig from './pages/admin/CatalogConfig.jsx';
 
 /* Legacy/pluralized product URLs (/products/:id) → canonical /product/:id
  * so old bookmarks and shared links never hit the 404 route. */
@@ -49,6 +52,16 @@ const LegacyProductRedirect = () => {
 };
 
 function App() {
+  // Bootstrap session check: verify the persisted access token against the
+  // backend on every full page load. A deleted account returns 401 and the
+  // api interceptor purges auth state, so the Topbar never shows a stale
+  // profile (e.g. after reloading /login as a deleted user).
+  useEffect(() => {
+    if (useAuthStore.getState().isAuthenticated) {
+      useAuthStore.getState().validateSession();
+    }
+  }, []);
+
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-b from-[#FFF0F5] via-[#FDFBF7] to-[#FFF0F5] text-neutral-800 antialiased dark:from-[#120b0e] dark:via-[#170e12] dark:to-[#120b0e] dark:text-neutral-100">
       <Routes>
@@ -107,13 +120,23 @@ function App() {
         <Route element={<ProtectedRoute allowedRoles={['STAFF', 'ADMIN']} />}>
           <Route path="/staff" element={<StaffLayout />}>
             <Route index element={<StaffOverview />} />
-            <Route path="orders" element={<OrderManagement />} />
+            <Route element={<PermissionRoute permission="orders" />}>
+              <Route path="orders" element={<OrderManagement />} />
+            </Route>
             <Route path="inventory" element={<Navigate to="/staff/products" replace />} />
-            <Route path="products" element={<InventoryManager />} />
-            <Route path="categories" element={<CategoryManagement />} />
-            <Route path="virtual-boxes" element={<VirtualBoxes />} />
-            <Route path="posts" element={<PostEditor />} />
-            <Route path="vouchers" element={<AdminVouchers />} />
+            <Route element={<PermissionRoute permission="inventory" />}>
+              <Route path="products" element={<InventoryManager />} />
+              <Route path="categories" element={<CategoryManagement />} />
+            </Route>
+            <Route element={<PermissionRoute permission="virtual_box" />}>
+              <Route path="virtual-boxes" element={<VirtualBoxes />} />
+            </Route>
+            <Route element={<PermissionRoute permission="posts" />}>
+              <Route path="posts" element={<PostEditor />} />
+            </Route>
+            <Route element={<PermissionRoute permission="vouchers" />}>
+              <Route path="vouchers" element={<AdminVouchers />} />
+            </Route>
           </Route>
         </Route>
 
@@ -123,6 +146,7 @@ function App() {
             <Route index element={<AnalyticsDashboard />} />
             <Route path="orders" element={<OrderManagement />} />
             <Route path="inventory" element={<InventoryManager />} />
+            <Route path="catalog" element={<CatalogConfig />} />
             <Route path="virtual-boxes" element={<VirtualBoxes />} />
             <Route path="categories" element={<CategoryManagement />} />
             <Route path="posts" element={<PostEditor />} />

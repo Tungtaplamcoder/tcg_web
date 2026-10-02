@@ -105,8 +105,23 @@ const listSets = async (req, res, next) => {
   }
 };
 
-const listCards = async (req, res, next) => {
+const listRarities = async (req, res, next) => {
   try {
+    const rarities = await productService.listRarities();
+    res.status(200).json({
+      success: true,
+      data: rarities,
+      message: 'Rarities retrieved'
+    });
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      return sendDbEmpty(res, 'product.listRarities', error, []);
+    }
+    next(error);
+  }
+};
+
+const listCards = async (req, res, next) => {  try {
     const result = await productService.listCards(req.query);
     res.status(200).json({
       success: true,
@@ -144,6 +159,7 @@ module.exports = {
   getProductFacets,
   listCategories,
   listSets,
+  listRarities,
   listCards,
   getCard
 };

@@ -2,10 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   ShoppingCart, Menu, X, User, LogOut, Package, LayoutDashboard,
-  ChevronDown, Sparkles, TicketPercent, LogIn
+  ChevronDown, Sparkles, TicketPercent, LogIn, MapPin
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useCartStore } from '../store/useCartStore';
+import { useAddressStore } from '../store/useAddressStore';
 import { useShop } from '../context/ShopContext';
 import { useLanguage } from '../i18n/LanguageContext';
 import ThemeToggle from './ThemeToggle';
@@ -34,6 +35,7 @@ const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const { user, isAuthenticated, logout } = useAuthStore();
   const { totalItems } = useCartStore();
+  const { setUser: setAddressUser, openManager } = useAddressStore();
   const { shop } = useShop();
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -62,10 +64,21 @@ const Navbar = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Keep the saved address book bound to the active account so the dropdown
+  // modal and the checkout picker always read the right user's addresses.
+  useEffect(() => {
+    setAddressUser(user?.id ?? null);
+  }, [user?.id, setAddressUser]);
+
   const handleLogout = async () => {
     setUserMenuOpen(false);
     await logout();
     navigate('/');
+  };
+
+  const handleOpenAddresses = () => {
+    setUserMenuOpen(false);
+    openManager();
   };
 
   const navLinks = [
@@ -108,7 +121,7 @@ const Navbar = () => {
           scroll while staying in flow, so no flow spacer is needed. */}
       <header
         data-testid="site-header"
-        className="sticky top-0 z-50 w-full bg-transparent p-0 border-none shadow-none [backdrop-filter:none] [-webkit-backdrop-filter:none]"
+        className="sticky top-0 z-50 w-full bg-transparent dark:bg-transparent overflow-visible p-0 border-none shadow-none [backdrop-filter:none] [-webkit-backdrop-filter:none]"
       >
         <nav data-testid="site-navbar" className="bg-transparent">
           {/* Floating pill: [brand | nav | utilities] — ONLY element with glass */}
@@ -191,6 +204,7 @@ const Navbar = () => {
                 {totalItems > 0 && (
                   <span
                     key={totalItems}
+                    data-testid="cart-badge"
                     className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-gradient-to-r from-primary-600 to-primary-400 text-white text-[10px] font-bold rounded-full ring-2 ring-white dark:ring-[#1c1216] animate-tcg-badge-pop"
                   >
                     {totalItems}
@@ -248,6 +262,14 @@ const Navbar = () => {
                         <TicketPercent className="h-4 w-4" />
                         {t('nav.myVouchers')}
                       </Link>
+                      <button
+                        onClick={handleOpenAddresses}
+                        data-testid="user-menu-addresses"
+                        className="w-full text-left flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-medium text-ink-600 dark:text-ink-300 hover:bg-primary-50 dark:hover:bg-white/5 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                      >
+                        <MapPin className="h-4 w-4" />
+                        {t('nav.addresses')}
+                      </button>
                       <button
                         onClick={handleLogout}
                         className="w-full text-left flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"

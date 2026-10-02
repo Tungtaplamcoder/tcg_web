@@ -44,6 +44,11 @@ export type Category = $Result.DefaultSelection<Prisma.$CategoryPayload>
  */
 export type Set = $Result.DefaultSelection<Prisma.$SetPayload>
 /**
+ * Model Rarity
+ * 
+ */
+export type Rarity = $Result.DefaultSelection<Prisma.$RarityPayload>
+/**
  * Model Product
  * 
  */
@@ -168,6 +173,7 @@ export const CardCondition: {
   LIGHTLY_PLAYED: 'LIGHTLY_PLAYED',
   MODERATELY_PLAYED: 'MODERATELY_PLAYED',
   HEAVILY_PLAYED: 'HEAVILY_PLAYED',
+  DAMAGED: 'DAMAGED',
   EXCELLENT: 'EXCELLENT',
   GOOD: 'GOOD',
   POOR: 'POOR'
@@ -512,6 +518,16 @@ export class PrismaClient<
     * ```
     */
   get set(): Prisma.SetDelegate<ExtArgs>;
+
+  /**
+   * `prisma.rarity`: Exposes CRUD operations for the **Rarity** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Rarities
+    * const rarities = await prisma.rarity.findMany()
+    * ```
+    */
+  get rarity(): Prisma.RarityDelegate<ExtArgs>;
 
   /**
    * `prisma.product`: Exposes CRUD operations for the **Product** model.
@@ -1129,6 +1145,7 @@ export namespace Prisma {
     PasswordResetToken: 'PasswordResetToken',
     Category: 'Category',
     Set: 'Set',
+    Rarity: 'Rarity',
     Product: 'Product',
     ProductVariant: 'ProductVariant',
     Card: 'Card',
@@ -1161,7 +1178,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "user" | "post" | "refreshToken" | "passwordResetToken" | "category" | "set" | "product" | "productVariant" | "card" | "order" | "orderItem" | "payment" | "paymentLog" | "orderStatusHistory" | "voucher" | "userVoucher" | "appSetting" | "gachaCard" | "virtualBox" | "virtualBoxDropRate" | "virtualBoxPoolItem" | "userCard" | "virtualBoxOpening"
+      modelProps: "user" | "post" | "refreshToken" | "passwordResetToken" | "category" | "set" | "rarity" | "product" | "productVariant" | "card" | "order" | "orderItem" | "payment" | "paymentLog" | "orderStatusHistory" | "voucher" | "userVoucher" | "appSetting" | "gachaCard" | "virtualBox" | "virtualBoxDropRate" | "virtualBoxPoolItem" | "userCard" | "virtualBoxOpening"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1558,6 +1575,72 @@ export namespace Prisma {
           count: {
             args: Prisma.SetCountArgs<ExtArgs>
             result: $Utils.Optional<SetCountAggregateOutputType> | number
+          }
+        }
+      }
+      Rarity: {
+        payload: Prisma.$RarityPayload<ExtArgs>
+        fields: Prisma.RarityFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.RarityFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RarityPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.RarityFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RarityPayload>
+          }
+          findFirst: {
+            args: Prisma.RarityFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RarityPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.RarityFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RarityPayload>
+          }
+          findMany: {
+            args: Prisma.RarityFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RarityPayload>[]
+          }
+          create: {
+            args: Prisma.RarityCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RarityPayload>
+          }
+          createMany: {
+            args: Prisma.RarityCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          delete: {
+            args: Prisma.RarityDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RarityPayload>
+          }
+          update: {
+            args: Prisma.RarityUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RarityPayload>
+          }
+          deleteMany: {
+            args: Prisma.RarityDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.RarityUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.RarityUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$RarityPayload>
+          }
+          aggregate: {
+            args: Prisma.RarityAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateRarity>
+          }
+          groupBy: {
+            args: Prisma.RarityGroupByArgs<ExtArgs>
+            result: $Utils.Optional<RarityGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.RarityCountArgs<ExtArgs>
+            result: $Utils.Optional<RarityCountAggregateOutputType> | number
           }
         }
       }
@@ -3368,8 +3451,11 @@ export namespace Prisma {
     role: $Enums.Role | null
     status: $Enums.UserStatus | null
     emailVerified: boolean | null
+    canManageOrders: boolean | null
     canManageInventory: boolean | null
+    canManageVirtualBox: boolean | null
     canManagePosts: boolean | null
+    canManageVouchers: boolean | null
     balance: Decimal | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -3386,8 +3472,11 @@ export namespace Prisma {
     role: $Enums.Role | null
     status: $Enums.UserStatus | null
     emailVerified: boolean | null
+    canManageOrders: boolean | null
     canManageInventory: boolean | null
+    canManageVirtualBox: boolean | null
     canManagePosts: boolean | null
+    canManageVouchers: boolean | null
     balance: Decimal | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -3404,8 +3493,11 @@ export namespace Prisma {
     role: number
     status: number
     emailVerified: number
+    canManageOrders: number
     canManageInventory: number
+    canManageVirtualBox: number
     canManagePosts: number
+    canManageVouchers: number
     balance: number
     createdAt: number
     updatedAt: number
@@ -3432,8 +3524,11 @@ export namespace Prisma {
     role?: true
     status?: true
     emailVerified?: true
+    canManageOrders?: true
     canManageInventory?: true
+    canManageVirtualBox?: true
     canManagePosts?: true
+    canManageVouchers?: true
     balance?: true
     createdAt?: true
     updatedAt?: true
@@ -3450,8 +3545,11 @@ export namespace Prisma {
     role?: true
     status?: true
     emailVerified?: true
+    canManageOrders?: true
     canManageInventory?: true
+    canManageVirtualBox?: true
     canManagePosts?: true
+    canManageVouchers?: true
     balance?: true
     createdAt?: true
     updatedAt?: true
@@ -3468,8 +3566,11 @@ export namespace Prisma {
     role?: true
     status?: true
     emailVerified?: true
+    canManageOrders?: true
     canManageInventory?: true
+    canManageVirtualBox?: true
     canManagePosts?: true
+    canManageVouchers?: true
     balance?: true
     createdAt?: true
     updatedAt?: true
@@ -3573,8 +3674,11 @@ export namespace Prisma {
     role: $Enums.Role
     status: $Enums.UserStatus
     emailVerified: boolean
+    canManageOrders: boolean
     canManageInventory: boolean
+    canManageVirtualBox: boolean
     canManagePosts: boolean
+    canManageVouchers: boolean
     balance: Decimal
     createdAt: Date
     updatedAt: Date
@@ -3610,8 +3714,11 @@ export namespace Prisma {
     role?: boolean
     status?: boolean
     emailVerified?: boolean
+    canManageOrders?: boolean
     canManageInventory?: boolean
+    canManageVirtualBox?: boolean
     canManagePosts?: boolean
+    canManageVouchers?: boolean
     balance?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -3637,8 +3744,11 @@ export namespace Prisma {
     role?: boolean
     status?: boolean
     emailVerified?: boolean
+    canManageOrders?: boolean
     canManageInventory?: boolean
+    canManageVirtualBox?: boolean
     canManagePosts?: boolean
+    canManageVouchers?: boolean
     balance?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -3677,8 +3787,11 @@ export namespace Prisma {
       role: $Enums.Role
       status: $Enums.UserStatus
       emailVerified: boolean
+      canManageOrders: boolean
       canManageInventory: boolean
+      canManageVirtualBox: boolean
       canManagePosts: boolean
+      canManageVouchers: boolean
       balance: Prisma.Decimal
       createdAt: Date
       updatedAt: Date
@@ -4068,8 +4181,11 @@ export namespace Prisma {
     readonly role: FieldRef<"User", 'Role'>
     readonly status: FieldRef<"User", 'UserStatus'>
     readonly emailVerified: FieldRef<"User", 'Boolean'>
+    readonly canManageOrders: FieldRef<"User", 'Boolean'>
     readonly canManageInventory: FieldRef<"User", 'Boolean'>
+    readonly canManageVirtualBox: FieldRef<"User", 'Boolean'>
     readonly canManagePosts: FieldRef<"User", 'Boolean'>
+    readonly canManageVouchers: FieldRef<"User", 'Boolean'>
     readonly balance: FieldRef<"User", 'Decimal'>
     readonly createdAt: FieldRef<"User", 'DateTime'>
     readonly updatedAt: FieldRef<"User", 'DateTime'>
@@ -9170,6 +9286,860 @@ export namespace Prisma {
      * Choose, which related nodes to fetch as well
      */
     include?: SetInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model Rarity
+   */
+
+  export type AggregateRarity = {
+    _count: RarityCountAggregateOutputType | null
+    _min: RarityMinAggregateOutputType | null
+    _max: RarityMaxAggregateOutputType | null
+  }
+
+  export type RarityMinAggregateOutputType = {
+    id: string | null
+    name: string | null
+    code: string | null
+    description: string | null
+    isActive: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type RarityMaxAggregateOutputType = {
+    id: string | null
+    name: string | null
+    code: string | null
+    description: string | null
+    isActive: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type RarityCountAggregateOutputType = {
+    id: number
+    name: number
+    code: number
+    description: number
+    isActive: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type RarityMinAggregateInputType = {
+    id?: true
+    name?: true
+    code?: true
+    description?: true
+    isActive?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type RarityMaxAggregateInputType = {
+    id?: true
+    name?: true
+    code?: true
+    description?: true
+    isActive?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type RarityCountAggregateInputType = {
+    id?: true
+    name?: true
+    code?: true
+    description?: true
+    isActive?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type RarityAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Rarity to aggregate.
+     */
+    where?: RarityWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Rarities to fetch.
+     */
+    orderBy?: RarityOrderByWithRelationInput | RarityOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: RarityWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Rarities from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Rarities.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned Rarities
+    **/
+    _count?: true | RarityCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: RarityMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: RarityMaxAggregateInputType
+  }
+
+  export type GetRarityAggregateType<T extends RarityAggregateArgs> = {
+        [P in keyof T & keyof AggregateRarity]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateRarity[P]>
+      : GetScalarType<T[P], AggregateRarity[P]>
+  }
+
+
+
+
+  export type RarityGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: RarityWhereInput
+    orderBy?: RarityOrderByWithAggregationInput | RarityOrderByWithAggregationInput[]
+    by: RarityScalarFieldEnum[] | RarityScalarFieldEnum
+    having?: RarityScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: RarityCountAggregateInputType | true
+    _min?: RarityMinAggregateInputType
+    _max?: RarityMaxAggregateInputType
+  }
+
+  export type RarityGroupByOutputType = {
+    id: string
+    name: string
+    code: string
+    description: string | null
+    isActive: boolean
+    createdAt: Date
+    updatedAt: Date
+    _count: RarityCountAggregateOutputType | null
+    _min: RarityMinAggregateOutputType | null
+    _max: RarityMaxAggregateOutputType | null
+  }
+
+  type GetRarityGroupByPayload<T extends RarityGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<RarityGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof RarityGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], RarityGroupByOutputType[P]>
+            : GetScalarType<T[P], RarityGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type RaritySelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    code?: boolean
+    description?: boolean
+    isActive?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["rarity"]>
+
+
+  export type RaritySelectScalar = {
+    id?: boolean
+    name?: boolean
+    code?: boolean
+    description?: boolean
+    isActive?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+
+  export type $RarityPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "Rarity"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      name: string
+      code: string
+      description: string | null
+      isActive: boolean
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["rarity"]>
+    composites: {}
+  }
+
+  type RarityGetPayload<S extends boolean | null | undefined | RarityDefaultArgs> = $Result.GetResult<Prisma.$RarityPayload, S>
+
+  type RarityCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<RarityFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: RarityCountAggregateInputType | true
+    }
+
+  export interface RarityDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['Rarity'], meta: { name: 'Rarity' } }
+    /**
+     * Find zero or one Rarity that matches the filter.
+     * @param {RarityFindUniqueArgs} args - Arguments to find a Rarity
+     * @example
+     * // Get one Rarity
+     * const rarity = await prisma.rarity.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends RarityFindUniqueArgs>(args: SelectSubset<T, RarityFindUniqueArgs<ExtArgs>>): Prisma__RarityClient<$Result.GetResult<Prisma.$RarityPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one Rarity that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {RarityFindUniqueOrThrowArgs} args - Arguments to find a Rarity
+     * @example
+     * // Get one Rarity
+     * const rarity = await prisma.rarity.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends RarityFindUniqueOrThrowArgs>(args: SelectSubset<T, RarityFindUniqueOrThrowArgs<ExtArgs>>): Prisma__RarityClient<$Result.GetResult<Prisma.$RarityPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first Rarity that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RarityFindFirstArgs} args - Arguments to find a Rarity
+     * @example
+     * // Get one Rarity
+     * const rarity = await prisma.rarity.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends RarityFindFirstArgs>(args?: SelectSubset<T, RarityFindFirstArgs<ExtArgs>>): Prisma__RarityClient<$Result.GetResult<Prisma.$RarityPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first Rarity that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RarityFindFirstOrThrowArgs} args - Arguments to find a Rarity
+     * @example
+     * // Get one Rarity
+     * const rarity = await prisma.rarity.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends RarityFindFirstOrThrowArgs>(args?: SelectSubset<T, RarityFindFirstOrThrowArgs<ExtArgs>>): Prisma__RarityClient<$Result.GetResult<Prisma.$RarityPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more Rarities that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RarityFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all Rarities
+     * const rarities = await prisma.rarity.findMany()
+     * 
+     * // Get first 10 Rarities
+     * const rarities = await prisma.rarity.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const rarityWithIdOnly = await prisma.rarity.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends RarityFindManyArgs>(args?: SelectSubset<T, RarityFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RarityPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a Rarity.
+     * @param {RarityCreateArgs} args - Arguments to create a Rarity.
+     * @example
+     * // Create one Rarity
+     * const Rarity = await prisma.rarity.create({
+     *   data: {
+     *     // ... data to create a Rarity
+     *   }
+     * })
+     * 
+     */
+    create<T extends RarityCreateArgs>(args: SelectSubset<T, RarityCreateArgs<ExtArgs>>): Prisma__RarityClient<$Result.GetResult<Prisma.$RarityPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many Rarities.
+     * @param {RarityCreateManyArgs} args - Arguments to create many Rarities.
+     * @example
+     * // Create many Rarities
+     * const rarity = await prisma.rarity.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends RarityCreateManyArgs>(args?: SelectSubset<T, RarityCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Delete a Rarity.
+     * @param {RarityDeleteArgs} args - Arguments to delete one Rarity.
+     * @example
+     * // Delete one Rarity
+     * const Rarity = await prisma.rarity.delete({
+     *   where: {
+     *     // ... filter to delete one Rarity
+     *   }
+     * })
+     * 
+     */
+    delete<T extends RarityDeleteArgs>(args: SelectSubset<T, RarityDeleteArgs<ExtArgs>>): Prisma__RarityClient<$Result.GetResult<Prisma.$RarityPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one Rarity.
+     * @param {RarityUpdateArgs} args - Arguments to update one Rarity.
+     * @example
+     * // Update one Rarity
+     * const rarity = await prisma.rarity.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends RarityUpdateArgs>(args: SelectSubset<T, RarityUpdateArgs<ExtArgs>>): Prisma__RarityClient<$Result.GetResult<Prisma.$RarityPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more Rarities.
+     * @param {RarityDeleteManyArgs} args - Arguments to filter Rarities to delete.
+     * @example
+     * // Delete a few Rarities
+     * const { count } = await prisma.rarity.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends RarityDeleteManyArgs>(args?: SelectSubset<T, RarityDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Rarities.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RarityUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many Rarities
+     * const rarity = await prisma.rarity.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends RarityUpdateManyArgs>(args: SelectSubset<T, RarityUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one Rarity.
+     * @param {RarityUpsertArgs} args - Arguments to update or create a Rarity.
+     * @example
+     * // Update or create a Rarity
+     * const rarity = await prisma.rarity.upsert({
+     *   create: {
+     *     // ... data to create a Rarity
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the Rarity we want to update
+     *   }
+     * })
+     */
+    upsert<T extends RarityUpsertArgs>(args: SelectSubset<T, RarityUpsertArgs<ExtArgs>>): Prisma__RarityClient<$Result.GetResult<Prisma.$RarityPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of Rarities.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RarityCountArgs} args - Arguments to filter Rarities to count.
+     * @example
+     * // Count the number of Rarities
+     * const count = await prisma.rarity.count({
+     *   where: {
+     *     // ... the filter for the Rarities we want to count
+     *   }
+     * })
+    **/
+    count<T extends RarityCountArgs>(
+      args?: Subset<T, RarityCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], RarityCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a Rarity.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RarityAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends RarityAggregateArgs>(args: Subset<T, RarityAggregateArgs>): Prisma.PrismaPromise<GetRarityAggregateType<T>>
+
+    /**
+     * Group by Rarity.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {RarityGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends RarityGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: RarityGroupByArgs['orderBy'] }
+        : { orderBy?: RarityGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, RarityGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetRarityGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the Rarity model
+   */
+  readonly fields: RarityFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for Rarity.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__RarityClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the Rarity model
+   */ 
+  interface RarityFieldRefs {
+    readonly id: FieldRef<"Rarity", 'String'>
+    readonly name: FieldRef<"Rarity", 'String'>
+    readonly code: FieldRef<"Rarity", 'String'>
+    readonly description: FieldRef<"Rarity", 'String'>
+    readonly isActive: FieldRef<"Rarity", 'Boolean'>
+    readonly createdAt: FieldRef<"Rarity", 'DateTime'>
+    readonly updatedAt: FieldRef<"Rarity", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * Rarity findUnique
+   */
+  export type RarityFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Rarity
+     */
+    select?: RaritySelect<ExtArgs> | null
+    /**
+     * Filter, which Rarity to fetch.
+     */
+    where: RarityWhereUniqueInput
+  }
+
+  /**
+   * Rarity findUniqueOrThrow
+   */
+  export type RarityFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Rarity
+     */
+    select?: RaritySelect<ExtArgs> | null
+    /**
+     * Filter, which Rarity to fetch.
+     */
+    where: RarityWhereUniqueInput
+  }
+
+  /**
+   * Rarity findFirst
+   */
+  export type RarityFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Rarity
+     */
+    select?: RaritySelect<ExtArgs> | null
+    /**
+     * Filter, which Rarity to fetch.
+     */
+    where?: RarityWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Rarities to fetch.
+     */
+    orderBy?: RarityOrderByWithRelationInput | RarityOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Rarities.
+     */
+    cursor?: RarityWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Rarities from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Rarities.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Rarities.
+     */
+    distinct?: RarityScalarFieldEnum | RarityScalarFieldEnum[]
+  }
+
+  /**
+   * Rarity findFirstOrThrow
+   */
+  export type RarityFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Rarity
+     */
+    select?: RaritySelect<ExtArgs> | null
+    /**
+     * Filter, which Rarity to fetch.
+     */
+    where?: RarityWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Rarities to fetch.
+     */
+    orderBy?: RarityOrderByWithRelationInput | RarityOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Rarities.
+     */
+    cursor?: RarityWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Rarities from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Rarities.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Rarities.
+     */
+    distinct?: RarityScalarFieldEnum | RarityScalarFieldEnum[]
+  }
+
+  /**
+   * Rarity findMany
+   */
+  export type RarityFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Rarity
+     */
+    select?: RaritySelect<ExtArgs> | null
+    /**
+     * Filter, which Rarities to fetch.
+     */
+    where?: RarityWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Rarities to fetch.
+     */
+    orderBy?: RarityOrderByWithRelationInput | RarityOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing Rarities.
+     */
+    cursor?: RarityWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Rarities from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Rarities.
+     */
+    skip?: number
+    distinct?: RarityScalarFieldEnum | RarityScalarFieldEnum[]
+  }
+
+  /**
+   * Rarity create
+   */
+  export type RarityCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Rarity
+     */
+    select?: RaritySelect<ExtArgs> | null
+    /**
+     * The data needed to create a Rarity.
+     */
+    data: XOR<RarityCreateInput, RarityUncheckedCreateInput>
+  }
+
+  /**
+   * Rarity createMany
+   */
+  export type RarityCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many Rarities.
+     */
+    data: RarityCreateManyInput | RarityCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * Rarity update
+   */
+  export type RarityUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Rarity
+     */
+    select?: RaritySelect<ExtArgs> | null
+    /**
+     * The data needed to update a Rarity.
+     */
+    data: XOR<RarityUpdateInput, RarityUncheckedUpdateInput>
+    /**
+     * Choose, which Rarity to update.
+     */
+    where: RarityWhereUniqueInput
+  }
+
+  /**
+   * Rarity updateMany
+   */
+  export type RarityUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update Rarities.
+     */
+    data: XOR<RarityUpdateManyMutationInput, RarityUncheckedUpdateManyInput>
+    /**
+     * Filter which Rarities to update
+     */
+    where?: RarityWhereInput
+  }
+
+  /**
+   * Rarity upsert
+   */
+  export type RarityUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Rarity
+     */
+    select?: RaritySelect<ExtArgs> | null
+    /**
+     * The filter to search for the Rarity to update in case it exists.
+     */
+    where: RarityWhereUniqueInput
+    /**
+     * In case the Rarity found by the `where` argument doesn't exist, create a new Rarity with this data.
+     */
+    create: XOR<RarityCreateInput, RarityUncheckedCreateInput>
+    /**
+     * In case the Rarity was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<RarityUpdateInput, RarityUncheckedUpdateInput>
+  }
+
+  /**
+   * Rarity delete
+   */
+  export type RarityDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Rarity
+     */
+    select?: RaritySelect<ExtArgs> | null
+    /**
+     * Filter which Rarity to delete.
+     */
+    where: RarityWhereUniqueInput
+  }
+
+  /**
+   * Rarity deleteMany
+   */
+  export type RarityDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Rarities to delete
+     */
+    where?: RarityWhereInput
+  }
+
+  /**
+   * Rarity without action
+   */
+  export type RarityDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Rarity
+     */
+    select?: RaritySelect<ExtArgs> | null
   }
 
 
@@ -26043,8 +27013,11 @@ export namespace Prisma {
     role: 'role',
     status: 'status',
     emailVerified: 'emailVerified',
+    canManageOrders: 'canManageOrders',
     canManageInventory: 'canManageInventory',
+    canManageVirtualBox: 'canManageVirtualBox',
     canManagePosts: 'canManagePosts',
+    canManageVouchers: 'canManageVouchers',
     balance: 'balance',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
@@ -26121,6 +27094,19 @@ export namespace Prisma {
   };
 
   export type SetScalarFieldEnum = (typeof SetScalarFieldEnum)[keyof typeof SetScalarFieldEnum]
+
+
+  export const RarityScalarFieldEnum: {
+    id: 'id',
+    name: 'name',
+    code: 'code',
+    description: 'description',
+    isActive: 'isActive',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type RarityScalarFieldEnum = (typeof RarityScalarFieldEnum)[keyof typeof RarityScalarFieldEnum]
 
 
   export const ProductScalarFieldEnum: {
@@ -26601,8 +27587,11 @@ export namespace Prisma {
     role?: EnumRoleFilter<"User"> | $Enums.Role
     status?: EnumUserStatusFilter<"User"> | $Enums.UserStatus
     emailVerified?: BoolFilter<"User"> | boolean
+    canManageOrders?: BoolFilter<"User"> | boolean
     canManageInventory?: BoolFilter<"User"> | boolean
+    canManageVirtualBox?: BoolFilter<"User"> | boolean
     canManagePosts?: BoolFilter<"User"> | boolean
+    canManageVouchers?: BoolFilter<"User"> | boolean
     balance?: DecimalFilter<"User"> | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
@@ -26626,8 +27615,11 @@ export namespace Prisma {
     role?: SortOrder
     status?: SortOrder
     emailVerified?: SortOrder
+    canManageOrders?: SortOrder
     canManageInventory?: SortOrder
+    canManageVirtualBox?: SortOrder
     canManagePosts?: SortOrder
+    canManageVouchers?: SortOrder
     balance?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -26654,8 +27646,11 @@ export namespace Prisma {
     role?: EnumRoleFilter<"User"> | $Enums.Role
     status?: EnumUserStatusFilter<"User"> | $Enums.UserStatus
     emailVerified?: BoolFilter<"User"> | boolean
+    canManageOrders?: BoolFilter<"User"> | boolean
     canManageInventory?: BoolFilter<"User"> | boolean
+    canManageVirtualBox?: BoolFilter<"User"> | boolean
     canManagePosts?: BoolFilter<"User"> | boolean
+    canManageVouchers?: BoolFilter<"User"> | boolean
     balance?: DecimalFilter<"User"> | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
@@ -26679,8 +27674,11 @@ export namespace Prisma {
     role?: SortOrder
     status?: SortOrder
     emailVerified?: SortOrder
+    canManageOrders?: SortOrder
     canManageInventory?: SortOrder
+    canManageVirtualBox?: SortOrder
     canManagePosts?: SortOrder
+    canManageVouchers?: SortOrder
     balance?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -26705,8 +27703,11 @@ export namespace Prisma {
     role?: EnumRoleWithAggregatesFilter<"User"> | $Enums.Role
     status?: EnumUserStatusWithAggregatesFilter<"User"> | $Enums.UserStatus
     emailVerified?: BoolWithAggregatesFilter<"User"> | boolean
+    canManageOrders?: BoolWithAggregatesFilter<"User"> | boolean
     canManageInventory?: BoolWithAggregatesFilter<"User"> | boolean
+    canManageVirtualBox?: BoolWithAggregatesFilter<"User"> | boolean
     canManagePosts?: BoolWithAggregatesFilter<"User"> | boolean
+    canManageVouchers?: BoolWithAggregatesFilter<"User"> | boolean
     balance?: DecimalWithAggregatesFilter<"User"> | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
@@ -27066,6 +28067,68 @@ export namespace Prisma {
     imageUrl?: StringNullableWithAggregatesFilter<"Set"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"Set"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Set"> | Date | string
+  }
+
+  export type RarityWhereInput = {
+    AND?: RarityWhereInput | RarityWhereInput[]
+    OR?: RarityWhereInput[]
+    NOT?: RarityWhereInput | RarityWhereInput[]
+    id?: StringFilter<"Rarity"> | string
+    name?: StringFilter<"Rarity"> | string
+    code?: StringFilter<"Rarity"> | string
+    description?: StringNullableFilter<"Rarity"> | string | null
+    isActive?: BoolFilter<"Rarity"> | boolean
+    createdAt?: DateTimeFilter<"Rarity"> | Date | string
+    updatedAt?: DateTimeFilter<"Rarity"> | Date | string
+  }
+
+  export type RarityOrderByWithRelationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    code?: SortOrder
+    description?: SortOrderInput | SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type RarityWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    name?: string
+    code?: string
+    AND?: RarityWhereInput | RarityWhereInput[]
+    OR?: RarityWhereInput[]
+    NOT?: RarityWhereInput | RarityWhereInput[]
+    description?: StringNullableFilter<"Rarity"> | string | null
+    isActive?: BoolFilter<"Rarity"> | boolean
+    createdAt?: DateTimeFilter<"Rarity"> | Date | string
+    updatedAt?: DateTimeFilter<"Rarity"> | Date | string
+  }, "id" | "name" | "code">
+
+  export type RarityOrderByWithAggregationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    code?: SortOrder
+    description?: SortOrderInput | SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: RarityCountOrderByAggregateInput
+    _max?: RarityMaxOrderByAggregateInput
+    _min?: RarityMinOrderByAggregateInput
+  }
+
+  export type RarityScalarWhereWithAggregatesInput = {
+    AND?: RarityScalarWhereWithAggregatesInput | RarityScalarWhereWithAggregatesInput[]
+    OR?: RarityScalarWhereWithAggregatesInput[]
+    NOT?: RarityScalarWhereWithAggregatesInput | RarityScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"Rarity"> | string
+    name?: StringWithAggregatesFilter<"Rarity"> | string
+    code?: StringWithAggregatesFilter<"Rarity"> | string
+    description?: StringNullableWithAggregatesFilter<"Rarity"> | string | null
+    isActive?: BoolWithAggregatesFilter<"Rarity"> | boolean
+    createdAt?: DateTimeWithAggregatesFilter<"Rarity"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"Rarity"> | Date | string
   }
 
   export type ProductWhereInput = {
@@ -28522,8 +29585,11 @@ export namespace Prisma {
     role?: $Enums.Role
     status?: $Enums.UserStatus
     emailVerified?: boolean
+    canManageOrders?: boolean
     canManageInventory?: boolean
+    canManageVirtualBox?: boolean
     canManagePosts?: boolean
+    canManageVouchers?: boolean
     balance?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -28547,8 +29613,11 @@ export namespace Prisma {
     role?: $Enums.Role
     status?: $Enums.UserStatus
     emailVerified?: boolean
+    canManageOrders?: boolean
     canManageInventory?: boolean
+    canManageVirtualBox?: boolean
     canManagePosts?: boolean
+    canManageVouchers?: boolean
     balance?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -28572,8 +29641,11 @@ export namespace Prisma {
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
+    canManageOrders?: BoolFieldUpdateOperationsInput | boolean
     canManageInventory?: BoolFieldUpdateOperationsInput | boolean
+    canManageVirtualBox?: BoolFieldUpdateOperationsInput | boolean
     canManagePosts?: BoolFieldUpdateOperationsInput | boolean
+    canManageVouchers?: BoolFieldUpdateOperationsInput | boolean
     balance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -28597,8 +29669,11 @@ export namespace Prisma {
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
+    canManageOrders?: BoolFieldUpdateOperationsInput | boolean
     canManageInventory?: BoolFieldUpdateOperationsInput | boolean
+    canManageVirtualBox?: BoolFieldUpdateOperationsInput | boolean
     canManagePosts?: BoolFieldUpdateOperationsInput | boolean
+    canManageVouchers?: BoolFieldUpdateOperationsInput | boolean
     balance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -28622,8 +29697,11 @@ export namespace Prisma {
     role?: $Enums.Role
     status?: $Enums.UserStatus
     emailVerified?: boolean
+    canManageOrders?: boolean
     canManageInventory?: boolean
+    canManageVirtualBox?: boolean
     canManagePosts?: boolean
+    canManageVouchers?: boolean
     balance?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -28640,8 +29718,11 @@ export namespace Prisma {
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
+    canManageOrders?: BoolFieldUpdateOperationsInput | boolean
     canManageInventory?: BoolFieldUpdateOperationsInput | boolean
+    canManageVirtualBox?: BoolFieldUpdateOperationsInput | boolean
     canManagePosts?: BoolFieldUpdateOperationsInput | boolean
+    canManageVouchers?: BoolFieldUpdateOperationsInput | boolean
     balance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -28658,8 +29739,11 @@ export namespace Prisma {
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
+    canManageOrders?: BoolFieldUpdateOperationsInput | boolean
     canManageInventory?: BoolFieldUpdateOperationsInput | boolean
+    canManageVirtualBox?: BoolFieldUpdateOperationsInput | boolean
     canManagePosts?: BoolFieldUpdateOperationsInput | boolean
+    canManageVouchers?: BoolFieldUpdateOperationsInput | boolean
     balance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -29054,6 +30138,76 @@ export namespace Prisma {
     releaseDate?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RarityCreateInput = {
+    id?: string
+    name: string
+    code: string
+    description?: string | null
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type RarityUncheckedCreateInput = {
+    id?: string
+    name: string
+    code: string
+    description?: string | null
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type RarityUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RarityUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RarityCreateManyInput = {
+    id?: string
+    name: string
+    code: string
+    description?: string | null
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type RarityUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type RarityUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -30789,8 +31943,11 @@ export namespace Prisma {
     role?: SortOrder
     status?: SortOrder
     emailVerified?: SortOrder
+    canManageOrders?: SortOrder
     canManageInventory?: SortOrder
+    canManageVirtualBox?: SortOrder
     canManagePosts?: SortOrder
+    canManageVouchers?: SortOrder
     balance?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -30811,8 +31968,11 @@ export namespace Prisma {
     role?: SortOrder
     status?: SortOrder
     emailVerified?: SortOrder
+    canManageOrders?: SortOrder
     canManageInventory?: SortOrder
+    canManageVirtualBox?: SortOrder
     canManagePosts?: SortOrder
+    canManageVouchers?: SortOrder
     balance?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -30829,8 +31989,11 @@ export namespace Prisma {
     role?: SortOrder
     status?: SortOrder
     emailVerified?: SortOrder
+    canManageOrders?: SortOrder
     canManageInventory?: SortOrder
+    canManageVirtualBox?: SortOrder
     canManagePosts?: SortOrder
+    canManageVouchers?: SortOrder
     balance?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -31150,6 +32313,36 @@ export namespace Prisma {
     _count?: NestedIntNullableFilter<$PrismaModel>
     _min?: NestedDateTimeNullableFilter<$PrismaModel>
     _max?: NestedDateTimeNullableFilter<$PrismaModel>
+  }
+
+  export type RarityCountOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    code?: SortOrder
+    description?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type RarityMaxOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    code?: SortOrder
+    description?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type RarityMinOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    code?: SortOrder
+    description?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
   }
   export type JsonFilter<$PrismaModel = never> = 
     | PatchUndefined<
@@ -35199,8 +36392,11 @@ export namespace Prisma {
     role?: $Enums.Role
     status?: $Enums.UserStatus
     emailVerified?: boolean
+    canManageOrders?: boolean
     canManageInventory?: boolean
+    canManageVirtualBox?: boolean
     canManagePosts?: boolean
+    canManageVouchers?: boolean
     balance?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -35223,8 +36419,11 @@ export namespace Prisma {
     role?: $Enums.Role
     status?: $Enums.UserStatus
     emailVerified?: boolean
+    canManageOrders?: boolean
     canManageInventory?: boolean
+    canManageVirtualBox?: boolean
     canManagePosts?: boolean
+    canManageVouchers?: boolean
     balance?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -35263,8 +36462,11 @@ export namespace Prisma {
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
+    canManageOrders?: BoolFieldUpdateOperationsInput | boolean
     canManageInventory?: BoolFieldUpdateOperationsInput | boolean
+    canManageVirtualBox?: BoolFieldUpdateOperationsInput | boolean
     canManagePosts?: BoolFieldUpdateOperationsInput | boolean
+    canManageVouchers?: BoolFieldUpdateOperationsInput | boolean
     balance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -35287,8 +36489,11 @@ export namespace Prisma {
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
+    canManageOrders?: BoolFieldUpdateOperationsInput | boolean
     canManageInventory?: BoolFieldUpdateOperationsInput | boolean
+    canManageVirtualBox?: BoolFieldUpdateOperationsInput | boolean
     canManagePosts?: BoolFieldUpdateOperationsInput | boolean
+    canManageVouchers?: BoolFieldUpdateOperationsInput | boolean
     balance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -35311,8 +36516,11 @@ export namespace Prisma {
     role?: $Enums.Role
     status?: $Enums.UserStatus
     emailVerified?: boolean
+    canManageOrders?: boolean
     canManageInventory?: boolean
+    canManageVirtualBox?: boolean
     canManagePosts?: boolean
+    canManageVouchers?: boolean
     balance?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -35335,8 +36543,11 @@ export namespace Prisma {
     role?: $Enums.Role
     status?: $Enums.UserStatus
     emailVerified?: boolean
+    canManageOrders?: boolean
     canManageInventory?: boolean
+    canManageVirtualBox?: boolean
     canManagePosts?: boolean
+    canManageVouchers?: boolean
     balance?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -35375,8 +36586,11 @@ export namespace Prisma {
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
+    canManageOrders?: BoolFieldUpdateOperationsInput | boolean
     canManageInventory?: BoolFieldUpdateOperationsInput | boolean
+    canManageVirtualBox?: BoolFieldUpdateOperationsInput | boolean
     canManagePosts?: BoolFieldUpdateOperationsInput | boolean
+    canManageVouchers?: BoolFieldUpdateOperationsInput | boolean
     balance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -35399,8 +36613,11 @@ export namespace Prisma {
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
+    canManageOrders?: BoolFieldUpdateOperationsInput | boolean
     canManageInventory?: BoolFieldUpdateOperationsInput | boolean
+    canManageVirtualBox?: BoolFieldUpdateOperationsInput | boolean
     canManagePosts?: BoolFieldUpdateOperationsInput | boolean
+    canManageVouchers?: BoolFieldUpdateOperationsInput | boolean
     balance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -35423,8 +36640,11 @@ export namespace Prisma {
     role?: $Enums.Role
     status?: $Enums.UserStatus
     emailVerified?: boolean
+    canManageOrders?: boolean
     canManageInventory?: boolean
+    canManageVirtualBox?: boolean
     canManagePosts?: boolean
+    canManageVouchers?: boolean
     balance?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -35447,8 +36667,11 @@ export namespace Prisma {
     role?: $Enums.Role
     status?: $Enums.UserStatus
     emailVerified?: boolean
+    canManageOrders?: boolean
     canManageInventory?: boolean
+    canManageVirtualBox?: boolean
     canManagePosts?: boolean
+    canManageVouchers?: boolean
     balance?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -35487,8 +36710,11 @@ export namespace Prisma {
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
+    canManageOrders?: BoolFieldUpdateOperationsInput | boolean
     canManageInventory?: BoolFieldUpdateOperationsInput | boolean
+    canManageVirtualBox?: BoolFieldUpdateOperationsInput | boolean
     canManagePosts?: BoolFieldUpdateOperationsInput | boolean
+    canManageVouchers?: BoolFieldUpdateOperationsInput | boolean
     balance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -35511,8 +36737,11 @@ export namespace Prisma {
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
+    canManageOrders?: BoolFieldUpdateOperationsInput | boolean
     canManageInventory?: BoolFieldUpdateOperationsInput | boolean
+    canManageVirtualBox?: BoolFieldUpdateOperationsInput | boolean
     canManagePosts?: BoolFieldUpdateOperationsInput | boolean
+    canManageVouchers?: BoolFieldUpdateOperationsInput | boolean
     balance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -36504,8 +37733,11 @@ export namespace Prisma {
     role?: $Enums.Role
     status?: $Enums.UserStatus
     emailVerified?: boolean
+    canManageOrders?: boolean
     canManageInventory?: boolean
+    canManageVirtualBox?: boolean
     canManagePosts?: boolean
+    canManageVouchers?: boolean
     balance?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -36528,8 +37760,11 @@ export namespace Prisma {
     role?: $Enums.Role
     status?: $Enums.UserStatus
     emailVerified?: boolean
+    canManageOrders?: boolean
     canManageInventory?: boolean
+    canManageVirtualBox?: boolean
     canManagePosts?: boolean
+    canManageVouchers?: boolean
     balance?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -36753,8 +37988,11 @@ export namespace Prisma {
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
+    canManageOrders?: BoolFieldUpdateOperationsInput | boolean
     canManageInventory?: BoolFieldUpdateOperationsInput | boolean
+    canManageVirtualBox?: BoolFieldUpdateOperationsInput | boolean
     canManagePosts?: BoolFieldUpdateOperationsInput | boolean
+    canManageVouchers?: BoolFieldUpdateOperationsInput | boolean
     balance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -36777,8 +38015,11 @@ export namespace Prisma {
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
+    canManageOrders?: BoolFieldUpdateOperationsInput | boolean
     canManageInventory?: BoolFieldUpdateOperationsInput | boolean
+    canManageVirtualBox?: BoolFieldUpdateOperationsInput | boolean
     canManagePosts?: BoolFieldUpdateOperationsInput | boolean
+    canManageVouchers?: BoolFieldUpdateOperationsInput | boolean
     balance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -37943,8 +39184,11 @@ export namespace Prisma {
     role?: $Enums.Role
     status?: $Enums.UserStatus
     emailVerified?: boolean
+    canManageOrders?: boolean
     canManageInventory?: boolean
+    canManageVirtualBox?: boolean
     canManagePosts?: boolean
+    canManageVouchers?: boolean
     balance?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -37967,8 +39211,11 @@ export namespace Prisma {
     role?: $Enums.Role
     status?: $Enums.UserStatus
     emailVerified?: boolean
+    canManageOrders?: boolean
     canManageInventory?: boolean
+    canManageVirtualBox?: boolean
     canManagePosts?: boolean
+    canManageVouchers?: boolean
     balance?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -38054,8 +39301,11 @@ export namespace Prisma {
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
+    canManageOrders?: BoolFieldUpdateOperationsInput | boolean
     canManageInventory?: BoolFieldUpdateOperationsInput | boolean
+    canManageVirtualBox?: BoolFieldUpdateOperationsInput | boolean
     canManagePosts?: BoolFieldUpdateOperationsInput | boolean
+    canManageVouchers?: BoolFieldUpdateOperationsInput | boolean
     balance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -38078,8 +39328,11 @@ export namespace Prisma {
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
+    canManageOrders?: BoolFieldUpdateOperationsInput | boolean
     canManageInventory?: BoolFieldUpdateOperationsInput | boolean
+    canManageVirtualBox?: BoolFieldUpdateOperationsInput | boolean
     canManagePosts?: BoolFieldUpdateOperationsInput | boolean
+    canManageVouchers?: BoolFieldUpdateOperationsInput | boolean
     balance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -38608,8 +39861,11 @@ export namespace Prisma {
     role?: $Enums.Role
     status?: $Enums.UserStatus
     emailVerified?: boolean
+    canManageOrders?: boolean
     canManageInventory?: boolean
+    canManageVirtualBox?: boolean
     canManagePosts?: boolean
+    canManageVouchers?: boolean
     balance?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -38632,8 +39888,11 @@ export namespace Prisma {
     role?: $Enums.Role
     status?: $Enums.UserStatus
     emailVerified?: boolean
+    canManageOrders?: boolean
     canManageInventory?: boolean
+    canManageVirtualBox?: boolean
     canManagePosts?: boolean
+    canManageVouchers?: boolean
     balance?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -38703,8 +39962,11 @@ export namespace Prisma {
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
+    canManageOrders?: BoolFieldUpdateOperationsInput | boolean
     canManageInventory?: BoolFieldUpdateOperationsInput | boolean
+    canManageVirtualBox?: BoolFieldUpdateOperationsInput | boolean
     canManagePosts?: BoolFieldUpdateOperationsInput | boolean
+    canManageVouchers?: BoolFieldUpdateOperationsInput | boolean
     balance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -38727,8 +39989,11 @@ export namespace Prisma {
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
+    canManageOrders?: BoolFieldUpdateOperationsInput | boolean
     canManageInventory?: BoolFieldUpdateOperationsInput | boolean
+    canManageVirtualBox?: BoolFieldUpdateOperationsInput | boolean
     canManagePosts?: BoolFieldUpdateOperationsInput | boolean
+    canManageVouchers?: BoolFieldUpdateOperationsInput | boolean
     balance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -38788,8 +40053,11 @@ export namespace Prisma {
     role?: $Enums.Role
     status?: $Enums.UserStatus
     emailVerified?: boolean
+    canManageOrders?: boolean
     canManageInventory?: boolean
+    canManageVirtualBox?: boolean
     canManagePosts?: boolean
+    canManageVouchers?: boolean
     balance?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -38812,8 +40080,11 @@ export namespace Prisma {
     role?: $Enums.Role
     status?: $Enums.UserStatus
     emailVerified?: boolean
+    canManageOrders?: boolean
     canManageInventory?: boolean
+    canManageVirtualBox?: boolean
     canManagePosts?: boolean
+    canManageVouchers?: boolean
     balance?: Decimal | DecimalJsLike | number | string
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -38887,8 +40158,11 @@ export namespace Prisma {
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
+    canManageOrders?: BoolFieldUpdateOperationsInput | boolean
     canManageInventory?: BoolFieldUpdateOperationsInput | boolean
+    canManageVirtualBox?: BoolFieldUpdateOperationsInput | boolean
     canManagePosts?: BoolFieldUpdateOperationsInput | boolean
+    canManageVouchers?: BoolFieldUpdateOperationsInput | boolean
     balance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -38911,8 +40185,11 @@ export namespace Prisma {
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     status?: EnumUserStatusFieldUpdateOperationsInput | $Enums.UserStatus
     emailVerified?: BoolFieldUpdateOperationsInput | boolean
+    canManageOrders?: BoolFieldUpdateOperationsInput | boolean
     canManageInventory?: BoolFieldUpdateOperationsInput | boolean
+    canManageVirtualBox?: BoolFieldUpdateOperationsInput | boolean
     canManagePosts?: BoolFieldUpdateOperationsInput | boolean
+    canManageVouchers?: BoolFieldUpdateOperationsInput | boolean
     balance?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -40359,6 +41636,10 @@ export namespace Prisma {
      * @deprecated Use SetDefaultArgs instead
      */
     export type SetArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = SetDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use RarityDefaultArgs instead
+     */
+    export type RarityArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = RarityDefaultArgs<ExtArgs>
     /**
      * @deprecated Use ProductDefaultArgs instead
      */

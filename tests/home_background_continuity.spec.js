@@ -4,27 +4,32 @@ const path = require('path');
 const fs = require('fs');
 
 /**
- * Background continuity across the "Duyệt theo danh mục" section.
+ * Unbroken home-page background.
  *
- * A full-width white strip used to cut across this section between two soft
- * pastel areas. The category wrapper must now be fully transparent so the
- * global pastel mesh gradient passes through; only the individual cards carry
- * the floating white surface.
+ * Section components used to paint their own local gradients
+ * (e.g. `bg-gradient-to-b from-white to-pink-50`), producing hard horizontal
+ * colour cuts between Hero, Category Grid and Featured Products.
  *
- * Screenshot: successful_test/07_category_bg_seamless_fixed.png
+ * After the fix there is exactly ONE continuous gradient, owned by the
+ * outermost layout container. Every inner <section> must be strictly
+ * transparent so that single canvas shows through from top to bottom.
+ *
+ * Screenshot: successful_test/07_home_unbroken_background_fixed.png
  */
 
 const SHOT_DIR = path.join(__dirname, '..', 'successful_test');
-const SHOT = path.join(SHOT_DIR, '07_category_bg_seamless_fixed.png');
+const SHOT = path.join(SHOT_DIR, '07_home_unbroken_background_fixed.png');
 
-test.describe('Category section background continuity', () => {
+const TRANSPARENT = 'rgba(0, 0, 0, 0)';
+
+test.describe('Home unbroken background continuity', () => {
   test.use({ viewport: { width: 1366, height: 900 } });
 
   test.beforeAll(() => {
     fs.mkdirSync(SHOT_DIR, { recursive: true });
   });
 
-  test('category wrapper is transparent, white lives only on cards', async ({ page }) => {
+  test('Hero, Category and Featured sections are all transparent', async ({ page }) => {
     page.on('console', (msg) => {
       if (msg.type() === 'error') console.log('[console.error]', msg.text());
     });
@@ -33,70 +38,76 @@ test.describe('Category section background continuity', () => {
     await page.waitForLoadState('networkidle').catch(() => {});
     await page.waitForTimeout(500);
 
-    const categoriesHeading = page.getByRole('heading', { name: 'Duyệt theo danh mục' });
-    await expect(categoriesHeading).toBeVisible();
+    // ── Locate the three section wrappers.
+    const heroSection = page.locator('section', { has: page.locator('h1') }).first();
+    const categorySection = page.locator('section', {
+      has: page.getByRole('heading', { name: 'Duyệt theo danh mục' })
+    });
+    const featuredSection = page.locator('section', {
+      has: page.getByRole('heading', { name: 'Sản phẩm nổi bật' })
+    });
 
-    // ── 1. The category <section> wrapper + its container are transparent.
-    const sectionBg = await page.evaluate(() => {
-      const h2 = Array.from(document.querySelectorAll('h2')).find((h) =>
-        h.textContent.includes('Duyệt theo danh mục')
-      );
-      const section = h2.closest('section');
-      const container = section.querySelector('div');
-      const read = (el) => {
+    for (const [name, loc] of [
+      ['Hero', heroSection],
+      ['Category', categorySection],
+      ['Featured', featuredSection]
+    ]) {
+      await expect(loc, `${name} section should be visible`).toBeVisible();
+      const style = await loc.evaluate((el) => {
         const cs = getComputedStyle(el);
         return { bg: cs.backgroundColor, bgImage: cs.backgroundImage, cls: String(el.className) };
-      };
-      return { section: read(section), container: read(container) };
-    });
-
-    // The requirement: rgba(0, 0, 0, 0) / transparent, no painted gradient.
-    expect(sectionBg.section.bg).toBe('rgba(0, 0, 0, 0)');
-    expect(sectionBg.section.bgImage).toBe('none');
-    expect(sectionBg.section.cls).toContain('bg-transparent');
-    expect(sectionBg.container.bg).toBe('rgba(0, 0, 0, 0)');
-    expect(sectionBg.container.bgImage).toBe('none');
-
-    // ── 2. Every ancestor up to <body> stays transparent (no opaque white band).
-    const ancestorBgs = await page.evaluate(() => {
-      const h2 = Array.from(document.querySelectorAll('h2')).find((h) =>
-        h.textContent.includes('Duyệt theo danh mục')
-      );
-      const out = [];
-      let el = h2.closest('section');
-      while (el && el !== document.body) {
-        const cs = getComputedStyle(el);
-        out.push({ tag: el.tagName, bg: cs.backgroundColor, bgImage: cs.backgroundImage });
-        el = el.parentElement;
-      }
-      return out;
-    });
-    for (const a of ancestorBgs) {
-      // Solid body colour must not be painted; the gradient canvas is an image
-      // on the outermost wrapper (handled below).
-      expect(a.bg).toBe('rgba(0, 0, 0, 0)');
+      });
+      expect(style.bg, `${name} background-color`).toBe(TRANSPARENT);
+      expect(style.bgImage, `${name} background-image`).toBe('none');
+      expect(style.cls, `${name} should carry bg-transparent`).toContain('bg-transparent');
+      console.log(`[SECTION] ${name}: bg=${style.bg} bgImage=${style.bgImage}`);
     }
-    // The single page canvas owns the pastel gradient.
-    const canvas = await page.evaluate(() => {
-      const root = document.querySelector('#root > div');
-      const cs = getComputedStyle(root);
-      return { bgImage: cs.backgroundImage, bgColor: cs.backgroundColor };
-    });
-    expect(canvas.bgColor).toBe('rgba(0, 0, 0, 0)');
-    expect(canvas.bgImage).toContain('linear-gradient');
 
-    // ── 3. No sibling full-width opaque light strip inside the section band.
+    // ── Every <section> inside <main> must be transparent (no local bands).
+    const sections = await page.evaluate(() => {
+      return Array.from(document.querySelectorAll('main section')).map((el) => {
+        const cs = getComputedStyle(el);
+        return { cls: String(el.className).slice(0, 80), bg: cs.backgroundColor, bgImage: cs.backgroundImage };
+      });
+    });
+    expect(sections.length).toBeGreaterThan(0);
+    for (const s of sections) {
+      expect(s.bg, `section ${s.cls}`).toBe(TRANSPARENT);
+      expect(s.bgImage, `section ${s.cls}`).toBe('none');
+    }
+    console.log(`[OK] all ${sections.length} home sections are transparent`);
+
+    // ── Exactly one global gradient, owned by the outer layout container.
+    const canvas = await page.evaluate(() => {
+      const layout = document.querySelector('#root > div');
+      const home = document.querySelector('main > div');
+      const cs = getComputedStyle(layout);
+      const homeCs = home ? getComputedStyle(home) : null;
+      return {
+        cls: String(layout.className),
+        bgColor: cs.backgroundColor,
+        bgImage: cs.backgroundImage,
+        homeCls: home ? String(home.className) : '',
+        homeBg: homeCs ? homeCs.backgroundColor : '',
+        homeBgImage: homeCs ? homeCs.backgroundImage : ''
+      };
+    });
+    expect(canvas.cls).toContain('from-[#FFF0F5]');
+    expect(canvas.cls).toContain('via-[#FDFBF7]');
+    expect(canvas.cls).toContain('to-[#FFF0F5]');
+    expect(canvas.bgColor).toBe(TRANSPARENT);
+    expect(canvas.bgImage).toContain('linear-gradient');
+    // The Home page wrapper must NOT start a second gradient of its own.
+    expect(canvas.homeBg).toBe(TRANSPARENT);
+    expect(canvas.homeBgImage).toBe('none');
+
+    // ── No full-width opaque background strip anywhere in <main>.
     const strips = await page.evaluate(() => {
-      const h2 = Array.from(document.querySelectorAll('h2')).find((h) =>
-        h.textContent.includes('Duyệt theo danh mục')
-      );
-      const section = h2.closest('section');
-      const r = section.getBoundingClientRect();
       const vw = window.innerWidth;
       const bad = [];
-      for (const el of section.querySelectorAll('*')) {
-        const b = el.getBoundingClientRect();
-        if (b.width < vw * 0.9 || b.height < 8) continue;
+      for (const el of document.querySelectorAll('main *')) {
+        const r = el.getBoundingClientRect();
+        if (r.width < vw * 0.9 || r.height < 8 || r.height > 2000) continue;
         const cs = getComputedStyle(el);
         const m = cs.backgroundColor.match(/rgba?\(([^)]+)\)/);
         if (!m) continue;
@@ -108,26 +119,9 @@ test.describe('Category section background continuity', () => {
     });
     expect(strips).toEqual([]);
 
-    // ── 4. White surface lives ONLY on the category cards.
-    const sealedCard = page.locator('a[href*="category=sealed-products"]');
-    const singleCard = page.locator('a[href*="category=single-cards"]');
-    for (const card of [sealedCard, singleCard]) {
-      await expect(card).toBeVisible();
-      const cls = await card.getAttribute('class');
-      expect(cls).toContain('bg-white/80');
-      expect(cls).toContain('backdrop-blur-md');
-      expect(cls).toContain('border-pink-100/70');
-      expect(cls).toContain('rounded-3xl');
-      expect(cls).toContain('shadow-sm');
-      // The card must NOT be full-width.
-      const box = await card.boundingBox();
-      expect(box.width).toBeLessThan(600);
-    }
-
-    // ── 5. Visual proof screenshot.
-    await categoriesHeading.scrollIntoViewIfNeeded();
-    await page.evaluate(() => window.scrollBy(0, -140));
-    await page.screenshot({ path: SHOT, fullPage: false });
+    // ── Visual proof screenshot (full page shows the gradient continuity).
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.screenshot({ path: SHOT, fullPage: true });
     expect(fs.existsSync(SHOT)).toBe(true);
     console.log(`[SHOT] saved ${SHOT}`);
   });

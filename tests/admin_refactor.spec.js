@@ -106,8 +106,11 @@ test.describe('Admin panel — editorial refactor + storefront isolation', () =>
       await expect(sidebar.getByRole('link', { name: label, exact: true })).toBeVisible();
     }
 
-    // Quick-create CTA present in the sidebar.
-    await expect(sidebar.getByRole('link', { name: /tạo sản phẩm|new product/i })).toBeVisible();
+    // Store status badge replaces the old quick-create CTA.
+    const statusBadge = sidebar.getByTestId('admin-store-status');
+    await expect(statusBadge).toBeVisible();
+    await expect(statusBadge).toContainText(/đang mở cửa|open now/i);
+    await expect(sidebar.getByRole('link', { name: /tạo sản phẩm|new product/i })).toHaveCount(0);
 
     // ── 5. Rose editorial dashboard content ────────────────────────────
     const main = page.locator('main.dash-scope');

@@ -25,15 +25,82 @@
 
 ## Overview (5 steps)
 
+> **Automated path (recommended):** `bash pack-cpanel.sh --provision` does steps
+> **1 and 3 for you** — it creates the MySQL database, the DB user, grants `ALL
+> PRIVILEGES`, and imports the SQL dump via the cPanel UAPI, with zero cPanel
+> web-interface actions. See *Automated database provisioning* below.
+
 | # | Step | Where | Tool | Time |
 |---|------|-------|------|------|
-| 1 | Create MySQL DB + user | cPanel | MySQL Databases | ~3 min |
+| 1 | Create MySQL DB + user | cPanel | MySQL Databases *(or automatically via UAPI)* | ~3 min |
 | 2 | Build & pack locally (`bash pack-cpanel.sh`) | LOCAL | terminal | ~2 min |
-| 3 | Import `migration.sql` (first deploy only) | cPanel | phpMyAdmin | ~5 min |
+| 3 | Import `migration.sql` (first deploy only) | cPanel | phpMyAdmin *(or automatically via UAPI)* | ~5 min |
 | 4 | Upload & extract `deploy-cpanel.zip` | cPanel | File Manager | ~2 min |
 | 5 | Create Node.js app, install deps, start | cPanel | Setup Node.js App | ~5 min |
 
 > Later schema updates skip step 3 and use the **remote migration** flow at the bottom instead.
+
+---
+
+## Automated database provisioning (`deploy_cpanel.py` + UAPI)
+
+`deploy_cpanel.py` provisions the whole database lifecycle over HTTPS through
+the cPanel **UAPI** (no GUI, no phpMyAdmin):
+
+| Step | UAPI call | Purpose |
+|------|-----------|---------|
+| `[1/4]` | `Mysql::create_database` | Create `cpaneluser_tcgstore` |
+| `[2/4]` | `Mysql::create_user` | Create the DB user with a generated secure password |
+| `[3/4]` | `Mysql::set_privileges_on_database` | Grant `ALL PRIVILEGES` |
+| `[4/4]` | `mysql < dump.sql` | Auto-import the schema/seed dump |
+
+It then writes the backend `.env` with the provisioned credentials
+(`DB_HOST=localhost`, `DB_NAME`, `DB_USER`, `DB_PASS`, `DATABASE_URL`), and can
+push it onto the account with `Fileman::save_file_content`.
+
+**1. Configure credentials** (local machine only, git-ignored):
+
+```bash
+cp .env.cpanel.deploy.example .env.cpanel.deploy
+# fill in CPANEL_HOST, CPANEL_USER and CPANEL_API_TOKEN
+# (cPanel > Security > Manage API Tokens; grant the "MySQL" scope, and
+#  "File Storage" too if you set CPANEL_UPLOAD_ENV=1)
+```
+
+**2. Provision + import** (standalone):
+
+```bash
+npm run deploy:cpanel:dry-run     # safe: prints every UAPI call + mysql command
+npm run deploy:cpanel             # real provisioning + auto-import + .env
+```
+
+**3. Or do it as part of packing** (recommended — the dump is produced by the pack):
+
+```bash
+bash pack-cpanel.sh --dry-run      # validate the whole workflow, no changes
+bash pack-cpanel.sh --provision    # build zip + provision DB + import dump + .env
+# equivalent: CPANEL_AUTO_PROVISION=1 bash pack-cpanel.sh
+```
+
+**Idempotent by design:** if the database/user already exists the UAPI response
+is caught, a warning is logged, and the run proceeds to table verification —
+re-running never crashes and never double-imports (the import is skipped unless
+`--force-import` is passed). The generated `.env` is written to
+`backend/.env`; forward it to the server by setting `CPANEL_UPLOAD_ENV=1` (pushes
+via Fileman) or by pasting the values into **Setup Node.js App > Environment
+variables**.
+
+**Import host:** the `mysql` auto-import connects to `CPANEL_DB_HOST` (default
+`localhost`). `localhost` means *run `deploy_cpanel.py` on the cPanel server*.
+To import from your machine, set `CPANEL_DB_HOST` to your host's DB hostname and
+whitelist your IP (cPanel > MySQL Databases > Remote MySQL).
+
+**Verify the automation itself** (spins up a mock UAPI server + real MariaDB,
+runs create/privileges/import/idempotency, asserts everything):
+
+```bash
+npm run verify:cpanel
+```
 
 ---
 

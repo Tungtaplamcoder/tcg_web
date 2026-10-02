@@ -9,7 +9,7 @@ import ConfirmDialog from '../../components/ConfirmDialog';
 import CreatableSelect from '../../components/CreatableSelect';
 import { formatVND } from '../../utils/format';
 import { PRODUCT_CATEGORIES, resolveCategoryKey, getProductCategory } from '../../constants/productCategories';
-import { TCG_LANGUAGES, TCG_RARITIES, CARD_CONDITIONS, SINGLE_CARD_LANGUAGES } from '../../constants/tcgMetadata';
+import { TCG_LANGUAGES, CARD_CONDITIONS, SINGLE_CARD_LANGUAGES } from '../../constants/tcgMetadata';
 import { useLanguage } from '../../i18n/LanguageContext';
 
 const InventoryManager = () => {
@@ -33,6 +33,9 @@ const InventoryManager = () => {
   const [categories, setCategories] = useState([]);
   const [sets, setSets] = useState([]);
   const [artistOptions, setArtistOptions] = useState([]);
+  // Dynamic rarity options ("Độ hiếm") — database-backed, managed like
+  // Series/Era and Expansion Sets (CreatableSelect with quick-add).
+  const [rarityOptions, setRarityOptions] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     shortName: '',
@@ -86,14 +89,16 @@ const InventoryManager = () => {
   // artist facet values.
   const loadMeta = useCallback(async () => {
     try {
-      const [catsRes, setsRes, facetsRes] = await Promise.all([
+      const [catsRes, setsRes, facetsRes, raritiesRes] = await Promise.all([
         api.get('/admin/categories'),
         api.get('/admin/sets', { params: { prune: 'active' } }),
-        api.get('/products/facets')
+        api.get('/products/facets'),
+        api.get('/rarities')
       ]);
       setCategories(catsRes.data.data || []);
       setSets(setsRes.data.data || []);
       setArtistOptions((facetsRes.data.data?.artists || []).map((a) => a.value));
+      setRarityOptions(toRarityOptions(raritiesRes.data.data || []));
     } catch (err) { console.error('Failed to load category/set metadata', err); }
   }, []);
 
@@ -168,6 +173,78 @@ const InventoryManager = () => {
     if (!slug) return null;
     const cat = categories.find(c => c.slug === slug);
     return { value: slug, label: cat ? cat.name : slug };
+  };
+
+  // ---- Dynamic Rarity helpers ----
+  // Map the API rows into CreatableSelect options. `code` is the canonical
+  // value stored on the product; the label reads "CODE - Name".
+  const toRarityOptions = (rows) =>
+    (rows || []).map((r) => {
+      const code = r.code || r.name;
+      const label = r.name && r.name !== code ? `${code} - ${r.name}` : code;
+      return { value: code, label, hint: r.description || undefined };
+    });
+
+  const findRarityOption = (value) => {
+    if (!value) return null;
+    const v = String(value).trim().toLowerCase();
+    return (
+      rarityOptions.find(
+        (o) => String(o.value).toLowerCase() === v || String(o.label).toLowerCase() === v
+      ) || { value: String(value), label: String(value) }
+    );
+  };
+
+  const resolveRarityValue = (value) => findRarityOption(value);
+
+  // Keep the saved product value visible even before the options list loads.
+  const ensureRarityOption = (options, currentValue) => {
+    if (!currentValue) return options;
+    const v = String(currentValue).trim().toLowerCase();
+    if (options.some((o) => String(o.value).toLowerCase() === v || String(o.label).toLowerCase() === v)) {
+      return options;
+    }
+    return [...options, findRarityOption(currentValue)];
+  };
+
+  // "HR - Hyper Rare" → { code: 'HR', name: 'Hyper Rare' }. A bare "HR"
+  // keeps code = name so the two never drift.
+  const parseRarityInput = (text) => {
+    const raw = String(text || '').trim();
+    const parts = raw.split(/\s*[-–—]\s*/);
+    if (parts.length >= 2 && parts[0]) {
+      const code = parts[0].trim();
+      const name = parts.slice(1).join(' - ').trim() || code;
+      return { code, name };
+    }
+    return { code: raw, name: raw };
+  };
+
+  // Quick-add: persist the typed rarity through the admin API and inject it
+  // into the options list so it stays selectable without closing the modal.
+  const handleCreateRarityOption = async (opt) => {
+    const { code, name } = parseRarityInput(opt?.value || opt?.label);
+    if (!code) return;
+    setRarityOptions((prev) => {
+      if (prev.some((o) => String(o.value).toLowerCase() === code.toLowerCase())) return prev;
+      return [...prev, { value: code, label: code === name ? code : `${code} - ${name}` }];
+    });
+    try {
+      const res = await api.post('/admin/rarities', { code, name, description: name });
+      const created = res.data?.data;
+      if (created) {
+        const codeVal = created.code || code;
+        setRarityOptions((prev) => {
+          const filtered = prev.filter((o) => String(o.value).toLowerCase() !== String(codeVal).toLowerCase());
+          const label = created.name && created.name !== codeVal ? `${codeVal} - ${created.name}` : codeVal;
+          return [...filtered, { value: codeVal, label, hint: created.description || undefined }];
+        });
+      }
+      showToast(`Đã thêm độ hiếm "${code}".`);
+    } catch (err) {
+      // Conflict (already exists) is harmless — the option remains selectable.
+      console.error('Failed to create rarity', err);
+    }
   };
 
   // Optimistically insert a newly typed category into the master tree so it
@@ -409,19 +486,27 @@ const InventoryManager = () => {
 
   const handleAddVariant = () => {
     setFormData(prev => {
-      const newVariant = usesConditionLanguageVariants
-        ? { condition: 'NEAR_MINT', price: 0, stockQuantity: 0 }
-        : { price: 0, stockQuantity: 0 };
-      return { ...prev, variants: [...prev.variants, newVariant] };
+      // Single Cards are validated on a UNIQUE condition per product, so a new
+      // row must not inherit the same default as an existing one. Pick the
+      // first condition option not already used (Near Mint → Lightly Played →
+      // … → Damaged) and only fall back to the first option once all are used.
+      if (prev.mainCategory === 'CARD') {
+        const usedConditions = new Set(prev.variants.map(v => v.condition));
+        const nextCondition = CARD_CONDITIONS.find(c => !usedConditions.has(c.value))?.value
+          || CARD_CONDITIONS[0].value;
+        return { ...prev, variants: [...prev.variants, { condition: nextCondition, price: 0, stockQuantity: 0 }] };
+      }
+      return { ...prev, variants: [...prev.variants, { price: 0, stockQuantity: 0 }] };
     });
   };
 
   const handleVariantChange = (index, field, value) => {
-    setFormData(prev => {
-      const variants = [...prev.variants];
-      variants[index][field] = value;
-      return { ...prev, variants };
-    });
+    setFormData(prev => ({
+      ...prev,
+      // Immutable row update — mutating the shared variant object could leave
+      // React and the payload out of sync when multiple rows are edited fast.
+      variants: prev.variants.map((v, i) => (i === index ? { ...v, [field]: value } : v))
+    }));
   };
 
   const handleRemoveVariant = (index) => {
@@ -443,13 +528,32 @@ const InventoryManager = () => {
     if (formData.variants.length === 0) {
       errors.push('Cần ít nhất một biến thể');
     } else {
+      const seenConditions = new Set();
+      let hasDuplicateCondition = false;
       formData.variants.forEach((v, idx) => {
         if (usesConditionLanguageVariants) {
-          if (!v.condition) errors.push(`Biến thể ${idx + 1}: Tình trạng là bắt buộc`);
+          if (!v.condition) {
+            errors.push(`Biến thể ${idx + 1}: Tình trạng là bắt buộc`);
+          } else if (seenConditions.has(v.condition)) {
+            // Report the duplicate once, with a clear product-level message,
+            // instead of a vague backend "Invalid input".
+            hasDuplicateCondition = true;
+          } else {
+            seenConditions.add(v.condition);
+          }
         }
-        if (v.price < 0) errors.push(`Biến thể ${idx + 1}: Giá phải >= 0`);
-        if (v.stockQuantity < 0) errors.push(`Biến thể ${idx + 1}: Tồn kho phải >= 0`);
+        const price = Number(v.price);
+        const stock = Number(v.stockQuantity);
+        if (!Number.isFinite(price) || price < 0) {
+          errors.push(`Biến thể ${idx + 1}: Giá phải là số >= 0`);
+        }
+        if (!Number.isInteger(stock) || stock < 0) {
+          errors.push(`Biến thể ${idx + 1}: Tồn kho phải là số nguyên >= 0`);
+        }
       });
+      if (hasDuplicateCondition) {
+        errors.push('Các biến thể không được trùng tình trạng thẻ');
+      }
     }
 
     if (formData.mainCategory === 'CARD' && !formData.language) {
@@ -480,23 +584,31 @@ setSaving(true); setError('');
       // Fallback to previously stored slug (e.g. when editing)
       if (!categorySlug) categorySlug = formData.category;
 
+      // Normalise variant numerics before they reach the API. Number inputs
+      // hand back strings; strip them to clean numbers (or 0) so the backend
+      // never receives "" / NaN and fails with a vague "Invalid input".
+      const formattedVariants = formData.variants.map(v => ({
+        condition: v.condition,
+        price: Number(v.price) || 0,
+        stockQuantity: Number(v.stockQuantity) || 0
+      }));
+
       // Prepare variants for API
-      const apiVariants = formData.variants.map(v => {
+      const apiVariants = formattedVariants.map(v => {
         if (usesConditionLanguageVariants) {
           // Single Cards: condition + language (stored in variant field)
           return {
             condition: v.condition,
             variant: formData.language, // language at form level
-            price: Number(v.price),
-            stockQuantity: Number(v.stockQuantity) || 0
-          };
-        } else {
-          // Sealed Products: simplified — only price and stock
-          return {
-            price: Number(v.price),
-            stockQuantity: Number(v.stockQuantity) || 0
+            price: v.price,
+            stockQuantity: v.stockQuantity
           };
         }
+        // Sealed Products: simplified — only price and stock
+        return {
+          price: v.price,
+          stockQuantity: v.stockQuantity
+        };
       });
 
       // Expansion Set: picking an existing option links by id; a brand-new
@@ -611,7 +723,7 @@ setSaving(true); setError('');
           className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 min-w-[150px]"
         >
           <option value="">{t('staff.inventory.filterRarity')}</option>
-          {TCG_RARITIES.map((rarity) => (
+          {rarityOptions.map((rarity) => (
             <option key={rarity.value} value={rarity.value}>{rarity.label}</option>
           ))}
         </select>
@@ -746,15 +858,19 @@ setSaving(true); setError('');
       )}
 
       {editingProduct && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">{editingProduct.id ? t('staff.inventory.editTitle') : t('staff.inventory.addProduct')}</h3>
-                <button onClick={handleCloseModal} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"><X className="h-5 w-5" /></button>
-              </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+          {/* Modal card: fixed viewport budget, header + scrollable body + sticky footer.
+              Without the max-height + overflow-y body, many variant rows push the
+              Save/Cancel actions below the fold and they become unreachable. */}
+          <div className="w-full max-w-4xl max-h-[88vh] flex flex-col bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-2xl overflow-hidden">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 dark:border-gray-800 shrink-0">
+              <h3 id="modal-title" className="text-lg font-semibold text-gray-800 dark:text-gray-200">{editingProduct.id ? t('staff.inventory.editTitle') : t('staff.inventory.addProduct')}</h3>
+              <button onClick={handleCloseModal} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"><X className="h-5 w-5" /></button>
+            </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+              {/* Scrollable form body — all fields + variant list live here. */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-5 custom-scrollbar">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('staff.inventory.fullNameLabel')}</label>
@@ -856,18 +972,20 @@ setSaving(true); setError('');
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-gray-500 mb-1">Độ hiếm (Rarity)</label>
-                          <select
+                          <CreatableSelect
                             name="rarity"
-                            value={formData.rarity}
-                            onChange={(e) => setFormData(prev => ({ ...prev, rarity: e.target.value }))}
+                            value={resolveRarityValue(formData.rarity) || ''}
+                            options={ensureRarityOption(rarityOptions, formData.rarity)}
+                            onChange={(v, meta) => setFormData(prev => ({
+                              ...prev,
+                              rarity: meta?.isNew ? parseRarityInput(v).code : v
+                            }))}
+                            onNewOptionCreated={handleCreateRarityOption}
+                            placeholder="-- Chọn độ hiếm --"
+                            createLabel={(text) => ` Thêm độ hiếm: "${text}"`}
                             required
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                          >
-                            <option value="">-- Chọn độ hiếm --</option>
-                            {TCG_RARITIES.map((r) => (
-                              <option key={r.value} value={r.value}>{r.label}</option>
-                            ))}
-                          </select>
+                            className="w-full"
+                          />
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-gray-500 mb-1">Ngôn ngữ (Language)</label>
@@ -1042,16 +1160,25 @@ setSaving(true); setError('');
                     )}
                   </div>
                 </div>
+              </div>
 
-                <div className="flex justify-end space-x-3">
-                  <button type="button" onClick={handleCloseModal} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">{t('staff.inventory.cancel')}</button>
-                  <button type="submit" disabled={saving} className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50">
-                    {saving ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Save className="h-5 w-5 mr-2" />}
-                    {saving ? 'Đang lưu...' : 'Lưu sản phẩm'}
-                  </button>
+              {/* Validation / save errors must surface INSIDE the modal (the
+                  page-level error banner sits behind the backdrop overlay). */}
+              {error && (
+                <div role="alert" className="mx-6 mt-3 shrink-0 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+                  {error}
                 </div>
-              </form>
-            </div>
+              )}
+
+              {/* Sticky footer — always reachable regardless of variant row count. */}
+              <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 flex justify-end gap-3 shrink-0">
+                <button type="button" onClick={handleCloseModal} className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">{t('staff.inventory.cancel')}</button>
+                <button type="submit" disabled={saving} className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50">
+                  {saving ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Save className="h-5 w-5 mr-2" />}
+                  {saving ? 'Đang lưu...' : 'Lưu sản phẩm'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -89,10 +89,10 @@ const RevenueTooltip = ({ active, payload, t }) => {
   if (!active || !payload || !payload.length) return null;
   const day = payload[0].payload;
   return (
-    <div className="bg-white/95 dark:bg-neutral-900/95 backdrop-blur border border-pink-100 rounded-xl shadow-soft px-3.5 py-2.5">
-      <p className="text-xs font-semibold text-ink-500 mb-1">{day.weekday}, {day.labelFull}</p>
+    <div className="bg-white/95 dark:bg-neutral-900/95 backdrop-blur border border-pink-100 dark:border-neutral-800 rounded-xl shadow-soft px-3.5 py-2.5">
+      <p className="text-xs font-semibold text-ink-500 dark:text-neutral-300 mb-1">{day.weekday}, {day.labelFull}</p>
       <p className="text-sm font-bold text-[#E11D48] dark:text-pink-300">{formatVND(day.revenue)}</p>
-      <p className="text-xs text-ink-500 mt-0.5">{t('admin.analytics.totalOrders')} {day.orders}</p>
+      <p className="text-xs text-ink-500 dark:text-neutral-300 mt-0.5">{t('admin.analytics.totalOrders')} {day.orders}</p>
     </div>
   );
 };
@@ -101,8 +101,8 @@ const DonutTooltip = ({ active, payload }) => {
   if (!active || !payload || !payload.length) return null;
   const item = payload[0];
   return (
-    <div className="bg-white/95 dark:bg-neutral-900/95 backdrop-blur border border-pink-100 rounded-xl shadow-soft px-3 py-2">
-      <p className="text-xs font-semibold text-ink-500">{item.name}</p>
+    <div className="bg-white/95 dark:bg-neutral-900/95 backdrop-blur border border-pink-100 dark:border-neutral-800 rounded-xl shadow-soft px-3 py-2">
+      <p className="text-xs font-semibold text-ink-500 dark:text-neutral-300">{item.name}</p>
       <p className="text-sm font-bold text-[#E11D48] dark:text-pink-300">{item.value}</p>
     </div>
   );
@@ -219,8 +219,8 @@ const AnalyticsDashboard = () => {
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="font-serif italic text-2xl font-bold text-[#9F1239] dark:text-white">{t('admin.analytics.title')}</h2>
-        <p className="text-ink-500 dark:text-ink-300 text-sm">{t('admin.analytics.subtitle')}</p>
+        <h2 className="font-serif italic text-2xl font-bold text-neutral-900 dark:text-pink-50">{t('admin.analytics.title')}</h2>
+        <p className="text-neutral-500 dark:text-pink-200/70 text-sm">{t('admin.analytics.subtitle')}</p>
       </div>
 
       {/* ── Metric cards ─────────────────────────────────────────── */}
@@ -230,7 +230,7 @@ const AnalyticsDashboard = () => {
           return (
             <div
               key={card.label}
-              className="rounded-2xl bg-white dark:bg-neutral-900 border border-pink-100/60 dark:border-white/10 shadow-soft p-5 transition-all duration-300 hover:shadow-soft-lg hover:-translate-y-0.5"
+              className="rounded-2xl bg-white dark:bg-neutral-900/90 border border-pink-100/60 dark:border-neutral-800 shadow-soft p-5 transition-all duration-300 hover:shadow-soft-lg hover:-translate-y-0.5 dark:text-neutral-100"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-rose-50 to-pink-100 dark:from-[#E11D48]/35 dark:to-[#F472B6]/25 flex items-center justify-center">
@@ -244,7 +244,7 @@ const AnalyticsDashboard = () => {
                   </span>
                 ) : null}
               </div>
-              <p className="mt-4 text-2xl sm:text-[27px] font-bold tracking-tight text-ink-900 dark:text-white">{card.value}</p>
+              <p className="mt-4 text-2xl sm:text-[27px] font-bold tracking-tight text-ink-900 dark:text-neutral-100">{card.value}</p>
               <p className="mt-1 text-sm text-ink-500 dark:text-ink-300">{card.label}</p>
             </div>
           );
@@ -254,8 +254,8 @@ const AnalyticsDashboard = () => {
       {/* ── Charts row ───────────────────────────────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         {/* Bar chart — revenue by day */}
-        <div className="xl:col-span-2 rounded-2xl bg-white dark:bg-neutral-900 border border-pink-100/60 dark:border-white/10 shadow-soft p-6">
-          <h3 className="text-lg font-semibold text-ink-800 dark:text-white mb-4 flex items-center">
+        <div className="xl:col-span-2 rounded-2xl bg-white dark:bg-neutral-900/90 border border-pink-100/60 dark:border-neutral-800 shadow-soft p-6 dark:text-neutral-100">
+          <h3 className="text-lg font-semibold text-ink-800 dark:text-neutral-100 mb-4 flex items-center">
             <TrendingUp className="h-5 w-5 mr-2 text-[#E11D48] dark:text-pink-300" />
             {t('admin.analytics.revenue7d')}
           </h3>
@@ -297,13 +297,13 @@ const AnalyticsDashboard = () => {
               </ResponsiveContainer>
             </div>
           ) : (
-            <p className="text-ink-500">{t('admin.analytics.noRevenue')}</p>
+            <p className="text-ink-500 dark:text-neutral-400">{t('admin.analytics.noRevenue')}</p>
           )}
         </div>
 
         {/* Donut — order status distribution */}
-        <div className="rounded-2xl bg-white dark:bg-neutral-900 border border-pink-100/60 dark:border-white/10 shadow-soft p-6">
-          <h3 className="text-lg font-semibold text-ink-800 dark:text-white mb-4 flex items-center">
+        <div className="rounded-2xl bg-white dark:bg-neutral-900/90 border border-pink-100/60 dark:border-neutral-800 shadow-soft p-6 dark:text-neutral-100">
+          <h3 className="text-lg font-semibold text-ink-800 dark:text-neutral-100 mb-4 flex items-center">
             <PieIcon className="h-5 w-5 mr-2 text-[#E11D48] dark:text-pink-300" />
             {t('admin.analytics.orderDistribution')}
           </h3>
@@ -329,8 +329,8 @@ const AnalyticsDashboard = () => {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-2xl font-bold text-ink-900 dark:text-white">{totalOrderStatuses}</span>
-                  <span className="text-[11px] uppercase tracking-wider text-ink-400">{t('admin.analytics.totalOrders')}</span>
+                  <span className="text-2xl font-bold text-ink-900 dark:text-neutral-100">{totalOrderStatuses}</span>
+                  <span className="text-[11px] uppercase tracking-wider text-ink-400 dark:text-neutral-400">{t('admin.analytics.totalOrders')}</span>
                 </div>
               </div>
               <ul className="mt-4 space-y-2">
@@ -341,30 +341,30 @@ const AnalyticsDashboard = () => {
                       style={{ backgroundColor: DONUT_COLORS[index % DONUT_COLORS.length] }}
                     />
                     <span className="text-ink-500 dark:text-ink-300 flex-1 truncate">{entry.name}</span>
-                    <span className="font-semibold text-ink-800 dark:text-white">{entry.value}</span>
+                    <span className="font-semibold text-ink-800 dark:text-neutral-100">{entry.value}</span>
                   </li>
                 ))}
               </ul>
             </>
           ) : (
-            <p className="text-ink-500">{t('admin.analytics.noRecentOrders')}</p>
+            <p className="text-ink-500 dark:text-neutral-400">{t('admin.analytics.noRecentOrders')}</p>
           )}
         </div>
       </div>
 
       {/* ── Recent orders table ──────────────────────────────────── */}
-      <div className="rounded-2xl bg-white dark:bg-neutral-900 border border-pink-100/60 dark:border-white/10 shadow-soft p-6">
-        <h3 className="text-lg font-semibold text-ink-800 dark:text-white mb-4">{t('admin.analytics.recentOrders')}</h3>
+      <div className="rounded-2xl bg-white dark:bg-neutral-900/90 border border-pink-100/60 dark:border-neutral-800 shadow-soft p-6 dark:text-neutral-100">
+        <h3 className="text-lg font-semibold text-ink-800 dark:text-neutral-100 mb-4">{t('admin.analytics.recentOrders')}</h3>
         {stats.recentOrders && stats.recentOrders.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-pink-100/70 dark:divide-white/10">
               <thead>
                 <tr>
-                  <th className="px-4 py-2 text-left text-[11px] font-semibold text-ink-400 uppercase tracking-wider">{t('admin.analytics.colOrder')}</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-semibold text-ink-400 uppercase tracking-wider">{t('admin.analytics.colCustomer')}</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-semibold text-ink-400 uppercase tracking-wider">{t('admin.analytics.colTotal')}</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-semibold text-ink-400 uppercase tracking-wider">{t('admin.analytics.colStatus')}</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-semibold text-ink-400 uppercase tracking-wider">{t('admin.analytics.colDate')}</th>
+                  <th className="px-4 py-2 text-left text-[11px] font-semibold text-ink-400 dark:text-neutral-400 uppercase tracking-wider">{t('admin.analytics.colOrder')}</th>
+                  <th className="px-4 py-2 text-left text-[11px] font-semibold text-ink-400 dark:text-neutral-400 uppercase tracking-wider">{t('admin.analytics.colCustomer')}</th>
+                  <th className="px-4 py-2 text-left text-[11px] font-semibold text-ink-400 dark:text-neutral-400 uppercase tracking-wider">{t('admin.analytics.colTotal')}</th>
+                  <th className="px-4 py-2 text-left text-[11px] font-semibold text-ink-400 dark:text-neutral-400 uppercase tracking-wider">{t('admin.analytics.colStatus')}</th>
+                  <th className="px-4 py-2 text-left text-[11px] font-semibold text-ink-400 dark:text-neutral-400 uppercase tracking-wider">{t('admin.analytics.colDate')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-pink-100/60 dark:divide-white/5">
@@ -372,7 +372,7 @@ const AnalyticsDashboard = () => {
                   <tr key={order.id} className="hover:bg-rose-50/50 dark:hover:bg-white/5 transition-colors">
                     <td className="px-4 py-2.5 font-mono text-xs text-ink-600 dark:text-ink-300">{order.orderCode}</td>
                     <td className="px-4 py-2.5 text-sm text-ink-700 dark:text-ink-200">{order.customer || order.user?.email}</td>
-                    <td className="px-4 py-2.5 text-sm font-semibold text-ink-800 dark:text-white">{formatVND(order.grandTotal)}</td>
+                    <td className="px-4 py-2.5 text-sm font-semibold text-ink-800 dark:text-neutral-100">{formatVND(order.grandTotal)}</td>
                     <td className="px-4 py-2.5 text-sm">
                       <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-rose-50 text-[#E11D48] dark:bg-white/5 dark:text-pink-300">
                         {t(`orders.status.${order.status}`) !== `orders.status.${order.status}` ? t(`orders.status.${order.status}`) : order.status}
@@ -387,7 +387,7 @@ const AnalyticsDashboard = () => {
             </table>
           </div>
         ) : (
-          <p className="text-ink-500">{t('admin.analytics.noRecentOrders')}</p>
+          <p className="text-ink-500 dark:text-neutral-400">{t('admin.analytics.noRecentOrders')}</p>
         )}
       </div>
     </div>

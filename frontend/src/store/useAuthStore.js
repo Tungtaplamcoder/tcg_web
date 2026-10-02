@@ -23,6 +23,20 @@ const removeStoredItem = (key) => {
   localStorage.removeItem(key);
 };
 
+// Hard-purge every persisted auth artifact. Used by the global 401 handler
+// (api.js) and logout so a deleted/expired account can never leave a stale
+// profile behind in localStorage/sessionStorage.
+const purgeStoredAuth = () => {
+  removeStoredItem('tcg_access_token');
+  removeStoredItem('tcg_refresh_token');
+  removeStoredItem('tcg_user');
+  try {
+    sessionStorage.clear();
+  } catch {
+    /* sessionStorage unavailable (private mode) — best effort */
+  }
+};
+
 const initialUser = getStoredItem('tcg_user');
 const initialAccessToken = getStoredItem('tcg_access_token');
 const initialRefreshToken = getStoredItem('tcg_refresh_token');
@@ -127,9 +141,7 @@ export const useAuthStore = create((set) => ({
     } catch (error) {
       console.error('Logout API error:', error);
     } finally {
-      removeStoredItem('tcg_access_token');
-      removeStoredItem('tcg_refresh_token');
-      removeStoredItem('tcg_user');
+      purgeStoredAuth();
       set({
         user: null,
         accessToken: null,
@@ -137,6 +149,45 @@ export const useAuthStore = create((set) => ({
         isAuthenticated: false,
         isLoading: false
       });
+    }
+  },
+
+  // Synchronous, side-effect-free auth reset. Safe to call from the axios
+  // interceptor (never issues another request, so it cannot recurse).
+  clearAuth: () => {
+    purgeStoredAuth();
+    set({
+      user: null,
+      accessToken: null,
+      refreshToken: null,
+      isAuthenticated: false,
+      isLoading: false
+    });
+  },
+
+  // Verify the persisted session against the backend on app bootstrap. A
+  // deleted account returns 401 ("Account no longer exists") and this clears
+  // the store so the Topbar instantly reverts to the "Đăng nhập" state.
+  validateSession: async () => {
+    const { accessToken } = useAuthStore.getState();
+    if (!accessToken) {
+      useAuthStore.getState().clearAuth();
+      return false;
+    }
+    try {
+      const response = await api.get('/auth/me');
+      const freshUser = response.data?.data;
+      if (freshUser && freshUser.id) {
+        setStoredItem('tcg_user', freshUser);
+        set({ user: freshUser, isAuthenticated: true });
+        return true;
+      }
+      useAuthStore.getState().clearAuth();
+      return false;
+    } catch (error) {
+      // The 401 interceptor already force-logs-out; mirror it defensively.
+      useAuthStore.getState().clearAuth();
+      return false;
     }
   },
 

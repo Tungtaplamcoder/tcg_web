@@ -24,6 +24,17 @@ build
 # Remote-ops credentials (LOCAL machine only — NEVER committed/uploaded)
 .env.cpanel
 */.env.cpanel
+.env.cpanel.deploy
+*/.env.cpanel.deploy
+# Generated cPanel artifacts
+.env.generated
+cpanel-env.generated
+.env.bak
+*/.env.bak
+# SQL dumps produced by pack-cpanel.sh (seed.sql / seed-data.sql copies)
+database/dump.sql
+database/seed-data.sql
+database/seed.sql
 
 # Logs
 logs
@@ -57,6 +68,10 @@ Thumbs.db
 coverage
 .nyc_output
 *.lcov
+
+# Python
+__pycache__/
+*.pyc
 
 # Prisma
 prisma/migrations/.migration_lock.toml

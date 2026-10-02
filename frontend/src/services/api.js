@@ -38,13 +38,38 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
+// Global auth reset: purge every persisted token + in-memory user so a
+// deleted/expired account can never leave a stale Topbar profile behind,
+// then bounce to /login. Uses the synchronous store action (no API call)
+// so it can never recurse back into this interceptor.
+const forceLogout = () => {
+  const { clearAuth } = useAuthStore.getState();
+  if (typeof clearAuth === 'function') clearAuth();
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
+};
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
-    const { refreshToken, logout, setTokens } = useAuthStore.getState();
+    const originalRequest = error.config || {};
+    const status = error.response?.status;
+    const requestUrl = originalRequest.url || '';
+    const isAuthEndpoint =
+      requestUrl.includes('/auth/login') ||
+      requestUrl.includes('/auth/register') ||
+      requestUrl.includes('/auth/refresh-token');
 
-    if (error.response?.status === 401 && !originalRequest._retry && refreshToken) {
+    if (status === 401 && !originalRequest._retry && !isAuthEndpoint) {
+      const { refreshToken } = useAuthStore.getState();
+
+      // No refresh token to salvage the session — clear and go to /login.
+      if (!refreshToken) {
+        forceLogout();
+        return Promise.reject(error);
+      }
+
       if (isRefreshing) {
         // If already refreshing, queue the request
         return new Promise((resolve, reject) => {
@@ -67,6 +92,7 @@ api.interceptors.response.use(
           { refreshToken }
         );
         const { accessToken, refreshToken: newRefreshToken, user } = response.data.data;
+        const { setTokens } = useAuthStore.getState();
         setTokens(accessToken, newRefreshToken, user);
 
         // Update original request with new token
@@ -75,11 +101,8 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        logout();
-        // Redirect to login if refresh fails
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
+        // Refresh failed (account deleted / token revoked) → full logout.
+        forceLogout();
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

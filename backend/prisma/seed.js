@@ -125,6 +125,7 @@ async function main() {
     await prisma.voucher.deleteMany({});
     await prisma.product.deleteMany({});
     await prisma.set.deleteMany({});
+    await prisma.rarity.deleteMany({});
     await prisma.category.deleteMany({});
     await prisma.refreshToken.deleteMany({});
     await prisma.passwordResetToken.deleteMany({});
@@ -152,8 +153,11 @@ async function main() {
       role: 'ADMIN',
       status: 'ACTIVE',
       emailVerified: true,
+      canManageOrders: true,
       canManageInventory: true,
-      canManagePosts: true
+      canManageVirtualBox: true,
+      canManagePosts: true,
+      canManageVouchers: true
     }
   });
 
@@ -167,8 +171,11 @@ async function main() {
       role: 'STAFF',
       status: 'ACTIVE',
       emailVerified: true,
+      canManageOrders: true,
       canManageInventory: true,
-      canManagePosts: true
+      canManageVirtualBox: true,
+      canManagePosts: true,
+      canManageVouchers: true
     }
   });
 
@@ -285,6 +292,19 @@ async function main() {
     });
   }
   console.log(`Created ${EXPANSIONS.length} sets: ${EXPANSIONS.map((e) => e.code).join(', ')}.`);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // RARITIES (dynamic "Độ hiếm" catalogue — same list the admin modal uses)
+  // ─────────────────────────────────────────────────────────────────────────
+  console.log('Creating rarity options...');
+  const rarityRows = Object.entries(RARITY).map(([code, label]) => ({
+    code,
+    // "Special Illustration Rare (SAR)" → "Special Illustration Rare"
+    name: label.replace(/\s*\([^)]*\)\s*$/, '').trim() || code,
+    description: label
+  }));
+  await prisma.rarity.createMany({ data: rarityRows, skipDuplicates: true });
+  console.log(`Created ${rarityRows.length} rarity options.`);
 
   // ─────────────────────────────────────────────────────────────────────────
   // PRODUCTS — authentic Pokémon TCG sample catalogue

@@ -10,9 +10,24 @@ const updateUserStatusSchema = z.object({
   status: z.enum(['ACTIVE', 'BANNED', 'DELETED'])
 });
 
+// Granular staff permissions across the 5 Staff Panel modules. Accepts the
+// canonical nested shape `permissions: { orders, inventory, virtual_box,
+// posts, vouchers }` and the flat camelCase column names (backward compat).
+const permissionFlagsSchema = z.object({
+  orders: z.boolean().optional(),
+  inventory: z.boolean().optional(),
+  virtual_box: z.boolean().optional(),
+  posts: z.boolean().optional(),
+  vouchers: z.boolean().optional()
+});
+
 const updateUserPermissionsSchema = z.object({
+  permissions: permissionFlagsSchema.optional(),
+  canManageOrders: z.boolean().optional(),
   canManageInventory: z.boolean().optional(),
-  canManagePosts: z.boolean().optional()
+  canManageVirtualBox: z.boolean().optional(),
+  canManagePosts: z.boolean().optional(),
+  canManageVouchers: z.boolean().optional()
 });
 
 const changeUserPasswordSchema = z.object({
@@ -28,6 +43,7 @@ const cardConditionEnum = z.enum([
   'LIGHTLY_PLAYED',
   'MODERATELY_PLAYED',
   'HEAVILY_PLAYED',
+  'DAMAGED',
   'EXCELLENT',
   'GOOD',
   'POOR'
@@ -127,6 +143,20 @@ const createSetSchema = z.object({
 });
 
 const updateSetSchema = createSetSchema.partial();
+
+// ==================== RARITY SCHEMAS (Độ hiếm) ====================
+
+// Dynamic rarity option. `code` is the canonical short identifier stored on
+// Product.rarity (e.g. "HR"); `name` is the human label (e.g. "Hyper Rare").
+// When `code` is omitted the controller derives it from `name`.
+const createRaritySchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  code: z.string().trim().min(1).max(32).optional().nullable(),
+  description: z.string().trim().max(200).optional().nullable(),
+  isActive: z.boolean().optional()
+});
+
+const updateRaritySchema = createRaritySchema.partial();
 
 // ==================== POST SCHEMAS ====================
 
@@ -414,6 +444,8 @@ module.exports = {
   updateCardSchema,
   createSetSchema,
   updateSetSchema,
+  createRaritySchema,
+  updateRaritySchema,
   createPostSchema,
   updatePostSchema,
   listPostsQuerySchema,

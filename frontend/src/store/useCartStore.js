@@ -25,17 +25,25 @@ const persist = (items) => {
   localStorage.setItem('tcg_cart_version', String(CART_VERSION));
 };
 
+const computeTotals = (items) => ({
+  totalItems: items.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
+  totalPrice: items.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0)
+});
+
+// Hydrate once at store creation so the Topbar cart badge is correct on the
+// very first render / after F5 — not only after the next mutation.
+const initialItems = getStoredCart();
+const initialTotals = computeTotals(initialItems);
+
 export const useCartStore = create((set, get) => ({
-  items: getStoredCart(),
-  totalItems: 0,
-  totalPrice: 0,
+  items: initialItems,
+  totalItems: initialTotals.totalItems,
+  totalPrice: initialTotals.totalPrice,
 
   // Recalculate totals whenever items change
   recalculateTotals: () => {
     const items = get().items;
-    const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-    const totalPrice = items.reduce((sum, item) => sum + Number(item.price || 0) * item.quantity, 0);
-    set({ totalItems, totalPrice });
+    set(computeTotals(items));
   },
 
   addItem: (product, quantity = 1, variantId = null) => {

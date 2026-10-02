@@ -3,7 +3,17 @@
 # pack-cpanel.sh — Build deploy-cpanel.zip with automated DB init, seed, and SQL dump
 # =============================================================================
 # Run from the project root (the folder that contains backend/ and frontend/):
-#   bash pack-cpanel.sh [output.zip]
+#   bash pack-cpanel.sh [options] [output.zip]
+#
+# Options:
+#   --dry-run      Validate preflight + print the cPanel provisioning plan only.
+#                  No docker build, no database, no remote changes. (Safe CI check)
+#   --provision    After packing, provision the cPanel database + user + grants
+#                  via the cPanel UAPI and auto-import database/dump.sql,
+#                  then write backend/.env. Requires .env.cpanel.deploy.
+#                  (Also enabled by CPANEL_AUTO_PROVISION=1)
+#   --no-provision Force-skip provisioning even if CPANEL_AUTO_PROVISION=1.
+#   -h, --help     Show this help.
 #
 # This script:
 #   1. Creates a temporary MariaDB container for building deployment artifacts
@@ -11,7 +21,7 @@
 #   3. Runs automated seeding (prisma db seed — SEED_FORCE=1 clean master data)
 #   4. VERIFIES the seeded Pokémon TCG master data (no legacy rows, no orphans,
 #      no PK-collision-prone state) before anything is packaged
-#   5. Dumps the populated database to seed.sql
+#   5. Dumps the populated database to seed.sql (and database/dump.sql)
 #   6. Ensures Prisma client generation deps and runs `npx prisma generate`
 #      so the Linux query-engine binaries are bundled
 #   7. Installs PRODUCTION node_modules (express, helmet, jsonwebtoken, …)
@@ -20,6 +30,9 @@
 #      cPanel Node.js Selector / Passenger without any server-side install)
 #   8. Bundles everything into tcg-backend-cpanel.zip and verifies the
 #      archive contains app.js, package.json, prisma/, and node_modules/
+#   9. [--provision] Automates 100% of cPanel DB provisioning via UAPI
+#      (create_database → create_user → set_privileges_on_database), imports
+#      the SQL dump, and writes backend/.env — zero GUI actions required.
 # =============================================================================
 
 set -euo pipefail
@@ -44,7 +57,24 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND="$ROOT/backend"
 FRONTEND="$ROOT/frontend"
 
-OUT="${1:-tcg-backend-cpanel.zip}"
+# ─── Flags / config ───
+DRY_RUN=false          # --dry-run: preflight + print provisioning plan, no build
+PROVISION=false        # --provision / CPANEL_AUTO_PROVISION=1: run cPanel UAPI DB setup
+OUT="tcg-backend-cpanel.zip"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --dry-run)        DRY_RUN=true ;;
+    --provision)      PROVISION=true ;;
+    --no-provision)   PROVISION=false ;;
+    -h|--help)        sed -n '2,35p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -*)               die "Unknown option: $1" ;;
+    *)                OUT="$1" ;;
+  esac
+  shift
+done
+[ "${CPANEL_AUTO_PROVISION:-0}" = "1" ] && PROVISION=true
+[ "$DRY_RUN" = true ] && [ "$PROVISION" = false ] && PROVISION=true
+
 case "$OUT" in /*) ;; *) OUT="$ROOT/$OUT" ;; esac
 
 STAGE="$(mktemp -d)"
@@ -65,22 +95,185 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# ─── SQL input auto-generation (migration.sql / database/dump.sql fallback) ───
+# Reads KEY=value from a .env file without sourcing it (values are untrusted).
+env_get() {
+  local key="$1" file="$2"
+  [ -f "$file" ] || return 1
+  grep -E "^${key}=" "$file" 2>/dev/null | tail -n1 | cut -d= -f2- || true
+}
+
+# Dump a live MySQL/MariaDB (docker container first, then direct TCP) into
+# database/dump.sql. Returns non-zero if no reachable populated DB is found.
+gen_sql_from_live_db() {
+  local out="$ROOT/database/dump.sql"
+  local env_file="$ROOT/.env"
+  local db_user db_pass db_name db_host db_port
+  db_user="$(env_get DB_USER "$env_file" || true)"
+  db_pass="$(env_get DB_PASS "$env_file" || true)"
+  db_name="$(env_get DB_NAME "$env_file" || true)"
+  db_host="$(env_get DB_HOST "$env_file" || true)"
+  db_port="$(env_get DB_PORT "$env_file" || true)"
+  db_host="${db_host:-127.0.0.1}"
+  db_port="${db_port:-3306}"
+
+  # (a) Docker DB container (tcg_db / tcg_mariadb / any *maria*|*mysql*)
+  if command -v docker >/dev/null 2>&1; then
+    local names=()
+    [ -n "${TCG_DB_CONTAINER:-}" ] && names+=("$TCG_DB_CONTAINER")
+    names+=(tcg_db tcg_mariadb)
+    while IFS= read -r n; do [ -n "$n" ] && names+=("$n"); done \
+      < <(docker ps --format '{{.Names}}' 2>/dev/null | grep -iE 'maria|mysql' || true)
+
+    local c
+    for c in "${names[@]}"; do
+      [ "$(docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null)" = "true" ] || continue
+      local target="$db_name"
+      if [ -z "$target" ]; then
+        target="$(docker exec "$c" sh -c 'mariadb -N -B -e "SHOW DATABASES"' 2>/dev/null \
+          | grep -vE '^(information_schema|performance_schema|mysql|sys)$' | head -n1 || true)"
+      fi
+      [ -n "$target" ] || continue
+      local dumper
+      dumper="$(docker exec "$c" sh -c 'command -v mariadb-dump || command -v mysqldump' 2>/dev/null | head -n1 || true)"
+      [ -n "$dumper" ] || dumper="mariadb-dump"
+
+      info "Live DB detected in container '$c' (db: $target) — exporting..."
+      if docker exec -e MYSQL_PWD="$db_pass" "$c" "$dumper" --single-transaction --routines --triggers \
+           -u"$db_user" "$target" > "$out" 2>/dev/null && grep -q 'CREATE TABLE' "$out"; then
+        ok "Exported schema+data from container '$c'"
+        return 0
+      fi
+      # Root fallback (dev containers sometimes use a different app user)
+      if docker exec "$c" "$dumper" --single-transaction -uroot "$target" > "$out" 2>/dev/null \
+           && grep -q 'CREATE TABLE' "$out"; then
+        ok "Exported schema+data from container '$c' (root)"
+        return 0
+      fi
+    done
+  fi
+
+  # (b) Direct TCP connection (non-docker local/remote DB)
+  if command -v mysqldump >/dev/null 2>&1 && [ -n "$db_name" ]; then
+    info "Probing MySQL at ${db_host}:${db_port} (db: $db_name)..."
+    if MYSQL_PWD="$db_pass" mysqldump --host="$db_host" --port="$db_port" --user="$db_user" \
+         --single-transaction --routines --triggers "$db_name" > "$out" 2>/dev/null \
+         && grep -q 'CREATE TABLE' "$out"; then
+      ok "Exported schema+data from ${db_host}:${db_port}"
+      return 0
+    fi
+  fi
+
+  rm -f "$out"
+  return 1
+}
+
+# Deterministic schema-only baseline: concatenate Prisma migration files.
+# Used when no live DB is reachable so preflight (and the deploy zip) always
+# have a valid SQL artifact. A real pack replaces it in step 6 with the seeded dump.
+gen_sql_baseline() {
+  local out="$ROOT/database/dump.sql"
+  local migrations_dir="$BACKEND/prisma/migrations"
+  [ -d "$migrations_dir" ] || return 1
+
+  local files=()
+  while IFS= read -r f; do [ -n "$f" ] && files+=("$f"); done \
+    < <(ls -1 "$migrations_dir"/*/migration.sql 2>/dev/null | LC_ALL=C sort || true)
+  [ "${#files[@]}" -gt 0 ] || return 1
+
+  {
+    printf -- '-- Auto-generated schema baseline by pack-cpanel.sh\n'
+    printf -- '-- Source: backend/prisma/migrations/*/migration.sql (no live DB was reachable)\n\n'
+    local f
+    for f in "${files[@]}"; do
+      printf -- '-- >>> %s\n' "${f#"$ROOT"/}"
+      cat "$f"
+      printf '\n'
+    done
+  } > "$out"
+
+  grep -q 'CREATE TABLE' "$out" || { rm -f "$out"; return 1; }
+  return 0
+}
+
+# Ensure a usable SQL input exists; export SQL_INPUT. Never fails in dry-run.
+ensure_sql_input() {
+  mkdir -p "$ROOT/database"
+
+  local candidate
+  for candidate in "$ROOT/migration.sql" "$ROOT/database/dump.sql"; do
+    if [ -f "$candidate" ]; then
+      SQL_INPUT="$candidate"
+      return 0
+    fi
+  done
+
+  warn "migration.sql / database/dump.sql not found — attempting auto-generation..."
+
+  if [ "$DRY_RUN" = true ]; then
+    # Dry-run performs no writes; a missing baseline is not fatal.
+    if command -v docker >/dev/null 2>&1 \
+       && docker ps --format '{{.Names}}' 2>/dev/null | grep -qiE 'maria|mysql'; then
+      warn "A live DB looks available — a real run would dump it to database/dump.sql"
+    else
+      warn "No live DB — a real run would build a baseline from prisma/migrations"
+    fi
+    SQL_INPUT=""
+    return 0
+  fi
+
+  if gen_sql_from_live_db || gen_sql_baseline; then
+    SQL_INPUT="$ROOT/database/dump.sql"
+    ok "SQL input ready: database/dump.sql ($(wc -l < "$SQL_INPUT" | tr -d ' ') lines)"
+    return 0
+  fi
+
+  die "Unable to find or auto-generate migration.sql / database/dump.sql"
+}
+
 # ─── Preflight checks ───
 log "0/12 Preflight checks"
 command -v zip >/dev/null 2>&1 || die "'zip' is required (apt install zip)"
-command -v docker >/dev/null 2>&1 || die "'docker' is required for temporary DB"
 command -v npx >/dev/null 2>&1 || die "'npx' is required (Node.js)"
+if [ "$DRY_RUN" = true ]; then
+  command -v docker >/dev/null 2>&1 || warn "'docker' missing (not needed for --dry-run)"
+  command -v python3 >/dev/null 2>&1 || die "'python3' is required for cPanel provisioning"
+else
+  command -v docker >/dev/null 2>&1 || die "'docker' is required for temporary DB"
+fi
 
 [ -f "$BACKEND/package.json" ]      || die "backend/package.json not found — run from project root"
 [ -f "$BACKEND/app.js" ]            || die "backend/app.js (Passenger entry) missing"
 [ -f "$BACKEND/prisma/schema.prisma" ] || die "backend/prisma/schema.prisma missing"
 [ -f "$BACKEND/prisma/seed.js" ]    || die "backend/prisma/seed.js missing"
 [ -f "$BACKEND/.env.example" ]      || die "backend/.env.example missing"
-[ -f "$ROOT/migration.sql" ]        || die "migration.sql not found in project root"
 [ -f "$ROOT/DEPLOY_CPANEL.md" ]     || die "DEPLOY_CPANEL.md not found in project root"
+[ -f "$ROOT/deploy_cpanel.py" ]     || die "deploy_cpanel.py not found in project root"
+
+# SQL schema input: prefer migration.sql, else database/dump.sql, else
+# auto-generate (live DB dump, or a prisma-migrations schema baseline).
+SQL_INPUT=""
+ensure_sql_input
 [ -f "$OUT" ] && rm -f "$OUT"
 
 ok "All required files present"
+
+# ─── Dry-run: validate preflight + print the provisioning plan, then stop ───
+if [ "$DRY_RUN" = true ]; then
+  log "DRY-RUN — no build, no database, no remote changes"
+  info "This validates the pack + cPanel provisioning workflow without side effects."
+  PROV_DUMP="$SQL_INPUT"
+  if [ -z "$PROV_DUMP" ]; then
+    PROV_DUMP="$(ls "$BACKEND"/prisma/migrations/*/migration.sql 2>/dev/null | head -1 || true)"
+  fi
+  [ -n "$PROV_DUMP" ] || PROV_DUMP="$ROOT/database/dump.sql"
+  info "Invoking: python3 deploy_cpanel.py --dry-run --dump '$PROV_DUMP'"
+  python3 "$ROOT/deploy_cpanel.py" --dry-run --dump "$PROV_DUMP" --env-out "$BACKEND/.env"
+  echo ""
+  echo -e "${BOLD}${GREEN}✓ Dry-run complete — workflow is valid.${NC}"
+  echo -e "${CYAN}  Run 'bash pack-cpanel.sh --provision' to build + provision for real.${NC}"
+  exit 0
+fi
 
 # ─── Step 1: Start temporary MariaDB ───
 log "1/12 Starting temporary MariaDB container"
@@ -227,6 +420,13 @@ docker exec "$DB_CONTAINER_NAME" \
 LINES=$(wc -l < "$DUMP_FILE")
 ok "Database dumped to seed.sql ($LINES lines)"
 
+# Persist the dump at database/dump.sql so deploy_cpanel.py can auto-detect it
+# (and so the cPanel auto-import step has a stable, well-known dump path).
+mkdir -p "$ROOT/database"
+cp "$DUMP_FILE" "$ROOT/database/dump.sql"
+cp "$DUMP_DATA_ONLY" "$ROOT/database/seed-data.sql" 2>/dev/null || true
+info "Dump copied to database/dump.sql (for automated cPanel import)"
+
 # ─── Step 8: Build frontend ───
 log "7/12 Building frontend (Vite production bundle)"
 # npm WORKSPACES: devDeps are hoisted, and frontend/node_modules/ can exist yet
@@ -346,8 +546,11 @@ cat > "$STAGE/backend/.npmrc" <<'NPMRC'
 ignore-scripts=true
 NPMRC
 
-# Copy migration.sql (schema-only reference) - seed.sql is already in STAGE from dump
-cp "$ROOT/migration.sql" "$STAGE/migration.sql"
+# Copy the schema reference - seed.sql is already in STAGE from the dump.
+# Prefer an explicit migration.sql; fall back to the SQL input detected earlier.
+SCHEMA_INPUT="$SQL_INPUT"
+[ -n "$SCHEMA_INPUT" ] || SCHEMA_INPUT="$ROOT/migration.sql"
+cp "$SCHEMA_INPUT" "$STAGE/migration.sql"
 cp "$ROOT/DEPLOY_CPANEL.md" "$STAGE/DEPLOY_CPANEL.md"
 
 # .env.production template
@@ -488,3 +691,23 @@ echo "  .htaccess             → Apache config (routes /api & /socket.io throug
 echo ""
 echo -e "${BOLD}Server-side execution is pure runtime: no npm install, no prisma generate, no build steps.${NC}"
 echo -e "${CYAN}Import seed.sql via phpMyAdmin to get a fully populated database.${NC}"
+
+# ─── Step 13: Automated cPanel database provisioning + SQL auto-import ───
+# Creates the DB, DB user, and grants ALL PRIVILEGES via the cPanel UAPI, then
+# auto-imports database/dump.sql and (re)writes backend/.env with the new
+# credentials. Zero cPanel web-interface actions required.
+if [ "$PROVISION" = true ]; then
+  log "13/13 cPanel database provisioning & auto-import (deploy_cpanel.py)"
+  if ! command -v python3 >/dev/null 2>&1; then
+    die "python3 is required for cPanel provisioning"
+  fi
+  PROV_DUMP="$ROOT/database/dump.sql"
+  [ -f "$PROV_DUMP" ] || PROV_DUMP="$STAGE/seed.sql"
+  python3 "$ROOT/deploy_cpanel.py" --dump "$PROV_DUMP" --env-out "$BACKEND/.env"
+  ok "cPanel database provisioned, dump imported, backend/.env updated"
+else
+  echo ""
+  echo -e "${CYAN}Database not auto-provisioned. To provision via cPanel UAPI + auto-import:${NC}"
+  echo -e "${CYAN}  1) cp .env.cpanel.deploy.example .env.cpanel.deploy   # fill in cPanel API token${NC}"
+  echo -e "${CYAN}  2) bash pack-cpanel.sh --provision${NC}"
+fi

@@ -2151,3 +2151,49 @@ input[type='range'] { touch-action: pan-y; }
     animation: none !important;
   }
 }
+
+/* ════════════════════════════════════════════════════════════
+   OUTER TOPBAR WRAPPER — FORCED TRANSPARENCY (ALL ROUTES / THEMES)
+   The full-width storefront <header> and its inner <nav> wrapper must
+   NEVER paint a background, background-image, border, shadow or
+   backdrop-filter. On Home / Login / Register an outer wrapper has
+   historically leaked an opaque dark band (dark mode) or a translucent
+   white cloudy band (light mode) across the top viewport. This guard is
+   intentionally unlayered so it always wins over Tailwind's utilities,
+   no matter the theme. All glass styling is confined to the inner
+   rounded [data-testid="navbar-pill"], which is NOT matched here, and
+   the mobile menu panel (a sibling of <nav>) is preserved.
+   ════════════════════════════════════════════════════════════ */
+header[data-testid="site-header"],
+header[data-testid="site-header"] > nav {
+  background-color: transparent !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* ════════════════════════════════════════════════════════════
+   CUSTOM SCROLLBAR — used by the admin product modal body so a long
+   list of variants scrolls inside the card instead of pushing the
+   sticky Save / Cancel footer out of the viewport.
+   ════════════════════════════════════════════════════════════ */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.6) transparent;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.55);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(100, 116, 139, 0.75);
+}

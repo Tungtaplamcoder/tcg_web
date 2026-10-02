@@ -11,9 +11,21 @@ const updateUserStatusSchema = z.object({
   status: z.enum(['ACTIVE', 'BANNED', 'DELETED'])
 });
 
+const permissionFlagsSchema = z.object({
+  orders: z.boolean().optional(),
+  inventory: z.boolean().optional(),
+  virtual_box: z.boolean().optional(),
+  posts: z.boolean().optional(),
+  vouchers: z.boolean().optional()
+});
+
 const updateUserPermissionsSchema = z.object({
+  permissions: permissionFlagsSchema.optional(),
+  canManageOrders: z.boolean().optional(),
   canManageInventory: z.boolean().optional(),
-  canManagePosts: z.boolean().optional()
+  canManageVirtualBox: z.boolean().optional(),
+  canManagePosts: z.boolean().optional(),
+  canManageVouchers: z.boolean().optional()
 });
 
 const changeUserPasswordSchema = z.object({

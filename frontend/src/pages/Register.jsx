@@ -81,10 +81,8 @@ const Register = () => {
 
     const result = await register(payload);
     if (result.success) {
-      const role = result.user?.role;
-      if (role === 'ADMIN') navigate('/admin');
-      else if (role === 'STAFF') navigate('/staff');
-      else navigate('/');
+      /* Always navigate to homepage on successful registration regardless of user role */
+      navigate('/');
     } else {
       setErrors(result.errors || {});
       if (!result.errors && result.error) {
@@ -105,12 +103,16 @@ const Register = () => {
     `input-premium !pl-11${errors[name] ? ' !border-rose-400 !ring-4 !ring-rose-500/10' : ''}`;
 
   return (
-    <div className="relative overflow-hidden min-h-[80vh] flex items-center justify-center px-4 py-12">
-      {/* Ambient background */}
-      <div className="pointer-events-none absolute inset-0 bg-radial-fade" />
+    <div className="relative overflow-x-clip min-h-[80vh] flex items-center justify-center px-4 py-12">
+      {/* Ambient background.
+          The full-bleed wash/grid are viewport-fixed and the glow orbs are
+          allowed to bleed vertically (overflow-x-clip, not overflow-hidden) so
+          the ambient light flows past the in-flow header boundary to the very
+          top edge instead of being clipped into a hard horizontal band. */}
+      <div className="pointer-events-none fixed inset-0 bg-radial-fade" />
       <div className="pointer-events-none absolute -top-24 -right-20 h-96 w-96 rounded-full bg-fuchsia-400/20 blur-[120px] animate-tcg-float" />
       <div className="pointer-events-none absolute -bottom-32 -left-20 h-96 w-96 rounded-full bg-primary-400/20 blur-[120px] animate-tcg-float-slow" />
-      <div className="pointer-events-none absolute inset-0 opacity-[0.05]" style={{ backgroundImage: 'linear-gradient(rgba(124,88,237,0.55) 1px, transparent 1px), linear-gradient(90deg, rgba(124,88,237,0.55) 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
+      <div className="pointer-events-none fixed inset-0 opacity-[0.05]" style={{ backgroundImage: 'linear-gradient(rgba(124,88,237,0.55) 1px, transparent 1px), linear-gradient(90deg, rgba(124,88,237,0.55) 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
 
       <div className="relative w-full max-w-lg animate-tcg-reveal">
         <div className="rounded-3xl bg-white/80 dark:bg-[#1c1216]/80 backdrop-blur-xl border border-white/60 shadow-2xl shadow-primary-900/10 p-8 sm:p-10">

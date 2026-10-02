@@ -4,6 +4,7 @@ const { NotFoundError, ConflictError, AppError } = require('../utils/errors');
 const imageService = require('../services/image.service');
 const settingsService = require('../services/settings.service');
 const { PRODUCT_CATEGORIES, resolveProductCategoryKey } = require('../constants/productCategories');
+const { permissionSelect, withPermissions, extractPermissionUpdate } = require('../utils/permissions');
 
 const slugify = (text) => text.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
@@ -177,13 +178,13 @@ const listUsers = async (req, res, next) => {
       prisma.user.findMany({
         where, skip, take, orderBy: { createdAt: 'desc' },
         select: { id: true, email: true, fullName: true, phone: true, avatarUrl: true, role: true,
-          status: true, canManageInventory: true, canManagePosts: true,
+          status: true, ...permissionSelect,
           createdAt: true, updatedAt: true }
       }),
       prisma.user.count({ where })
     ]);
 
-    res.status(200).json({ success: true, data: { items, meta: { page: Number(page), limit: take, totalItems, totalPages: Math.ceil(totalItems / take) } }, message: 'Users retrieved' });
+    res.status(200).json({ success: true, data: { items: items.map(withPermissions), meta: { page: Number(page), limit: take, totalItems, totalPages: Math.ceil(totalItems / take) } }, message: 'Users retrieved' });
   } catch (error) { next(error); }
 };
 
@@ -193,8 +194,8 @@ const updateUserRole = async (req, res, next) => {
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundError('User not found');
     const updated = await prisma.user.update({ where: { id }, data: { role },
-      select: { id: true, email: true, fullName: true, role: true, status: true, canManageInventory: true, canManagePosts: true, updatedAt: true } });
-    res.status(200).json({ success: true, data: updated, message: 'User role updated' });
+      select: { id: true, email: true, fullName: true, role: true, status: true, ...permissionSelect, updatedAt: true } });
+    res.status(200).json({ success: true, data: withPermissions(updated), message: 'User role updated' });
   } catch (error) { next(error); }
 };
 
@@ -205,20 +206,21 @@ const updateUserStatus = async (req, res, next) => {
     if (!user) throw new NotFoundError('User not found');
     if (user.role === 'ADMIN' && status !== 'ACTIVE') throw new ConflictError('Cannot ban or delete an admin user');
     const updated = await prisma.user.update({ where: { id }, data: { status },
-      select: { id: true, email: true, fullName: true, role: true, status: true, canManageInventory: true, canManagePosts: true, updatedAt: true } });
-    res.status(200).json({ success: true, data: updated, message: 'User status updated' });
+      select: { id: true, email: true, fullName: true, role: true, status: true, ...permissionSelect, updatedAt: true } });
+    res.status(200).json({ success: true, data: withPermissions(updated), message: 'User status updated' });
   } catch (error) { next(error); }
 };
 
 const updateUserPermissions = async (req, res, next) => {
   try {
-    const { id } = req.params; const { canManageInventory, canManagePosts } = req.body;
+    const { id } = req.params;
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundError('User not found');
+    const data = extractPermissionUpdate(req.body);
     const updated = await prisma.user.update({ where: { id },
-      data: { canManageInventory: !!canManageInventory, canManagePosts: !!canManagePosts },
-      select: { id: true, email: true, fullName: true, role: true, canManageInventory: true, canManagePosts: true } });
-    res.status(200).json({ success: true, data: updated, message: 'User permissions updated' });
+      data,
+      select: { id: true, email: true, fullName: true, role: true, ...permissionSelect } });
+    res.status(200).json({ success: true, data: withPermissions(updated), message: 'User permissions updated' });
   } catch (error) { next(error); }
 };
 
@@ -232,6 +234,183 @@ const changeUserPassword = async (req, res, next) => {
     await prisma.user.update({ where: { id }, data: { passwordHash } });
     await prisma.refreshToken.updateMany({ where: { userId: id, revoked: false }, data: { revoked: true } });
     res.status(200).json({ success: true, message: 'Password updated successfully' });
+  } catch (error) { next(error); }
+};
+
+const deleteUser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (id === req.user.id) {
+      throw new AppError('Bạn không thể xóa tài khoản của chính mình', 400, 'SELF_DELETE_FORBIDDEN');
+    }
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundError('User not found');
+
+    await prisma.$transaction(async (tx) => {
+      // Users who placed orders can't be hard-deleted without erasing
+      // financial history (Order.userId is onDelete: Restrict). Surface a
+      // clear conflict instead of a raw FK error.
+      const orderCount = await tx.order.count({ where: { userId: id } });
+      if (orderCount > 0) {
+        throw new ConflictError('Không thể xóa người dùng đã có đơn hàng. Hãy chuyển trạng thái sang "Đã xóa" thay vì xóa vĩnh viễn.');
+      }
+      // Posts reference the author with onDelete: Restrict — remove them so
+      // the user row can be deleted. All other relations cascade.
+      await tx.post.deleteMany({ where: { authorId: id } });
+      await tx.user.delete({ where: { id } });
+    });
+
+    res.status(200).json({ success: true, message: 'User deleted permanently' });
+  } catch (error) { next(error); }
+};
+
+// Aggregated read-only profile for the admin "View details" drawer: user
+// identity + saved shipping addresses + order history summary + owned
+// vouchers. Addresses are NOT a first-class table — they live in the
+// client-side address book — so the backend derives them from the
+// `shippingAddress` JSON snapshot stored on each order (unique by
+// name/phone/street/ward/province, most recently used first).
+const getUserDetail = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true, email: true, fullName: true, phone: true, address: true,
+        avatarUrl: true, role: true, status: true, emailVerified: true,
+        ...permissionSelect, balance: true,
+        createdAt: true, updatedAt: true
+      }
+    });
+    if (!user) throw new NotFoundError('User not found');
+
+    const [orders, userVouchers] = await Promise.all([
+      prisma.order.findMany({
+        where: { userId: id },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true, orderCode: true, status: true, paymentStatus: true,
+          paymentMethod: true, grandTotal: true, createdAt: true,
+          shippingAddress: true,
+          _count: { select: { items: true } }
+        }
+      }),
+      prisma.userVoucher.findMany({
+        where: { userId: id },
+        orderBy: { claimedAt: 'desc' },
+        include: {
+          voucher: {
+            select: {
+              id: true, code: true, title: true, discountType: true,
+              discountValue: true, maxDiscountAmount: true, minOrderAmount: true,
+              startAt: true, endAt: true, isActive: true, scope: true
+            }
+          }
+        }
+      })
+    ]);
+
+    const addressKey = (a) => [
+      a.fullName, a.phone, a.addressLine1, a.wardName || a.state, a.provinceName || a.city
+    ].map((v) => String(v || '').trim().toLowerCase()).join('|');
+
+    const addressMap = new Map();
+    for (const order of orders) {
+      const sa = order.shippingAddress;
+      if (!sa || typeof sa !== 'object') continue;
+      const key = addressKey(sa);
+      if (addressMap.has(key)) {
+        addressMap.get(key).orderCount += 1;
+        continue;
+      }
+      addressMap.set(key, {
+        fullName: sa.fullName || '',
+        phone: sa.phone || '',
+        addressLine1: sa.addressLine1 || '',
+        addressLine2: sa.addressLine2 || '',
+        provinceCode: sa.provinceCode || '',
+        provinceName: sa.provinceName || sa.city || '',
+        wardCode: sa.wardCode || '',
+        wardName: sa.wardName || sa.state || '',
+        country: sa.country || 'Vietnam',
+        isDefault: false,
+        orderCount: 1,
+        lastUsedAt: order.createdAt
+      });
+    }
+
+    const addresses = [...addressMap.values()]
+      .sort((a, b) => new Date(b.lastUsedAt) - new Date(a.lastUsedAt));
+
+    // The most recently used address is surfaced as the default when the
+    // user's own address book never marked one (snapshots don't carry it).
+    if (addresses.length > 0) addresses[0].isDefault = true;
+
+    const PAID = ['PACKAGING', 'SHIPPING', 'DELIVERED'];
+    const statusCounts = orders.reduce((acc, o) => {
+      acc[o.status] = (acc[o.status] || 0) + 1;
+      return acc;
+    }, {});
+    const totalSpent = orders
+      .filter((o) => PAID.includes(o.status))
+      .reduce((sum, o) => sum + Number(o.grandTotal || 0), 0);
+    const totalOrderValue = orders
+      .filter((o) => o.status !== 'CANCELLED')
+      .reduce((sum, o) => sum + Number(o.grandTotal || 0), 0);
+
+    const recentOrders = orders.slice(0, 10).map((o) => ({
+      id: o.id,
+      orderCode: o.orderCode,
+      status: o.status,
+      paymentStatus: o.paymentStatus,
+      paymentMethod: o.paymentMethod,
+      grandTotal: o.grandTotal,
+      createdAt: o.createdAt,
+      itemCount: o._count?.items || 0
+    }));
+
+    const now = Date.now();
+    const vouchers = userVouchers.map((uv) => {
+      const v = uv.voucher || {};
+      const expired = v.endAt ? new Date(v.endAt).getTime() < now : false;
+      let voucherStatus = 'ACTIVE';
+      if (!v.isActive || expired) voucherStatus = 'EXPIRED';
+      if (uv.usageCount > 0) voucherStatus = 'USED';
+      return {
+        id: uv.id,
+        voucherId: uv.voucherId,
+        usageCount: uv.usageCount,
+        claimedAt: uv.claimedAt,
+        status: voucherStatus,
+        code: v.code,
+        title: v.title,
+        discountType: v.discountType,
+        discountValue: v.discountValue,
+        maxDiscountAmount: v.maxDiscountAmount,
+        minOrderAmount: v.minOrderAmount,
+        scope: v.scope,
+        startAt: v.startAt,
+        endAt: v.endAt
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user,
+        addresses,
+        orderSummary: {
+          totalOrders: orders.length,
+          totalSpent,
+          totalOrderValue,
+          statusCounts
+        },
+        recentOrders,
+        vouchers
+      },
+      message: 'User detail retrieved'
+    });
   } catch (error) { next(error); }
 };
 
@@ -643,6 +822,84 @@ const deleteSet = async (req, res, next) => {
       await tx.set.delete({ where: { id } });
     });
     res.status(200).json({ success: true, message: 'Set and its products deleted' });
+  } catch (error) { next(error); }
+};
+
+// ==================== RARITY MANAGEMENT (Độ hiếm) ====================
+
+// Dynamic rarity options — managed like Series/Era + Expansion Sets.
+// `activeOnly=false` returns disabled rarities too (catalog settings page).
+const listRarities = async (req, res, next) => {
+  try {
+    const activeOnly = req.query.activeOnly !== 'false';
+    const rarities = await prisma.rarity.findMany({
+      where: activeOnly ? { isActive: true } : {},
+      orderBy: [{ code: 'asc' }]
+    });
+    res.status(200).json({ success: true, data: rarities, message: 'Rarities retrieved' });
+  } catch (error) { next(error); }
+};
+
+const createRarity = async (req, res, next) => {
+  try {
+    const { name, code, description, isActive } = req.body;
+    const finalName = String(name).trim();
+    const finalCode = String(code || name).trim();
+    const dupe = await prisma.rarity.findFirst({
+      where: { OR: [{ code: finalCode }, { name: finalName }] }
+    });
+    if (dupe) throw new ConflictError(`Rarity "${dupe.code}" already exists`);
+    const rarity = await prisma.rarity.create({
+      data: {
+        name: finalName,
+        code: finalCode,
+        description: description ? String(description).trim() : null,
+        isActive: isActive ?? true
+      }
+    });
+    res.status(201).json({ success: true, data: rarity, message: 'Rarity created' });
+  } catch (error) { next(error); }
+};
+
+const updateRarity = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.rarity.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundError('Rarity not found');
+    const { name, code, description, isActive } = req.body;
+
+    const data = {};
+    if (name !== undefined) {
+      const nextName = String(name).trim();
+      if (nextName !== existing.name) {
+        const taken = await prisma.rarity.findFirst({ where: { name: nextName, id: { not: id } } });
+        if (taken) throw new ConflictError(`Rarity name "${nextName}" already exists`);
+      }
+      data.name = nextName;
+    }
+    if (code !== undefined) {
+      const nextCode = String(code).trim();
+      if (nextCode !== existing.code) {
+        const taken = await prisma.rarity.findFirst({ where: { code: nextCode, id: { not: id } } });
+        if (taken) throw new ConflictError(`Rarity code "${nextCode}" already exists`);
+      }
+      data.code = nextCode;
+    }
+    if (description !== undefined) data.description = description ? String(description).trim() : null;
+    if (isActive !== undefined) data.isActive = isActive;
+
+    const updated = await prisma.rarity.update({ where: { id }, data });
+    res.status(200).json({ success: true, data: updated, message: 'Rarity updated' });
+  } catch (error) { next(error); }
+};
+
+const deleteRarity = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const rarity = await prisma.rarity.findUnique({ where: { id } });
+    if (!rarity) throw new NotFoundError('Rarity not found');
+    await prisma.rarity.delete({ where: { id } });
+    res.status(200).json({ success: true, message: 'Rarity deleted' });
   } catch (error) { next(error); }
 };
 
@@ -1208,9 +1465,10 @@ const updateSiteSettings = async (req, res, next) => {
 // ==================== EXPORT ====================
 
 module.exports = {
-  listUsers, updateUserRole, updateUserStatus, updateUserPermissions, changeUserPassword,
+  listUsers, getUserDetail, updateUserRole, updateUserStatus, updateUserPermissions, changeUserPassword, deleteUser,
   listProducts, createProduct, updateProduct, deleteProduct, addCards, updateCard, uploadImage,
   listSets, createSet, updateSet, deleteSet,
+  listRarities, createRarity, updateRarity, deleteRarity,
   listCategories: listAdminCategories, createCategory, updateCategory, deleteCategory,
   listPosts, createPost, updatePost, deletePost,
   listOrders, updateOrderStatus,

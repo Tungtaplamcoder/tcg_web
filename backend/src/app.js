@@ -19,6 +19,7 @@ const voucherRoutes = require('./routes/voucher.routes');
 const { router: postRoutes, adminRouter: adminPostRoutes } = require('./routes/post.routes');
 const tcgplayerRoutes = require('./routes/tcgplayer.routes');
 const gachaRoutes = require('./routes/gacha.routes');
+const productController = require('./controllers/product.controller');
 
 const app = express();
 
@@ -132,6 +133,9 @@ app.get('/health', (req, res) => {
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
 // Mount routes
+// Unversioned alias for the public rarity catalogue (`GET /api/rarities`)
+// in addition to the canonical versioned route (`GET /api/v1/rarities`).
+app.get('/api/rarities', productController.listRarities);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1', productRoutes); // products, categories, sets, cards
 app.use('/api/v1/orders', orderRoutes);

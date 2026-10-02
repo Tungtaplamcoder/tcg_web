@@ -36,7 +36,13 @@
     "docker:migrate": "docker compose --profile migrate up --exit-code-from migrate migrate",
     "docker:seed": "docker compose --profile seed up --exit-code-from seed seed",
     "//deploy": "cPanel pipeline: local build -> zip -> upload -> extract -> npm install -> start. See DEPLOY_CPANEL.md.",
-    "pack:cpanel": "bash pack-cpanel.sh"
+    "pack:cpanel": "bash pack-cpanel.sh",
+    "pack:cpanel:dry-run": "bash pack-cpanel.sh --dry-run",
+    "pack:cpanel:provision": "bash pack-cpanel.sh --provision",
+    "//cpanel-db": "Automated cPanel MySQL provisioning via UAPI (create DB/user/privileges) + SQL auto-import + .env generation. Run locally; configure .env.cpanel.deploy.",
+    "deploy:cpanel": "python3 deploy_cpanel.py",
+    "deploy:cpanel:dry-run": "python3 deploy_cpanel.py --dry-run",
+    "verify:cpanel": "python3 tests/deploy_cpanel_verify.py"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

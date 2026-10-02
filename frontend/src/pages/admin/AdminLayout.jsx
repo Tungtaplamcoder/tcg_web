@@ -3,7 +3,7 @@ import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom';
 import {
   Users, Settings, LogOut, Menu, X, Shield, Store, Truck,
   BarChart3, ScrollText, Package, ClipboardList, FileText, Boxes, TicketPercent,
-  Plus, ArrowLeft
+  ArrowLeft, Layers
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -14,6 +14,7 @@ const PAGE_TITLE_KEYS = {
   '/admin': 'admin.pageTitles./admin',
   '/admin/orders': 'admin.pageTitles./admin/orders',
   '/admin/inventory': 'admin.pageTitles./admin/inventory',
+  '/admin/catalog': 'admin.pageTitles./admin/catalog',
   '/admin/virtual-boxes': 'admin.pageTitles./admin/virtual-boxes',
   '/admin/posts': 'admin.pageTitles./admin/posts',
   '/admin/users': 'admin.pageTitles./admin/users',
@@ -36,6 +37,7 @@ const AdminLayout = () => {
     { to: '/admin', labelKey: PAGE_TITLE_KEYS['/admin'], icon: BarChart3, end: true },
     { to: '/admin/orders', labelKey: PAGE_TITLE_KEYS['/admin/orders'], icon: ClipboardList },
     { to: '/admin/inventory', labelKey: PAGE_TITLE_KEYS['/admin/inventory'], icon: Package },
+    { to: '/admin/catalog', labelKey: PAGE_TITLE_KEYS['/admin/catalog'], icon: Layers },
     { to: '/admin/virtual-boxes', labelKey: PAGE_TITLE_KEYS['/admin/virtual-boxes'], icon: Boxes },
     { to: '/admin/posts', labelKey: PAGE_TITLE_KEYS['/admin/posts'], icon: FileText },
     { to: '/admin/users', labelKey: PAGE_TITLE_KEYS['/admin/users'], icon: Users },
@@ -49,7 +51,7 @@ const AdminLayout = () => {
   return (
     <div
       data-testid="admin-shell"
-      className="min-h-screen app-bg flex bg-gradient-to-b from-[#FFF0F5] via-[#FDFBF7] to-[#FFF0F5]"
+      className="min-h-screen app-bg flex bg-gradient-to-b from-[#FFF0F5] via-[#FDFBF7] to-[#FFF0F5] dark:from-neutral-950 dark:via-neutral-900 dark:to-neutral-950"
     >
       {sidebarOpen && (
         <div
@@ -65,7 +67,7 @@ const AdminLayout = () => {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        <div className="h-full flex flex-col rounded-2xl bg-white dark:bg-neutral-900 border border-pink-100/60 dark:border-white/10 shadow-soft overflow-hidden">
+        <div className="h-full flex flex-col rounded-2xl bg-white dark:bg-neutral-900/90 border border-pink-100/60 dark:border-neutral-800 shadow-soft overflow-hidden dark:text-neutral-100">
           {/* Branding */}
           <div className="flex items-center justify-between px-5 h-16 border-b border-pink-100/60 dark:border-white/10">
             <Link to="/admin" className="flex items-center gap-2.5 group">
@@ -85,20 +87,8 @@ const AdminLayout = () => {
             </button>
           </div>
 
-          {/* Quick action */}
-          <div className="px-4 pt-4">
-            <Link
-              to="/admin/inventory"
-              onClick={() => setSidebarOpen(false)}
-              className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-[#E11D48] via-[#EC4899] to-[#F472B6] shadow-[0_8px_20px_-8px_rgba(225,29,72,0.7)] hover:brightness-110 active:scale-[0.98] transition-all duration-300"
-            >
-              <Plus className="h-4 w-4" />
-              {t('admin.quickCreateProduct')}
-            </Link>
-          </div>
-
-          {/* Navigation */}
-          <nav className="mt-4 flex-1 px-3 space-y-1 overflow-y-auto">
+          {/* Navigation — mt-6 preserves the intentional gap below the logo */}
+          <nav className="mt-6 flex-1 px-3 space-y-1 overflow-y-auto">
             {navItems.map((item) => (
               <NavLink
                 key={item.to}

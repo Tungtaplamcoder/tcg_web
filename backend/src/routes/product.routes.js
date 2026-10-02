@@ -20,6 +20,9 @@ router.get('/products/:id/stock', apiLimiter, productController.getProductStock)
 
 router.get('/categories', apiLimiter, validate(categoryQuerySchema, 'query'), productController.listCategories);
 router.get('/sets', apiLimiter, productController.listSets);
+// Dynamic rarity options ("Độ hiếm") — active only, feeds the admin product
+// modal's creatable select.
+router.get('/rarities', apiLimiter, productController.listRarities);
 
 router.get('/cards', apiLimiter, validate(cardQuerySchema, 'query'), productController.listCards);
 router.get('/cards/:id', apiLimiter, productController.getCard);

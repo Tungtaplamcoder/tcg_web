@@ -5,6 +5,7 @@ const prisma = require('../config/prisma');
 const env = require('../config/env');
 const { AppError, ValidationError, AuthenticationError, ConflictError, NotFoundError } = require('../utils/errors');
 const { sendEmail } = require('../utils/email');
+const { permissionSelect, withPermissions } = require('../utils/permissions');
 
 const generateAccessToken = (user) => {
   return jwt.sign(
@@ -76,14 +77,13 @@ const register = async (data, ipAddress) => {
       phone: true,
       role: true,
       avatarUrl: true,
-      canManageInventory: true,
-      canManagePosts: true,
+      ...permissionSelect,
       createdAt: true
     }
   });
 
   const tokens = await createTokens(user, ipAddress);
-  return { user, ...tokens };
+  return { user: withPermissions(user), ...tokens };
 };
 
 const login = async (data, ipAddress) => {
@@ -115,12 +115,15 @@ const login = async (data, ipAddress) => {
     fullName: user.fullName,
     role: user.role,
     avatarUrl: user.avatarUrl,
+    canManageOrders: user.canManageOrders,
     canManageInventory: user.canManageInventory,
-    canManagePosts: user.canManagePosts
+    canManageVirtualBox: user.canManageVirtualBox,
+    canManagePosts: user.canManagePosts,
+    canManageVouchers: user.canManageVouchers
   };
 
   const tokens = await createTokens(userData, ipAddress);
-  return { user: userData, ...tokens };
+  return { user: withPermissions(userData), ...tokens };
 };
 
 const refresh = async (token, ipAddress) => {
@@ -154,12 +157,15 @@ const refresh = async (token, ipAddress) => {
     fullName: user.fullName,
     role: user.role,
     avatarUrl: user.avatarUrl,
+    canManageOrders: user.canManageOrders,
     canManageInventory: user.canManageInventory,
-    canManagePosts: user.canManagePosts
+    canManageVirtualBox: user.canManageVirtualBox,
+    canManagePosts: user.canManagePosts,
+    canManageVouchers: user.canManageVouchers
   };
 
   const tokens = await createTokens(userData, ipAddress);
-  return { user: userData, ...tokens };
+  return { user: withPermissions(userData), ...tokens };
 };
 
 const logout = async (token) => {
@@ -182,14 +188,13 @@ const getMe = async (userId) => {
       avatarUrl: true,
       role: true,
       status: true,
-      canManageInventory: true,
-      canManagePosts: true,
+      ...permissionSelect,
       createdAt: true,
       updatedAt: true
     }
   });
   if (!user) throw new NotFoundError('User not found');
-  return user;
+  return withPermissions(user);
 };
 
 const updateMe = async (userId, data) => {
@@ -210,13 +215,12 @@ const updateMe = async (userId, data) => {
       avatarUrl: true,
       role: true,
       status: true,
-      canManageInventory: true,
-      canManagePosts: true,
+      ...permissionSelect,
       createdAt: true,
       updatedAt: true
     }
   });
-  return user;
+  return withPermissions(user);
 };
 
 const changePassword = async (userId, currentPassword, newPassword) => {

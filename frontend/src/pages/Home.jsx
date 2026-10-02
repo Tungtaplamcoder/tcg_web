@@ -234,10 +234,16 @@ const Home = ({ hero: heroProp }) => {
   ];
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-transparent">
       {/* ===================== PASTEL EDITORIAL HERO ===================== */}
-      <section className="relative overflow-hidden">
-        {/* Soft drifting orbs */}
+      {/* Every section is transparent; the layout root owns the ONE global
+          gradient (App.jsx) so no local band cuts the canvas. */}
+      <section className="relative overflow-x-clip bg-transparent">
+        {/* Soft drifting orbs.
+            overflow-x-clip (not overflow-hidden) keeps the orbs from creating a
+            horizontal scrollbar while letting their light bleed vertically past
+            the in-flow header boundary to the very top edge — otherwise the
+            clip at y=header-bottom renders a hard horizontal band. */}
         <div className="pointer-events-none absolute inset-0 opacity-60 dark:opacity-80">
           <div aria-hidden="true" className="absolute -left-24 -top-16 h-[24rem] w-[24rem]">
             <div
@@ -360,7 +366,7 @@ const Home = ({ hero: heroProp }) => {
       </section>
 
       {/* ===================== FEATURES ===================== */}
-      <section className="relative -mt-6 z-10">
+      <section className="relative -mt-6 z-10 bg-transparent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {features.map((f, i) => (
@@ -403,15 +409,15 @@ const Home = ({ hero: heroProp }) => {
                 <Link
                   key={key}
                   to={`/catalog?category=${slug}`}
-                  className="group relative overflow-hidden h-36 sm:h-44 flex flex-col items-center justify-center text-center p-6 bg-white/80 backdrop-blur-md border border-pink-100/70 rounded-3xl shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 animate-tcg-reveal"
+                  className="group relative overflow-hidden h-36 sm:h-44 flex flex-col items-center justify-center text-center p-6 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border border-pink-100/70 dark:border-neutral-800 rounded-3xl shadow-sm text-neutral-900 dark:text-neutral-100 hover:shadow-md hover:-translate-y-1 transition-all duration-300 animate-tcg-reveal"
                   style={{ animationDelay: `${i * 0.06}s` }}
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-primary-500/0 to-blush-500/0 group-hover:from-primary-500/10 group-hover:to-blush-500/15 transition-colors duration-500" />
                   <div aria-hidden="true" className="absolute -top-10 -right-10 h-28 w-28 rounded-full bg-primary-400/0 blur-2xl transition-colors duration-500 group-hover:bg-primary-400/20" />
-                  <span className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-pink-100/60 text-pink-700 group-hover:scale-110 transition-transform duration-300">
-                    <Icon className="h-7 w-7 text-pink-700" aria-hidden="true" />
+                  <span className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-pink-100/60 dark:bg-pink-950/50 text-pink-700 dark:text-pink-300 group-hover:scale-110 transition-transform duration-300">
+                    <Icon className="h-7 w-7 text-pink-700 dark:text-pink-300" aria-hidden="true" />
                   </span>
-                  <span className="relative mt-3 font-display text-lg font-bold text-ink-900 dark:text-white group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">{t(nameKey)}</span>
+                  <span className="relative mt-3 font-display text-lg font-bold text-neutral-900 dark:text-pink-50 group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">{t(nameKey)}</span>
                   <span className="relative mt-1 text-xs text-ink-500 dark:text-ink-300 break-words line-clamp-2">{t(taglineKey)}</span>
                   {count !== null && (
                     <span className="relative mt-1.5 text-[11px] font-semibold text-ink-400 dark:text-ink-400">{t('home.productsCount', { count })}</span>
@@ -424,7 +430,8 @@ const Home = ({ hero: heroProp }) => {
       </section>
 
       {/* ===================== FEATURED / PACKS ===================== */}
-      <section className="mt-10 pb-20 bg-gradient-to-b from-blush-100/60 to-transparent dark:from-primary-400/[0.04]">
+      {/* Transparent — the single page-level gradient must run unbroken. */}
+      <section className="mt-10 pb-20 bg-transparent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
             <h2 className="heading-display text-3xl dark:text-white">{t('home.featuredTitle')}</h2>
@@ -453,7 +460,7 @@ const Home = ({ hero: heroProp }) => {
       </section>
 
       {/* ===================== PROMO / CTA ===================== */}
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-hidden bg-transparent">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
           <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-primary-500 via-primary-400 to-blush-400 text-white p-8 sm:p-14 text-center shadow-soft-lg dark:from-[#2a1520] dark:via-[#241220] dark:to-[#1a0f18] dark:ring-1 dark:ring-white/10">
             <div className="absolute -top-20 -right-10 h-72 w-72 rounded-full bg-white/20 blur-[100px] animate-tcg-float dark:bg-primary-500/25" />

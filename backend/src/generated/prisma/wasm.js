@@ -133,8 +133,11 @@ exports.Prisma.UserScalarFieldEnum = {
   role: 'role',
   status: 'status',
   emailVerified: 'emailVerified',
+  canManageOrders: 'canManageOrders',
   canManageInventory: 'canManageInventory',
+  canManageVirtualBox: 'canManageVirtualBox',
   canManagePosts: 'canManagePosts',
+  canManageVouchers: 'canManageVouchers',
   balance: 'balance',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
@@ -191,6 +194,16 @@ exports.Prisma.SetScalarFieldEnum = {
   releaseDate: 'releaseDate',
   description: 'description',
   imageUrl: 'imageUrl',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.RarityScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  code: 'code',
+  description: 'description',
+  isActive: 'isActive',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -463,6 +476,7 @@ exports.CardCondition = exports.$Enums.CardCondition = {
   LIGHTLY_PLAYED: 'LIGHTLY_PLAYED',
   MODERATELY_PLAYED: 'MODERATELY_PLAYED',
   HEAVILY_PLAYED: 'HEAVILY_PLAYED',
+  DAMAGED: 'DAMAGED',
   EXCELLENT: 'EXCELLENT',
   GOOD: 'GOOD',
   POOR: 'POOR'
@@ -542,6 +556,7 @@ exports.Prisma.ModelName = {
   PasswordResetToken: 'PasswordResetToken',
   Category: 'Category',
   Set: 'Set',
+  Rarity: 'Rarity',
   Product: 'Product',
   ProductVariant: 'ProductVariant',
   Card: 'Card',

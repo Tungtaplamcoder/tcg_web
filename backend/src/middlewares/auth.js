@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const prisma = require('../config/prisma');
 const env = require('../config/env');
 const { AuthenticationError, AuthorizationError } = require('../utils/errors');
+const { permissionSelect, FLAG_TO_COLUMN } = require('../utils/permissions');
 
 const authenticate = async (req, res, next) => {
   try {
@@ -27,15 +28,14 @@ const authenticate = async (req, res, next) => {
         role: true,
         status: true,
         avatarUrl: true,
-        canManageInventory: true,
-        canManagePosts: true,
+        ...permissionSelect,
         createdAt: true,
         updatedAt: true
       }
     });
 
     if (!user) {
-      throw new AuthenticationError('User not found');
+      throw new AuthenticationError('Account no longer exists');
     }
 
     if (user.status === 'BANNED') {
@@ -43,7 +43,7 @@ const authenticate = async (req, res, next) => {
     }
 
     if (user.status === 'DELETED') {
-      throw new AuthenticationError('Account is deleted');
+      throw new AuthenticationError('Account no longer exists');
     }
 
     req.user = user;
@@ -66,8 +66,7 @@ const authorize = (...allowedRoles) => {
 };
 
 const ROLE_DEFAULT_PERMISSIONS = {
-  ADMIN: ['inventory', 'posts', 'orders', 'payments', 'users', 'settings'],
-  STAFF: ['inventory', 'posts', 'orders'],
+  ADMIN: ['orders', 'inventory', 'virtual_box', 'posts', 'vouchers'],
   MODERATOR: ['posts']
 };
 
@@ -76,17 +75,20 @@ const requirePermission = (permission) => {
     if (!req.user) {
       return next(new AuthenticationError('Authentication required'));
     }
+    // Admins always retain full access to every module.
     if (req.user.role === 'ADMIN') return next();
 
+    // Staff (and every non-admin) permissions are driven by the granular
+    // per-account boolean flags toggled from /admin/users — the same source
+    // of truth the Staff Panel sidebar uses.
+    const column = FLAG_TO_COLUMN[permission];
+    if (column && req.user[column]) return next();
+
+    // MODERATOR keeps its read-only default (posts) unless the account has
+    // been explicitly elevated through the granular flags above.
     const roleDefaults = ROLE_DEFAULT_PERMISSIONS[req.user.role] || [];
     if (roleDefaults.includes(permission)) return next();
 
-    const permissionMap = {
-      inventory: req.user.canManageInventory,
-      posts: req.user.canManagePosts,
-    };
-
-    if (permissionMap[permission]) return next();
     return next(new AuthorizationError('Bạn không có quyền truy cập tính năng này'));
   };
 };

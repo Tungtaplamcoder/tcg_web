@@ -67,6 +67,7 @@ enum CardCondition {
   LIGHTLY_PLAYED
   MODERATELY_PLAYED
   HEAVILY_PLAYED
+  DAMAGED
   EXCELLENT
   GOOD
   POOR
@@ -119,21 +120,24 @@ enum VoucherScope {
 // ==================== MODELS ====================
 
 model User {
-  id                 String     @id @default(uuid())
-  email              String?    @unique
-  passwordHash       String
-  fullName           String
-  phone              String     @unique
-  address            String?
-  avatarUrl          String?
-  role               Role       @default(CUSTOMER)
-  status             UserStatus @default(ACTIVE)
-  emailVerified      Boolean    @default(false)
-  canManageInventory Boolean    @default(false)
-  canManagePosts     Boolean    @default(false)
-  balance            Decimal    @default(0) @db.Decimal(12, 2)
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
+  id                  String     @id @default(uuid())
+  email               String?    @unique
+  passwordHash        String
+  fullName            String
+  phone               String     @unique
+  address             String?
+  avatarUrl           String?
+  role                Role       @default(CUSTOMER)
+  status              UserStatus @default(ACTIVE)
+  emailVerified       Boolean    @default(false)
+  canManageOrders     Boolean    @default(false)
+  canManageInventory  Boolean    @default(false)
+  canManageVirtualBox Boolean    @default(false)
+  canManagePosts      Boolean    @default(false)
+  canManageVouchers   Boolean    @default(false)
+  balance             Decimal    @default(0) @db.Decimal(12, 2)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
 
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
@@ -222,6 +226,22 @@ model Set {
   updatedAt   DateTime  @updatedAt
 
   @@index([code])
+}
+
+// Dynamic rarity catalogue ("Độ hiếm") — administered like Series/Era and
+// Expansion Sets. `Product.rarity` keeps storing the rarity `code` as a free
+// string, so existing products remain valid while this table becomes the
+// authoritative option source for the admin product modal.
+model Rarity {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  code        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
 }
 
 model Product {

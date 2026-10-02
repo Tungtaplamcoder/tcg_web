@@ -11,6 +11,7 @@ const {
   createProductSchema, updateProductSchema,
   categorySchema, updateCategorySchema,
   createSetSchema, updateSetSchema,
+  createRaritySchema, updateRaritySchema,
   createPostSchema, updatePostSchema, listPostsQuerySchema,
   updateOrderStatusSchema, listOrdersQuerySchema, reconcilePaymentSchema, listPaymentLogsQuerySchema,
   listUsersQuerySchema,
@@ -39,10 +40,14 @@ router.use(authenticate);
 
 // ==================== USER MANAGEMENT (ADMIN ONLY) ====================
 router.get('/users', apiLimiter, authorize('ADMIN'), validate(listUsersQuerySchema, 'query'), adminController.listUsers);
+router.get('/users/:id', apiLimiter, authorize('ADMIN'), adminController.getUserDetail);
 router.patch('/users/:id/role', apiLimiter, authorize('ADMIN'), validate(updateUserRoleSchema), adminController.updateUserRole);
 router.patch('/users/:id/status', apiLimiter, authorize('ADMIN'), validate(updateUserStatusSchema), adminController.updateUserStatus);
 router.patch('/users/:id/permissions', apiLimiter, authorize('ADMIN'), validate(updateUserPermissionsSchema), adminController.updateUserPermissions);
+// PUT alias — same granular permission persistence (task contract names PUT).
+router.put('/users/:id/permissions', apiLimiter, authorize('ADMIN'), validate(updateUserPermissionsSchema), adminController.updateUserPermissions);
 router.patch('/users/:id/password', apiLimiter, authorize('ADMIN'), validate(changeUserPasswordSchema), adminController.changeUserPassword);
+router.delete('/users/:id', apiLimiter, authorize('ADMIN'), adminController.deleteUser);
 
 // ==================== SET MANAGEMENT (Sản phẩm) ====================
 const managementRoles = ['ADMIN', 'STAFF', 'MODERATOR'];
@@ -52,11 +57,21 @@ router.post('/sets', apiLimiter, authorize(...managementRoles), validate(createS
 router.patch('/sets/:id', apiLimiter, authorize(...managementRoles), validate(updateSetSchema), adminController.updateSet);
 router.delete('/sets/:id', apiLimiter, authorize('ADMIN'), adminController.deleteSet);
 
+// ==================== RARITY MANAGEMENT (Độ hiếm) ====================
+// Dynamic rarity options — CRUD parity with Sets/Categories. GET returns all
+// rows so the catalog settings page can manage disabled options too; the
+// product modal uses the public /rarities endpoint (active only).
+router.get('/rarities', apiLimiter, authorize(...managementRoles), adminController.listRarities);
+router.post('/rarities', apiLimiter, authorize(...managementRoles), validate(createRaritySchema), adminController.createRarity);
+router.put('/rarities/:id', apiLimiter, authorize(...managementRoles), validate(updateRaritySchema), adminController.updateRarity);
+router.patch('/rarities/:id', apiLimiter, authorize(...managementRoles), validate(updateRaritySchema), adminController.updateRarity);
+router.delete('/rarities/:id', apiLimiter, authorize('ADMIN', 'STAFF'), adminController.deleteRarity);
+
 // ==================== VIRTUAL BOX MANAGEMENT ====================
-router.get('/virtual-boxes', apiLimiter, authorize(...managementRoles), validate(listVirtualBoxesQuerySchema, 'query'), adminController.listVirtualBoxes);
-router.post('/virtual-boxes', apiLimiter, authorize(...managementRoles), validate(createVirtualBoxSchema), adminController.createVirtualBox);
-router.put('/virtual-boxes/:id', apiLimiter, authorize(...managementRoles), validate(updateVirtualBoxSchema), adminController.updateVirtualBox);
-router.delete('/virtual-boxes/:id', apiLimiter, authorize('ADMIN', 'STAFF'), adminController.deleteVirtualBox);
+router.get('/virtual-boxes', apiLimiter, authorize(...managementRoles), requirePermission('virtual_box'), validate(listVirtualBoxesQuerySchema, 'query'), adminController.listVirtualBoxes);
+router.post('/virtual-boxes', apiLimiter, authorize(...managementRoles), requirePermission('virtual_box'), validate(createVirtualBoxSchema), adminController.createVirtualBox);
+router.put('/virtual-boxes/:id', apiLimiter, authorize(...managementRoles), requirePermission('virtual_box'), validate(updateVirtualBoxSchema), adminController.updateVirtualBox);
+router.delete('/virtual-boxes/:id', apiLimiter, authorize('ADMIN', 'STAFF'), requirePermission('virtual_box'), adminController.deleteVirtualBox);
 
 // ==================== PRODUCT MANAGEMENT ====================
 router.get('/products', apiLimiter, authorize(...managementRoles), requirePermission('inventory'), adminController.listProducts);
@@ -88,14 +103,14 @@ router.get('/payments/logs', apiLimiter, authorize('ADMIN'), validate(listPaymen
 router.post('/payments/reconcile', apiLimiter, authorize('ADMIN'), validate(reconcilePaymentSchema), adminController.reconcilePayment);
 
 // ==================== VOUCHER MANAGEMENT ====================
-router.get('/vouchers', apiLimiter, authorize(...managementRoles), validate(listVouchersQuerySchema, 'query'), voucherAdminController.listVouchers);
-router.post('/vouchers', apiLimiter, authorize(...managementRoles), validate(createVoucherSchema), voucherAdminController.createVoucher);
-router.post('/vouchers/allocate', apiLimiter, authorize(...managementRoles), validate(allocateVoucherSchema), voucherAdminController.allocateVoucher);
-router.get('/vouchers/:id', apiLimiter, authorize(...managementRoles), voucherAdminController.getVoucher);
-router.put('/vouchers/:id', apiLimiter, authorize(...managementRoles), validate(updateVoucherSchema), voucherAdminController.updateVoucher);
-router.patch('/vouchers/:id/toggle', apiLimiter, authorize(...managementRoles), validate(toggleVoucherSchema), voucherAdminController.toggleVoucher);
-router.delete('/vouchers/:id', apiLimiter, authorize('ADMIN', 'STAFF'), voucherAdminController.deleteVoucher);
-router.get('/vouchers/:id/holders', apiLimiter, authorize(...managementRoles), voucherAdminController.listVoucherHolders);
+router.get('/vouchers', apiLimiter, authorize(...managementRoles), requirePermission('vouchers'), validate(listVouchersQuerySchema, 'query'), voucherAdminController.listVouchers);
+router.post('/vouchers', apiLimiter, authorize(...managementRoles), requirePermission('vouchers'), validate(createVoucherSchema), voucherAdminController.createVoucher);
+router.post('/vouchers/allocate', apiLimiter, authorize(...managementRoles), requirePermission('vouchers'), validate(allocateVoucherSchema), voucherAdminController.allocateVoucher);
+router.get('/vouchers/:id', apiLimiter, authorize(...managementRoles), requirePermission('vouchers'), voucherAdminController.getVoucher);
+router.put('/vouchers/:id', apiLimiter, authorize(...managementRoles), requirePermission('vouchers'), validate(updateVoucherSchema), voucherAdminController.updateVoucher);
+router.patch('/vouchers/:id/toggle', apiLimiter, authorize(...managementRoles), requirePermission('vouchers'), validate(toggleVoucherSchema), voucherAdminController.toggleVoucher);
+router.delete('/vouchers/:id', apiLimiter, authorize('ADMIN', 'STAFF'), requirePermission('vouchers'), voucherAdminController.deleteVoucher);
+router.get('/vouchers/:id/holders', apiLimiter, authorize(...managementRoles), requirePermission('vouchers'), voucherAdminController.listVoucherHolders);
 
 // ==================== DASHBOARD ====================
 router.get('/dashboard/stats', apiLimiter, authorize(...managementRoles), adminController.getDashboardStats);

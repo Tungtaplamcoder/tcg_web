@@ -4,9 +4,11 @@ import { AlertCircle, Loader2, ExternalLink, MapPin, ChevronDown, ShieldCheck, L
 import api from '../services/api';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useAddressStore } from '../store/useAddressStore';
 import { useLanguage } from '../i18n/LanguageContext';
 import { formatVND } from '../utils/format';
 import VoucherPickerModal from '../components/VoucherPickerModal';
+import AddressManager from '../components/AddressManager';
 import provincesData from '../province.json';
 import wardsData from '../ward.json';
 
@@ -16,6 +18,7 @@ const allWards = Object.values(wardsData);
 const Checkout = () => {
   const { items, totalItems, clearCart } = useCartStore();
   const { user } = useAuthStore();
+  const { addresses, setUser: setAddressUser } = useAddressStore();
   const { t } = useLanguage();
   const navigate = useNavigate();
 
@@ -49,6 +52,11 @@ const Checkout = () => {
   const [appliedVoucher, setAppliedVoucher] = useState(null);
   const [voucherModalOpen, setVoucherModalOpen] = useState(false);
 
+  // Saved-address picker (Shopee-style 1-click fill).
+  const [addressPickerOpen, setAddressPickerOpen] = useState(false);
+  const pendingWardRef = useRef(null);
+  const prefillDoneRef = useRef(false);
+
   useEffect(() => {
     return () => {
       if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
@@ -72,13 +80,66 @@ const Checkout = () => {
 
   useEffect(() => {
     if (selectedProvince) {
-      const wards = allWards.filter(w => String(w.parent_code) === selectedProvince);
-      setFilteredWards(wards.sort((a, b) => a.name.localeCompare(b.name)));
+      const wards = allWards
+        .filter(w => String(w.parent_code) === String(selectedProvince))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      setFilteredWards(wards);
+      // A saved address may set province + ward in one action. When the ward
+      // list becomes available, honour the pending ward instead of clearing.
+      if (pendingWardRef.current) {
+        const wanted = pendingWardRef.current;
+        pendingWardRef.current = null;
+        setSelectedWard(wards.some(w => w.code === wanted) ? wanted : '');
+      } else {
+        setSelectedWard('');
+      }
     } else {
       setFilteredWards([]);
+      setSelectedWard('');
     }
-    setSelectedWard('');
   }, [selectedProvince]);
+
+  // Bind the saved-address book to the signed-in account.
+  useEffect(() => {
+    if (user?.id) setAddressUser(user.id);
+  }, [user?.id, setAddressUser]);
+
+  // One-click fill: drop a saved address straight into the checkout fields.
+  const applyAddress = (addr) => {
+    if (!addr) return;
+    const nextProvince = addr.provinceCode || '';
+    if (nextProvince === selectedProvince) {
+      // Province unchanged → the sync effect won't fire; set ward directly.
+      const wards = nextProvince
+        ? allWards.filter(w => String(w.parent_code) === String(nextProvince)).sort((a, b) => a.name.localeCompare(b.name))
+        : [];
+      setFilteredWards(wards);
+      setSelectedWard(addr.wardCode || '');
+    } else {
+      pendingWardRef.current = addr.wardCode || null;
+      setSelectedProvince(nextProvince);
+    }
+    setShippingAddress((prev) => ({
+      ...prev,
+      fullName: addr.fullName || '',
+      phone: addr.phone || '',
+      addressLine1: addr.addressLine1 || '',
+      addressLine2: '',
+      city: addr.provinceName || '',
+      state: addr.wardName || '',
+      country: 'Vietnam'
+    }));
+  };
+
+  // Pre-fill from the default saved address once per checkout session.
+  useEffect(() => {
+    if (prefillDoneRef.current || addresses.length === 0) return;
+    const def = addresses.find(a => a.isDefault) || addresses[0];
+    if (!def) return;
+    applyAddress(def);
+    prefillDoneRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addresses]);
 
   const handleInputChange = (e) => {
     setShippingAddress({ ...shippingAddress, [e.target.name]: e.target.value });
@@ -294,10 +355,23 @@ const Checkout = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Shipping Form */}
         <div className="lg:col-span-2 rounded-3xl bg-white/85 dark:bg-[#1c1216]/85 backdrop-blur-xl border border-ink-100 dark:border-white/10 shadow-card p-6 sm:p-8">
-          <h2 className="heading-display text-lg flex items-center gap-2.5">
-            <MapPin className="h-5 w-5 text-primary-600" />
-            {t('checkout.shippingAddress')}
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="heading-display text-lg flex items-center gap-2.5">
+              <MapPin className="h-5 w-5 text-primary-600" />
+              {t('checkout.shippingAddress')}
+            </h2>
+            {user && (
+              <button
+                type="button"
+                onClick={() => setAddressPickerOpen(true)}
+                data-testid="checkout-saved-address-btn"
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-sm font-semibold text-pink-700 dark:text-pink-300 bg-pink-100 dark:bg-pink-950/60 hover:bg-pink-200/70 dark:hover:bg-pink-950 transition-colors"
+              >
+                <MapPin className="h-4 w-4" />
+                {t('checkout.chooseSaved')}
+              </button>
+            )}
+          </div>
           <form onSubmit={handleSubmit} className="mt-6 space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
@@ -334,6 +408,7 @@ const Checkout = () => {
                     value={selectedProvince}
                     onChange={handleProvinceChange}
                     required
+                    data-testid="checkout-province"
                     className="input-premium appearance-none pr-10 cursor-pointer"
                   >
                     <option value="">{t('checkout.selectProvince')}</option>
@@ -355,6 +430,7 @@ const Checkout = () => {
                     onChange={handleWardChange}
                     required
                     disabled={!selectedProvince}
+                    data-testid="checkout-ward"
                     className="input-premium appearance-none pr-10 cursor-pointer"
                   >
                     <option value="">{selectedProvince ? t('checkout.selectWard') : t('checkout.selectProvinceFirst')}</option>
@@ -523,6 +599,13 @@ const Checkout = () => {
         subtotal={totalPrice}
         selectedCode={appliedVoucher?.code || null}
         onApply={setAppliedVoucher}
+      />
+
+      <AddressManager
+        isOpen={addressPickerOpen}
+        onClose={() => setAddressPickerOpen(false)}
+        pickerMode
+        onSelect={applyAddress}
       />
     </div>
   );
