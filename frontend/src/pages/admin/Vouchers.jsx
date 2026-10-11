@@ -27,11 +27,11 @@ const EMPTY_FORM = {
 
 /* Trạng thái hiển thị — label được resolve qua t() tại render time */
 const VOUCHER_STATUS_KEYS = {
-  off: { key: 'admin.vouchers.badgeOff', chip: 'bg-gray-100 text-gray-600 ring-gray-200' },
-  expired: { key: 'admin.vouchers.badgeExpired', chip: 'bg-rose-50 text-rose-600 ring-rose-200' },
-  notStarted: { key: 'admin.vouchers.badgeNotStarted', chip: 'bg-amber-50 text-amber-700 ring-amber-200' },
-  usedUp: { key: 'admin.vouchers.badgeUsedUp', chip: 'bg-gray-100 text-gray-600 ring-gray-200' },
-  running: { key: 'admin.vouchers.badgeRunning', chip: 'bg-emerald-50 text-emerald-700 ring-emerald-200' }
+  off: { key: 'admin.vouchers.badgeOff', chip: 'bg-gray-100 text-gray-600 ring-gray-200 dark:bg-neutral-800 dark:text-neutral-200 dark:ring-neutral-700' },
+  expired: { key: 'admin.vouchers.badgeExpired', chip: 'bg-rose-50 text-rose-600 ring-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:ring-rose-800' },
+  notStarted: { key: 'admin.vouchers.badgeNotStarted', chip: 'bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-800' },
+  usedUp: { key: 'admin.vouchers.badgeUsedUp', chip: 'bg-gray-100 text-gray-600 ring-gray-200 dark:bg-neutral-800 dark:text-neutral-200 dark:ring-neutral-700' },
+  running: { key: 'admin.vouchers.badgeRunning', chip: 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-800' }
 };
 
 const VOUCHER_STATUS = (voucher, now = new Date()) => {
@@ -319,8 +319,8 @@ const AdminVouchers = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">{t('admin.vouchers.title')}</h2>
-          <p className="text-gray-500">{t('admin.vouchers.subtitle')}</p>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white">{t('admin.vouchers.title')}</h2>
+          <p className="text-gray-500 dark:text-neutral-300">{t('admin.vouchers.subtitle')}</p>
         </div>
         <button
           onClick={openCreate}
@@ -332,14 +332,14 @@ const AdminVouchers = () => {
       </div>
 
       {toast && (
-        <div className={`p-3 rounded-lg flex items-center ${toast.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+        <div className={`p-3 rounded-lg flex items-center ${toast.type === 'success' ? 'bg-green-50 text-green-700 dark:bg-green-950/40 dark:text-green-300' : 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300'}`}>
           <AlertTriangle className="h-5 w-5 mr-2 shrink-0" />
           {toast.message}
         </div>
       )}
 
       {listError && (
-        <div className="p-3 bg-red-50 text-red-600 rounded-lg flex items-center">
+        <div className="p-3 bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300 rounded-lg flex items-center">
           <AlertTriangle className="h-5 w-5 mr-2" />
           {listError}
         </div>
@@ -347,19 +347,19 @@ const AdminVouchers = () => {
 
       <div className="flex flex-col lg:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-neutral-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             placeholder={t('admin.vouchers.searchPlaceholder')}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-neutral-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
         <select
           value={activeFilter}
           onChange={(e) => { setActiveFilter(e.target.value); setPage(1); }}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="px-3 py-2 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           <option value="">{t('admin.vouchers.allToggle')}</option>
           <option value="true">{t('admin.vouchers.activeOn')}</option>
@@ -367,67 +367,67 @@ const AdminVouchers = () => {
         </select>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
+      <div className="bg-white dark:bg-neutral-900 rounded-lg shadow border border-gray-200 dark:border-white/10 overflow-x-auto">
         {loading ? (
           <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary-600" /></div>
         ) : vouchers.length === 0 ? (
-          <div className="text-center py-16 text-gray-500">
-            <TicketPercent className="h-10 w-10 mx-auto text-gray-300 mb-3" />
+          <div className="text-center py-16 text-gray-500 dark:text-neutral-400">
+            <TicketPercent className="h-10 w-10 mx-auto text-gray-300 dark:text-neutral-600 mb-3" />
             <p>{t('admin.vouchers.empty')}</p>
             <button onClick={openCreate} className="mt-3 inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
               <Plus className="h-4 w-4 mr-2" />{t('admin.vouchers.createFirst')}
             </button>
           </div>
         ) : (
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-white/10">
+            <thead className="bg-gray-50 dark:bg-neutral-800">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('admin.vouchers.colVoucher')}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('admin.vouchers.colDiscount')}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('admin.vouchers.colRules')}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('admin.vouchers.colUses')}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('admin.vouchers.colTime')}</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{t('admin.vouchers.colStatus')}</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">{t('admin.vouchers.colActions')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-neutral-200 uppercase">{t('admin.vouchers.colVoucher')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-neutral-200 uppercase">{t('admin.vouchers.colDiscount')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-neutral-200 uppercase">{t('admin.vouchers.colRules')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-neutral-200 uppercase">{t('admin.vouchers.colUses')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-neutral-200 uppercase">{t('admin.vouchers.colTime')}</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-neutral-200 uppercase">{t('admin.vouchers.colStatus')}</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-neutral-200 uppercase">{t('admin.vouchers.colActions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100 dark:divide-white/5">
               {vouchers.map((voucher) => {
                 const status = VOUCHER_STATUS(voucher);
                 const usagePercent = voucher.totalQuantity
                   ? Math.min(100, (voucher.usedQuantity / voucher.totalQuantity) * 100)
                   : 0;
                 return (
-                  <tr key={voucher.id} className="hover:bg-gray-50">
+                  <tr key={voucher.id} className="hover:bg-gray-50 dark:hover:bg-neutral-800/50">
                     <td className="px-4 py-3">
-                      <p className="font-semibold text-gray-900">{voucher.title}</p>
-                      <p className="font-mono text-xs text-gray-500 tracking-widest">{voucher.code}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">
+                      <p className="font-semibold text-gray-900 dark:text-white">{voucher.title}</p>
+                      <p className="font-mono text-xs text-gray-700 dark:text-neutral-100 tracking-widest font-bold">{voucher.code}</p>
+                      <p className="text-xs text-gray-400 dark:text-neutral-300 mt-0.5">
                         {voucher.scope === 'ALL' ? t('admin.vouchers.scopeAll') : voucher.scope === 'CATEGORY' ? t('admin.vouchers.scopeCategoryCount', { count: voucher.scopeIds.length }) : t('admin.vouchers.scopeProductCount', { count: voucher.scopeIds.length })}
                       </p>
                     </td>
                     <td className="px-4 py-3">
-                      <p className="font-semibold text-primary-700">
+                      <p className="font-semibold text-primary-700 dark:text-pink-400">
                         {voucher.discountType === 'PERCENT'
                           ? `-${Number(voucher.discountValue)}%`
                           : `-${formatVNDNumber(voucher.discountValue)}₫`}
                       </p>
                       {voucher.discountType === 'PERCENT' && voucher.maxDiscountAmount != null && (
-                        <p className="text-xs text-gray-400">{t('admin.vouchers.maxDiscountShort', { amount: formatVNDNumber(voucher.maxDiscountAmount) })}</p>
+                        <p className="text-xs text-gray-400 dark:text-neutral-300">{t('admin.vouchers.maxDiscountShort', { amount: formatVNDNumber(voucher.maxDiscountAmount) })}</p>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-neutral-100">
                       {Number(voucher.minOrderAmount) > 0
                         ? <span>{t('admin.vouchers.minOrderShort', { amount: formatVNDNumber(voucher.minOrderAmount) })}</span>
-                        : <span className="text-gray-400">{t('admin.vouchers.unlimited')}</span>}
-                      <p className="text-xs text-gray-400">{t('vouchers.rulePerUser', { count: voucher.limitPerUser })}</p>
+                        : <span className="text-gray-400 dark:text-neutral-400">{t('admin.vouchers.unlimited')}</span>}
+                      <p className="text-xs text-gray-400 dark:text-neutral-400">{t('vouchers.rulePerUser', { count: voucher.limitPerUser })}</p>
                     </td>
                     <td className="px-4 py-3">
-                      <p className="font-semibold text-gray-800">
+                      <p className="font-semibold text-gray-800 dark:text-white">
                         {voucher.usedQuantity}{voucher.totalQuantity != null ? ` / ${voucher.totalQuantity}` : ''}
                       </p>
                       {voucher.totalQuantity != null && (
-                        <div className="mt-1 w-20 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                        <div className="mt-1 w-20 h-1.5 rounded-full bg-gray-100 dark:bg-neutral-800 overflow-hidden">
                           <div
                             className={`h-full rounded-full ${usagePercent >= 100 ? 'bg-rose-500' : usagePercent >= 70 ? 'bg-amber-500' : 'bg-emerald-500'}`}
                             style={{ width: `${usagePercent}%` }}
@@ -435,10 +435,10 @@ const AdminVouchers = () => {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs text-gray-500">
+                    <td className="px-4 py-3 text-xs text-gray-500 dark:text-neutral-200">
                       {voucher.startAt && <p>{t('admin.vouchers.fromDate', { date: new Date(voucher.startAt).toLocaleDateString('vi-VN') })}</p>}
                       {voucher.endAt && <p>{t('admin.vouchers.toDate', { date: new Date(voucher.endAt).toLocaleDateString('vi-VN') })}</p>}
-                      {!voucher.startAt && !voucher.endAt && <span className="text-gray-400">{t('admin.vouchers.alwaysValid')}</span>}
+                      {!voucher.startAt && !voucher.endAt && <span className="text-gray-400 dark:text-neutral-400">{t('admin.vouchers.alwaysValid')}</span>}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold ring-1 ${status.chip}`}>
@@ -454,24 +454,24 @@ const AdminVouchers = () => {
                           className="transition-transform hover:scale-110 disabled:opacity-50"
                         >
                           {togglingId === voucher.id ? (
-                            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                            <Loader2 className="h-6 w-6 animate-spin text-gray-400 dark:text-neutral-500" />
                           ) : voucher.isActive ? (
                             <ToggleRight className="h-6 w-6 text-emerald-500" />
                           ) : (
-                            <ToggleLeft className="h-6 w-6 text-gray-300" />
+                            <ToggleLeft className="h-6 w-6 text-gray-300 dark:text-neutral-600" />
                           )}
                         </button>
                          <button
                            onClick={() => openAllocate(voucher)}
                            title={t('admin.vouchers.grantToUser')}
-                          className="p-1.5 rounded-lg text-primary-600 hover:bg-primary-50 transition-colors"
+                          className="p-1.5 rounded-lg text-primary-600 hover:bg-primary-50 dark:hover:bg-neutral-800 transition-colors"
                         >
                           <UserPlus className="h-4.5 w-4.5" />
                         </button>
                          <button
                             onClick={() => openEdit(voucher)}
                             title={t('admin.vouchers.editVoucher')}
-                           className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+                           className="p-1.5 rounded-lg text-gray-500 dark:text-neutral-300 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors"
                          >
                            <Pencil className="h-4 w-4" />
                          </button>
@@ -479,7 +479,7 @@ const AdminVouchers = () => {
                            <button
                              onClick={() => setDeleteTarget(voucher)}
                              title={t('admin.vouchers.deleteVoucher')}
-                             className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors"
+                             className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
                            >
                              <Trash2 className="h-4 w-4" />
                            </button>
@@ -499,15 +499,15 @@ const AdminVouchers = () => {
           <button
             onClick={() => setPage(Math.max(1, page - 1))}
             disabled={page <= 1}
-            className="p-2 rounded-lg border border-gray-300 disabled:opacity-40 hover:bg-gray-50"
+            className="p-2 rounded-lg border border-gray-300 dark:border-neutral-700 text-gray-700 dark:text-neutral-200 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-neutral-800"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <span className="px-3 text-sm font-semibold text-gray-600">{t('common.page', { page, total: meta.totalPages })}</span>
+          <span className="px-3 text-sm font-semibold text-gray-600 dark:text-neutral-200">{t('common.page', { page, total: meta.totalPages })}</span>
           <button
             onClick={() => setPage(Math.min(meta.totalPages, page + 1))}
             disabled={page >= meta.totalPages}
-            className="p-2 rounded-lg border border-gray-300 disabled:opacity-40 hover:bg-gray-50"
+            className="p-2 rounded-lg border border-gray-300 dark:border-neutral-700 text-gray-700 dark:text-neutral-200 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-neutral-800"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -517,26 +517,26 @@ const AdminVouchers = () => {
       {/* ===== Create/Edit Modal ===== */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-tcg-fade-in">
-          <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl bg-white shadow-2xl animate-tcg-scale-in">
-            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-              <h3 className="font-bold text-lg text-gray-900">
+          <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-3xl bg-white dark:bg-neutral-900 border border-gray-100 dark:border-white/10 shadow-2xl animate-tcg-scale-in">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 dark:border-white/10">
+              <h3 className="font-bold text-lg text-gray-900 dark:text-white">
                 {editing ? `${t('admin.vouchers.editVoucher')} ${editing.code}` : t('admin.vouchers.createNewFull')}
               </h3>
-              <button onClick={closeModal} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors" aria-label={t('common.close')}>
+              <button onClick={closeModal} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors" aria-label={t('common.close')}>
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
               {formError && (
-                <div className="p-3.5 rounded-xl bg-red-50 text-red-600 ring-1 ring-red-200 text-sm font-medium flex items-center gap-2">
+                <div className="p-3.5 rounded-xl bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-800 text-sm font-medium flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 shrink-0" />{formError}
                 </div>
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-neutral-200 mb-1.5">
                     {t('admin.vouchers.codeLabel')} {!editing && <span className="text-rose-500">*</span>}
                   </label>
                   <input
@@ -545,36 +545,36 @@ const AdminVouchers = () => {
                     onChange={(e) => handleFormChange('code', e.target.value.toUpperCase())}
                     disabled={!!editing}
                     placeholder={t('admin.vouchers.codePlaceholder')}
-                    className={`w-full px-3.5 py-2.5 border rounded-xl font-mono tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-primary-500 ${editing ? 'bg-gray-50 text-gray-500' : ''}`}
+                    className={`w-full px-3.5 py-2.5 border rounded-xl font-mono tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-primary-500 ${editing ? 'bg-gray-50 text-gray-500 dark:bg-neutral-800/60 dark:text-neutral-400 border-gray-300 dark:border-neutral-700' : 'bg-white dark:bg-neutral-800 border-gray-300 dark:border-neutral-700 text-gray-900 dark:text-white'}`}
                   />
-                  {editing && <p className="mt-1 text-xs text-gray-400">{t('admin.vouchers.codeImmutable')}</p>}
+                  {editing && <p className="mt-1 text-xs text-gray-400 dark:text-neutral-400">{t('admin.vouchers.codeImmutable')}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('admin.vouchers.nameLabel')}</label>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-neutral-200 mb-1.5">{t('admin.vouchers.nameLabel')}</label>
                   <input
                     type="text"
                     value={form.title}
                     onChange={(e) => handleFormChange('title', e.target.value)}
                     placeholder={t('admin.vouchers.titlePlaceholder')}
-                    className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full px-3.5 py-2.5 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('admin.vouchers.discountTypeLabel')}</label>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-neutral-200 mb-1.5">{t('admin.vouchers.discountTypeLabel')}</label>
                   <select
                     value={form.discountType}
                     onChange={(e) => handleFormChange('discountType', e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full px-3.5 py-2.5 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="PERCENT">{t('admin.vouchers.percentType')}</option>
                     <option value="FIXED">{t('admin.vouchers.fixedType')}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-neutral-200 mb-1.5">
                     {t('admin.vouchers.valueLabel')} {form.discountType === 'PERCENT' ? '(%)' : '(VND)'}
                   </label>
                   <div className="relative">
@@ -584,15 +584,15 @@ const AdminVouchers = () => {
                       value={form.discountValue}
                       onChange={(e) => handleFormChange('discountValue', e.target.value)}
                       placeholder={form.discountType === 'PERCENT' ? '10' : '50000'}
-                      className="w-full px-3.5 py-2.5 pr-9 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      className="w-full px-3.5 py-2.5 pr-9 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-neutral-400">
                       {form.discountType === 'PERCENT' ? <Percent className="h-4 w-4" /> : <Coins className="h-4 w-4" />}
                     </span>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-neutral-200 mb-1.5">
                     {t('admin.vouchers.maxDiscountLabel')} {form.discountType === 'PERCENT' ? '(VND)' : ''}
                   </label>
                   <input
@@ -602,70 +602,70 @@ const AdminVouchers = () => {
                     onChange={(e) => handleFormChange('maxDiscountAmount', e.target.value)}
                     disabled={form.discountType !== 'PERCENT'}
                     placeholder={t('admin.vouchers.valuePlaceholder')}
-                    className={`w-full px-3.5 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 ${form.discountType !== 'PERCENT' ? 'bg-gray-50 text-gray-400' : 'border-gray-300'}`}
+                    className={`w-full px-3.5 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 ${form.discountType !== 'PERCENT' ? 'bg-gray-50 text-gray-400 dark:bg-neutral-800/60 dark:text-neutral-500 border-gray-300 dark:border-neutral-700' : 'bg-white dark:bg-neutral-800 border-gray-300 dark:border-neutral-700 text-gray-900 dark:text-white'}`}
                   />
-                  {form.discountType !== 'PERCENT' && <p className="mt-1 text-xs text-gray-400">{t('admin.vouchers.percentOnly')}</p>}
+                  {form.discountType !== 'PERCENT' && <p className="mt-1 text-xs text-gray-400 dark:text-neutral-400">{t('admin.vouchers.percentOnly')}</p>}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('admin.vouchers.minOrderLabel')}</label>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-neutral-200 mb-1.5">{t('admin.vouchers.minOrderLabel')}</label>
                   <input
                     type="number"
                     min="0"
                     value={form.minOrderAmount}
                     onChange={(e) => handleFormChange('minOrderAmount', e.target.value)}
                     placeholder="0"
-                    className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full px-3.5 py-2.5 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('admin.vouchers.totalUsesLabel')}</label>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-neutral-200 mb-1.5">{t('admin.vouchers.totalUsesLabel')}</label>
                   <input
                     type="number"
                     min="1"
                     value={form.totalQuantity}
                     onChange={(e) => handleFormChange('totalQuantity', e.target.value)}
                     placeholder={t('admin.vouchers.unlimited')}
-                    className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full px-3.5 py-2.5 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('admin.vouchers.perUserLabel')}</label>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-neutral-200 mb-1.5">{t('admin.vouchers.perUserLabel')}</label>
                   <input
                     type="number"
                     min="1"
                     value={form.limitPerUser}
                     onChange={(e) => handleFormChange('limitPerUser', e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full px-3.5 py-2.5 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('admin.vouchers.startLabel')}</label>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-neutral-200 mb-1.5">{t('admin.vouchers.startLabel')}</label>
                   <input
                     type="datetime-local"
                     value={form.startAt}
                     onChange={(e) => handleFormChange('startAt', e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full px-3.5 py-2.5 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('admin.vouchers.endLabel')}</label>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-neutral-200 mb-1.5">{t('admin.vouchers.endLabel')}</label>
                   <input
                     type="datetime-local"
                     value={form.endAt}
                     onChange={(e) => handleFormChange('endAt', e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full px-3.5 py-2.5 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('admin.vouchers.scopeLabel')}</label>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-neutral-200 mb-1.5">{t('admin.vouchers.scopeLabel')}</label>
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { key: 'ALL', keyLabel: 'admin.vouchers.scopeAll', icon: Ticket },
@@ -680,8 +680,8 @@ const AdminVouchers = () => {
                         onClick={() => handleFormChange('scope', opt.key)}
                         className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-colors ${
                           form.scope === opt.key
-                            ? 'border-primary-500 bg-primary-50 text-primary-700 ring-2 ring-primary-500/30'
-                            : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/40 text-primary-700 dark:text-pink-300 ring-2 ring-primary-500/30'
+                            : 'border-gray-300 dark:border-neutral-700 text-gray-600 dark:text-neutral-300 hover:bg-gray-50 dark:hover:bg-neutral-800'
                         }`}
                       >
                         <Icon className="h-4 w-4" />
@@ -693,32 +693,32 @@ const AdminVouchers = () => {
               </div>
 
               {form.scope !== 'ALL' && (
-                <div className="rounded-2xl border border-gray-200 p-4">
+                <div className="rounded-2xl border border-gray-200 dark:border-neutral-700 p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm font-semibold text-gray-700">
+                    <p className="text-sm font-semibold text-gray-700 dark:text-neutral-200">
                       {form.scope === 'CATEGORY'
                         ? t('admin.vouchers.selectCategories', { count: form.scopeIds.length })
                         : t('admin.vouchers.selectProducts', { count: form.scopeIds.length })}
                     </p>
                     <div className="relative">
-                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-neutral-400" />
                       <input
                         type="text"
                         value={scopeSearch}
                         onChange={(e) => setScopeSearch(e.target.value)}
                         placeholder={t('admin.vouchers.scopeSearch')}
-                        className="pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        className="pl-8 pr-3 py-1.5 text-sm border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       />
                     </div>
                   </div>
                   <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
                     {scopeOptions.length === 0 ? (
-                      <p className="text-sm text-gray-400 py-4 text-center">{t('admin.vouchers.noMatch')}</p>
+                      <p className="text-sm text-gray-400 dark:text-neutral-400 py-4 text-center">{t('admin.vouchers.noMatch')}</p>
                     ) : scopeOptions.map((item) => (
                       <label
                         key={item.id}
                         className={`flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer transition-colors ${
-                          form.scopeIds.includes(item.id) ? 'bg-primary-50' : 'hover:bg-gray-50'
+                          form.scopeIds.includes(item.id) ? 'bg-primary-50 dark:bg-primary-950/40' : 'hover:bg-gray-50 dark:hover:bg-neutral-800'
                         }`}
                       >
                         <input
@@ -727,7 +727,7 @@ const AdminVouchers = () => {
                           onChange={() => toggleScopeId(item.id)}
                           className="h-4 w-4 rounded text-primary-600 focus:ring-primary-500"
                         />
-                        <span className="text-sm text-gray-700 truncate">{item.name}</span>
+                        <span className="text-sm text-gray-700 dark:text-neutral-200 truncate">{item.name}</span>
                       </label>
                     ))}
                   </div>
@@ -741,11 +741,11 @@ const AdminVouchers = () => {
                   onChange={(e) => handleFormChange('isActive', e.target.checked)}
                   className="h-4 w-4 rounded text-primary-600 focus:ring-primary-500"
                 />
-                <span className="text-sm font-medium text-gray-700">{t('admin.vouchers.activateNow')}</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-neutral-200">{t('admin.vouchers.activateNow')}</span>
               </label>
 
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={closeModal} className="px-5 py-2.5 text-sm font-semibold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
+                <button type="button" onClick={closeModal} className="px-5 py-2.5 text-sm font-semibold text-gray-600 dark:text-neutral-200 bg-gray-100 dark:bg-neutral-800 rounded-xl hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors">
                   {t('admin.vouchers.cancel')}
                 </button>
                 <button
@@ -765,31 +765,31 @@ const AdminVouchers = () => {
       {/* ===== Allocate Modal ===== */}
       {allocateTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-tcg-fade-in">
-          <div className="relative w-full max-w-md rounded-3xl bg-white shadow-2xl animate-tcg-scale-in p-6">
+          <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-neutral-900 border border-gray-100 dark:border-white/10 shadow-2xl animate-tcg-scale-in p-6">
             <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 h-12 w-12 rounded-2xl bg-primary-50 ring-1 ring-primary-200 flex items-center justify-center">
-                <Users className="h-6 w-6 text-primary-600" />
+              <div className="flex-shrink-0 h-12 w-12 rounded-2xl bg-primary-50 dark:bg-primary-950/40 ring-1 ring-primary-200 dark:ring-primary-800 flex items-center justify-center">
+                <Users className="h-6 w-6 text-primary-600 dark:text-pink-400" />
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-lg text-gray-900">{t('admin.vouchers.grantDirect')}</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  {t('admin.vouchers.colVoucher')} <span className="font-mono font-semibold text-gray-800">{allocateTarget.code}</span>
+                <h3 className="font-bold text-lg text-gray-900 dark:text-white">{t('admin.vouchers.grantDirect')}</h3>
+                <p className="mt-1 text-sm text-gray-500 dark:text-neutral-300">
+                  {t('admin.vouchers.colVoucher')} <span className="font-mono font-semibold text-gray-800 dark:text-neutral-100">{allocateTarget.code}</span>
                   {' '}({allocateTarget.discountType === 'PERCENT' ? `-${Number(allocateTarget.discountValue)}%` : `-${formatVNDNumber(allocateTarget.discountValue)}₫`})
                 </p>
               </div>
-              <button onClick={() => setAllocateTarget(null)} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100" aria-label={t('common.close')}>
+              <button onClick={() => setAllocateTarget(null)} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-neutral-800" aria-label={t('common.close')}>
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             {allocateError && (
-              <div className="mt-4 p-3 rounded-xl bg-red-50 text-red-600 ring-1 ring-red-200 text-sm font-medium flex items-center gap-2">
+              <div className="mt-4 p-3 rounded-xl bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-800 text-sm font-medium flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 shrink-0" />{allocateError}
               </div>
             )}
 
             <div className="mt-5 space-y-3">
-              <label className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-colors ${allocateMode === 'ids' ? 'border-primary-400 bg-primary-50/60' : 'border-gray-200'}`}>
+              <label className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-colors ${allocateMode === 'ids' ? 'border-primary-400 dark:border-primary-500 bg-primary-50/60 dark:bg-primary-950/30' : 'border-gray-200 dark:border-neutral-700'}`}>
                 <input
                   type="radio"
                   name="alloc-mode"
@@ -798,21 +798,21 @@ const AdminVouchers = () => {
                   className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500"
                 />
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-gray-800">{t('admin.vouchers.grantSpecificUsers')}</p>
-                  <p className="text-xs text-gray-500">{t('admin.vouchers.grantUsersPlaceholder')}</p>
+                  <p className="text-sm font-semibold text-gray-800 dark:text-neutral-100">{t('admin.vouchers.grantSpecificUsers')}</p>
+                  <p className="text-xs text-gray-500 dark:text-neutral-300">{t('admin.vouchers.grantUsersPlaceholder')}</p>
                   {allocateMode === 'ids' && (
                     <textarea
                       rows={4}
                       value={allocateUserIds}
                       onChange={(e) => setAllocateUserIds(e.target.value)}
                       placeholder={'uuid-1\nuuid-2'}
-                      className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      className="mt-2 w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-gray-900 dark:text-white rounded-lg font-mono text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   )}
                 </div>
               </label>
 
-              <label className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-colors ${allocateMode === 'all' ? 'border-primary-400 bg-primary-50/60' : 'border-gray-200'}`}>
+              <label className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-colors ${allocateMode === 'all' ? 'border-primary-400 dark:border-primary-500 bg-primary-50/60 dark:bg-primary-950/30' : 'border-gray-200 dark:border-neutral-700'}`}>
                 <input
                   type="radio"
                   name="alloc-mode"
@@ -821,8 +821,8 @@ const AdminVouchers = () => {
                   className="mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500"
                 />
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-gray-800">{t('admin.vouchers.grantAllActive')}</p>
-                  <p className="text-xs text-gray-500">{t('admin.vouchers.grantAllActiveNote')}</p>
+                  <p className="text-sm font-semibold text-gray-800 dark:text-neutral-100">{t('admin.vouchers.grantAllActive')}</p>
+                  <p className="text-xs text-gray-500 dark:text-neutral-300">{t('admin.vouchers.grantAllActiveNote')}</p>
                 </div>
               </label>
             </div>
@@ -831,7 +831,7 @@ const AdminVouchers = () => {
               <button
                 type="button"
                 onClick={() => setAllocateTarget(null)}
-                className="px-5 py-2.5 text-sm font-semibold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                className="px-5 py-2.5 text-sm font-semibold text-gray-600 dark:text-neutral-200 bg-gray-100 dark:bg-neutral-800 rounded-xl hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors"
               >
                 {t('admin.vouchers.cancel')}
               </button>

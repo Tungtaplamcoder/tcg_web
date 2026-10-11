@@ -12,6 +12,9 @@ const {
   categorySchema, updateCategorySchema,
   createSetSchema, updateSetSchema,
   createRaritySchema, updateRaritySchema,
+  createSealedCategorySchema, updateSealedCategorySchema,
+  createCardConditionSchema, updateCardConditionSchema,
+  createCardLanguageSchema, updateCardLanguageSchema,
   createPostSchema, updatePostSchema, listPostsQuerySchema,
   updateOrderStatusSchema, listOrdersQuerySchema, reconcilePaymentSchema, listPaymentLogsQuerySchema,
   listUsersQuerySchema,
@@ -67,6 +70,40 @@ router.put('/rarities/:id', apiLimiter, authorize(...managementRoles), validate(
 router.patch('/rarities/:id', apiLimiter, authorize(...managementRoles), validate(updateRaritySchema), adminController.updateRarity);
 router.delete('/rarities/:id', apiLimiter, authorize('ADMIN', 'STAFF'), adminController.deleteRarity);
 
+// ==================== SEALED CATEGORY MANAGEMENT (Danh mục Sealed Product) ==
+// Dynamic sealed-product categories — CRUD parity with Rarities. GET returns
+// all rows (incl. disabled) for catalog settings; the public endpoint serves
+// active-only options to the product modal.
+router.get('/sealed-categories', apiLimiter, authorize(...managementRoles), adminController.listSealedCategories);
+router.post('/sealed-categories', apiLimiter, authorize(...managementRoles), validate(createSealedCategorySchema), adminController.createSealedCategory);
+router.put('/sealed-categories/:id', apiLimiter, authorize(...managementRoles), validate(updateSealedCategorySchema), adminController.updateSealedCategory);
+router.patch('/sealed-categories/:id', apiLimiter, authorize(...managementRoles), validate(updateSealedCategorySchema), adminController.updateSealedCategory);
+router.delete('/sealed-categories/:id', apiLimiter, authorize('ADMIN', 'STAFF'), adminController.deleteSealedCategory);
+
+// ==================== CARD CONDITION MANAGEMENT (Tình trạng thẻ) ===========
+// Dynamic card-condition options — CRUD parity with Rarities/Sealed Categories.
+// GET returns all rows (incl. disabled) for Catalog Settings; the inventory
+// product modal reads the active-only default. BOTH Admin and Staff may
+// quick-add a condition inline from the product modal; the Catalog Settings
+// management surface is Admin-only (writes/deletes restricted accordingly).
+router.get('/card-conditions', apiLimiter, authorize(...managementRoles), adminController.listCardConditions);
+router.post('/card-conditions', apiLimiter, authorize(...managementRoles), validate(createCardConditionSchema), adminController.createCardCondition);
+router.put('/card-conditions/:id', apiLimiter, authorize('ADMIN'), validate(updateCardConditionSchema), adminController.updateCardCondition);
+router.patch('/card-conditions/:id', apiLimiter, authorize('ADMIN'), validate(updateCardConditionSchema), adminController.updateCardCondition);
+router.delete('/card-conditions/:id', apiLimiter, authorize('ADMIN'), adminController.deleteCardCondition);
+
+// ==================== CARD LANGUAGE MANAGEMENT (Ngôn ngữ) ==================
+// Dynamic product-language options — CRUD parity with Rarities/Sealed
+// Categories/Card Conditions, exposed under the catalog-settings path per the
+// API contract. GET returns all rows (incl. disabled) with an aggregated
+// `productCount`; the inventory modal/filter read the active-only public
+// endpoint (GET /languages).
+router.get('/catalog-settings/languages', apiLimiter, authorize(...managementRoles), adminController.listLanguages);
+router.post('/catalog-settings/languages', apiLimiter, authorize(...managementRoles), validate(createCardLanguageSchema), adminController.createLanguage);
+router.put('/catalog-settings/languages/:id', apiLimiter, authorize(...managementRoles), validate(updateCardLanguageSchema), adminController.updateLanguage);
+router.patch('/catalog-settings/languages/:id', apiLimiter, authorize(...managementRoles), validate(updateCardLanguageSchema), adminController.updateLanguage);
+router.delete('/catalog-settings/languages/:id', apiLimiter, authorize('ADMIN', 'STAFF'), adminController.deleteLanguage);
+
 // ==================== VIRTUAL BOX MANAGEMENT ====================
 router.get('/virtual-boxes', apiLimiter, authorize(...managementRoles), requirePermission('virtual_box'), validate(listVirtualBoxesQuerySchema, 'query'), adminController.listVirtualBoxes);
 router.post('/virtual-boxes', apiLimiter, authorize(...managementRoles), requirePermission('virtual_box'), validate(createVirtualBoxSchema), adminController.createVirtualBox);
@@ -84,6 +121,8 @@ router.post('/upload-image', apiLimiter, authorize(...managementRoles), requireP
 router.get('/categories', apiLimiter, authorize(...managementRoles), adminController.listCategories);
 router.post('/categories', apiLimiter, authorize(...managementRoles), validate(categorySchema), adminController.createCategory);
 router.patch('/categories/:id', apiLimiter, authorize(...managementRoles), validate(updateCategorySchema), adminController.updateCategory);
+// PUT alias — the unified catalog Edit modal names PUT as its update verb.
+router.put('/categories/:id', apiLimiter, authorize(...managementRoles), validate(updateCategorySchema), adminController.updateCategory);
 router.delete('/categories/:id', apiLimiter, authorize('ADMIN'), adminController.deleteCategory);
 
 // ==================== POST MANAGEMENT ====================
@@ -114,6 +153,10 @@ router.get('/vouchers/:id/holders', apiLimiter, authorize(...managementRoles), r
 
 // ==================== DASHBOARD ====================
 router.get('/dashboard/stats', apiLimiter, authorize(...managementRoles), adminController.getDashboardStats);
+// Real-time top-viewed items (products + virtual boxes) for the bento widget.
+router.get('/analytics/top-viewed', apiLimiter, authorize(...managementRoles), adminController.getTopViewed);
+// Operational staff dashboard payload (packing queue, fulfillment, boxes).
+router.get('/staff-dashboard', apiLimiter, authorize(...managementRoles), adminController.getStaffDashboard);
 
 // ==================== SETTINGS (ADMIN ONLY) ====================
 router.get('/settings/sepay', apiLimiter, authorize('ADMIN'), adminController.getSepaySettings);

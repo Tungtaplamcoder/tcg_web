@@ -1,3 +1,8 @@
+// Thread pool and Rust query engine Tokio thread limits
+process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || '2';
+process.env.TOKIO_WORKER_THREADS = process.env.TOKIO_WORKER_THREADS || '1';
+process.env.PRISMA_QUERY_ENGINE_MAX_THREADS = process.env.PRISMA_QUERY_ENGINE_MAX_THREADS || '1';
+
 // Generated Prisma Client (custom output — see prisma/schema.prisma). The
 // generated client bundles its own runtime + query-engine binaries, so it
 // works even when `@prisma/client` is absent from node_modules on the
@@ -14,20 +19,21 @@ const env = require('./env');
       survives module re-loads (nodemon hot reload, Passenger restarts
       inside the same process, require-cache invalidation).
    2) BOUNDED CONNECTION POOL — connection_limit / pool_timeout are
-      enforced directly on the datasource URL (defaults: 5 / 10) so the
+      strictly capped on the datasource URL (defaults: max 5 / 10s) so the
       pool can never fan out past the MariaDB `max_connections` shared
-      quota, even for consumers that hand us a URL without params. */
+      quota, preventing the 100 NPROC limit from being exhausted. */
 
-const POOL_LIMIT = env.dbPoolLimit || 5;
-const POOL_TIMEOUT = env.dbPoolTimeout || 10;
+const POOL_LIMIT = Math.min(Number(env.dbPoolLimit) || 5, 5);
+const POOL_TIMEOUT = Number(env.dbPoolTimeout) || 10;
 
 /** Merge connection_limit / pool_timeout into a mysql:// URL (without
  *  clobbering params the operator already set, and stripping credentials
- *  from any error output). */
+ *  from any error output). Strictly caps connection_limit at POOL_LIMIT (5). */
 const withPoolParams = (url) => {
   try {
     const parsed = new URL(url);
-    if (!parsed.searchParams.has('connection_limit')) {
+    const existingLimit = parseInt(parsed.searchParams.get('connection_limit'), 10);
+    if (!existingLimit || existingLimit > POOL_LIMIT) {
       parsed.searchParams.set('connection_limit', String(POOL_LIMIT));
     }
     if (!parsed.searchParams.has('pool_timeout')) {

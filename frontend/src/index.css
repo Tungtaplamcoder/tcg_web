@@ -883,6 +883,32 @@ html.theme-boot *::after {
   }
   .animate-tcg-fade-in { animation: tcg-fade-in 0.2s ease-out both; }
 
+  /* ── Dashboard route transitions — PowerPoint-style Slide & Fade ──
+     GPU-composited transform + opacity only (never layout properties),
+     so navigations stay on the compositor thread at 60fps with zero
+     paint cost on low-spec hardware. `translate3d` promotes the layer
+     during the short 0.25s run.
+     IMPORTANT: this wrapper must NOT keep `will-change: transform` (nor a
+     lingering transform after the animation) because either one turns it
+     into a containing block for `position: fixed` descendants — which
+     would offset every modal/overlay rendered inside a dashboard route.
+     `animation-fill-mode: backwards` applies the from-state before the run
+     but leaves NO transform behind once it ends, so fixed overlays resolve
+     against the viewport again. */
+  @keyframes dash-slide-fade {
+    from { opacity: 0; transform: translate3d(20px, 0, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+  .dash-route-transition {
+    animation: dash-slide-fade 0.25s cubic-bezier(0.25, 0.1, 0.25, 1) backwards;
+    will-change: opacity;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dash-route-transition { animation: none; will-change: auto; }
+  }
+
   /* Clean card reveal — zoom-up entrance that replaced the buggy
      manual 3D flip DOM states in the unboxing modal. */
   @keyframes tcg-zoom-in {
@@ -2026,25 +2052,36 @@ html.theme-boot *::after {
       utilities above already swapped per-card backdrop-blur-* to
       -sm, this catches the CSS recipe classes the JSX reuses. */
 @media (max-width: 768px) {
-  .glass-panel {
-    background: rgba(255, 255, 255, 0.90);               /* bg-white/90 */
-    backdrop-filter: blur(4px);                          /* ≈ backdrop-blur-sm */
-    -webkit-backdrop-filter: blur(4px);
+  /* Tailwind backdrop-blur utilities are DISABLED outright on phones /
+     tablets. Every surface already carries a 90–95% opacity background,
+     so removing the live blur keeps the exact same visual weight while
+     the GPU never has to composite (and re-sample) a blur layer during
+     scroll, fling or route transition. `md:backdrop-blur-*` still applies
+     on desktop because those classes only match at ≥768px. */
+  .backdrop-blur-xs,
+  .backdrop-blur-sm,
+  .backdrop-blur,
+  .backdrop-blur-md,
+  .backdrop-blur-lg,
+  .backdrop-blur-xl,
+  .backdrop-blur-2xl,
+  .backdrop-blur-3xl {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
   }
-  .dark .glass-panel {
-    background: rgba(15, 23, 42, 0.90);                  /* bg-slate-900/90 */
-  }
+  .glass-panel,
   .glass-panel-strong {
-    background: rgba(255, 255, 255, 0.90);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    background: rgba(255, 255, 255, 0.95);               /* solid white/95 fallback */
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
+  .dark .glass-panel,
   .dark .glass-panel-strong {
-    background: rgba(15, 23, 42, 0.90);
+    background: rgba(10, 10, 10, 0.95);                  /* solid neutral-950/95 fallback */
   }
   .dash-scope .bg-white {
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
   .pd-attack-card,
   .pd-trust-pill,
@@ -2053,12 +2090,25 @@ html.theme-boot *::after {
   .glass-dark,
   .glass-pill,
   .pb-blur-1, .pb-blur-2, .pb-blur-3 {
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
   .dark .pb-blur-1, .dark .pb-blur-2, .dark .pb-blur-3 {
-    background: rgba(15, 23, 42, 0.90);                  /* solid-ish dark scrim */
+    background: rgba(10, 10, 10, 0.95);                  /* solid dark scrim */
   }
+  /* Page transition: mobile uses a short fade-UP (y:10) instead of the
+     desktop horizontal slide. A vertical-only transform cannot create
+     horizontal overflow, so it removes the scroll-jank / blank-screen
+     class of crash on low-RAM devices. */
+  .dash-route-transition {
+    animation: dash-fade-up 0.22s cubic-bezier(0.25, 0.1, 0.25, 1) backwards;
+  }
+}
+
+/* Mobile page-transition keyframe — vertical fade-up only (no X axis). */
+@keyframes dash-fade-up {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
 /* 2. Forced GPU layer acceleration on all card hover/animation
@@ -2105,12 +2155,72 @@ html.theme-boot *::after {
 button, [role='button'], [role='tab'], [role='menuitem'],
 [role='option'], [role='switch'], [role='checkbox'],
 [role='radio'], [role='slider'], summary, label:has(input),
-.touch-manipulation, .btn-primary, .btn-aura, .btn-secondary,
-.btn-ghost, .btn-danger, .gacha-cta-ghost, .vb-seg {
+a[href], .touch-manipulation, .btn-primary, .btn-aura, .btn-secondary,
+.btn-ghost, .btn-danger, .gacha-cta-ghost, .vb-seg, .card-premium,
+.vb-lift, .holo-card {
   touch-action: manipulation;
 }
 /* Range inputs keep native horizontal pan-then-slide; buttons never pan */
 input[type='range'] { touch-action: pan-y; }
+
+/* 3.b Explicit GPU-acceleration opt-in. Any animated container that is
+       promoted on its own compositor layer repaints off the main thread.
+       Applied deliberately (never to a grid of static cards) so it cannot
+       multiply layer memory on low-RAM phones. */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: transform, opacity;
+}
+
+/* 3.c Minimum 44x44px touch target (WCAG 2.5.5 / Apple HIG) — apply to
+       icon-only buttons, pills and catalog tab selectors so every tap is
+       effortless even with a thumb. */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Mobile touch-target sweep: every control inside the storefront navbar,
+   admin/staff shells, and their drawers/overlays gets a ≥44px tap surface.
+   Wide text buttons keep their natural width; icon-only buttons square up. */
+@media (max-width: 768px) {
+  [data-testid='site-header'] button,
+  [data-testid='site-header'] a,
+  [data-testid='admin-shell'] button,
+  [data-testid='admin-shell'] [role='tab'],
+  [data-testid='admin-shell'] aside a,
+  [data-testid='staff-shell'] button,
+  [data-testid='staff-shell'] [role='tab'],
+  [data-testid='staff-shell'] aside a {
+    min-height: 44px;
+  }
+  [data-testid='site-header'] button,
+  [data-testid='admin-shell'] button,
+  [data-testid='staff-shell'] button {
+    min-width: 44px;
+  }
+}
+
+/* Mobile slide-out drawer (storefront hamburger menu). GPU transform-only
+   entrance; `backwards` fill leaves no transform behind after the run. */
+@keyframes drawer-in {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+.animate-drawer-in {
+  animation: drawer-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-drawer-in { animation: none; will-change: auto; }
+}
+
+/* Kill the grey mobile tap flash without disabling focus rings. */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .gacha-cta-ghost, .vb-pack-float, .vb-pack { transition: none; }

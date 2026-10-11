@@ -30,9 +30,13 @@ async function loginAsAdmin(page) {
   await page.locator('input[type="text"]').first().fill(ADMIN_EMAIL);
   await page.locator('input[type="password"]').first().fill(ADMIN_PASSWORD);
   await Promise.all([
-    page.waitForURL(/\/admin(\/.*)?$/, { timeout: 30_000 }),
+    page.waitForURL((url) => url.pathname !== '/login', { timeout: 30_000 }),
     page.getByRole('button', { name: /đăng nhập|login|logging/i }).first().click()
   ]);
+  await page.waitForLoadState('networkidle').catch(() => {});
+  // Every role lands on the Homepage after login; open the Admin panel next.
+  await page.goto('/admin', { waitUntil: 'domcontentloaded' });
+  await page.waitForLoadState('networkidle').catch(() => {});
 }
 
 test.describe('Admin panel — editorial refactor + storefront isolation', () => {
@@ -106,10 +110,9 @@ test.describe('Admin panel — editorial refactor + storefront isolation', () =>
       await expect(sidebar.getByRole('link', { name: label, exact: true })).toBeVisible();
     }
 
-    // Store status badge replaces the old quick-create CTA.
-    const statusBadge = sidebar.getByTestId('admin-store-status');
-    await expect(statusBadge).toBeVisible();
-    await expect(statusBadge).toContainText(/đang mở cửa|open now/i);
+    // The store status badge was removed (see admin_sidebar_clean.spec.js);
+    // the old quick-create CTA stays gone too.
+    await expect(sidebar.getByTestId('admin-store-status')).toHaveCount(0);
     await expect(sidebar.getByRole('link', { name: /tạo sản phẩm|new product/i })).toHaveCount(0);
 
     // ── 5. Rose editorial dashboard content ────────────────────────────
@@ -120,18 +123,16 @@ test.describe('Admin panel — editorial refactor + storefront isolation', () =>
     const metricCard = page.locator('.border-pink-100\\/60').first();
     await expect(metricCard).toBeVisible();
 
-    // Bar + donut charts render (bar layer always mounts; zero-revenue days
-    // legitimately produce zero-height bars, so assert the layer + pie sectors).
-    await expect(page.locator('.recharts-bar').first()).toBeAttached({ timeout: 20_000 });
-    await expect(page.locator('.recharts-pie-sector').first()).toBeVisible({ timeout: 20_000 });
+    // NeuroBento charts render: the revenue area line (top-left widget).
+    // The layer always mounts; a zero-revenue day legitimately yields a
+    // zero-height area, so assert the mounted layer rather than painted pixels.
+    await expect(page.locator('.recharts-area').first()).toBeAttached({ timeout: 20_000 });
     const chartProof = await page.evaluate(() => ({
-      bars: document.querySelectorAll('.recharts-bar').length,
-      pieSectors: document.querySelectorAll('.recharts-pie-sector').length,
+      areas: document.querySelectorAll('.recharts-area').length,
       containers: document.querySelectorAll('.recharts-responsive-container').length
     }));
-    expect(chartProof.bars).toBeGreaterThanOrEqual(1);
-    expect(chartProof.pieSectors).toBeGreaterThanOrEqual(1);
-    console.log(`[CHARTS] bar=${chartProof.bars} pieSectors=${chartProof.pieSectors} containers=${chartProof.containers}`);
+    expect(chartProof.areas).toBeGreaterThanOrEqual(1);
+    console.log(`[CHARTS] area=${chartProof.areas} containers=${chartProof.containers}`);
 
     // ── 6. Screenshot of the verified editorial panel ──────────────────
     await page.evaluate(() => window.scrollTo(0, 0));

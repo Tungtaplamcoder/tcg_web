@@ -5,6 +5,7 @@ const imageService = require('../services/image.service');
 const settingsService = require('../services/settings.service');
 const { PRODUCT_CATEGORIES, resolveProductCategoryKey } = require('../constants/productCategories');
 const { permissionSelect, withPermissions, extractPermissionUpdate } = require('../utils/permissions');
+const { clearCatalogCache } = require('../utils/cache');
 
 const slugify = (text) => text.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
@@ -454,7 +455,28 @@ const listProducts = async (req, res, next) => {
       prisma.product.count({ where })
     ]);
 
-    res.status(200).json({ success: true, data: { items, meta: { page: Number(page), limit: take, totalItems, totalPages: Math.ceil(totalItems / take) } }, message: 'Products retrieved' });
+    const formatProductOutput = (p) => {
+      let imgs = p.images;
+      if (typeof imgs === 'string') {
+        try { imgs = JSON.parse(imgs); } catch { imgs = []; }
+      }
+      if (!Array.isArray(imgs)) imgs = [];
+      return {
+        ...p,
+        images: imgs,
+        frontImage: imgs[0] || null,
+        backImage: imgs[1] || p.backImage || null
+      };
+    };
+
+    res.status(200).json({
+      success: true,
+      data: {
+        items: items.map(formatProductOutput),
+        meta: { page: Number(page), limit: take, totalItems, totalPages: Math.ceil(totalItems / take) }
+      },
+      message: 'Products retrieved'
+    });
   } catch (error) { next(error); }
 };
 
@@ -469,7 +491,7 @@ const createProduct = async (req, res, next) => {
     // (cascading series → expansion from the creatable selects) the whole
     // nested chain is created/healed and the leaf row is used; otherwise the
     // single free-form `category` value is resolved as before.
-    const { variants, setIds, newSetName, shortName, backImage, tcgplayerId, category, categoryPath, images, language, cardSet, artist, ...restData } = data;
+    const { variants, setIds, newSetName, shortName, frontImage, backImage, tcgplayerId, category, categoryPath, images, language, cardSet, artist, ...restData } = data;
     const leafCategory = categoryPath?.length
       ? await resolveCategoryPath(categoryPath)
       : null;
@@ -483,15 +505,35 @@ const createProduct = async (req, res, next) => {
       finalSetIds.push(await resolveOrCreateSetId(newSetName));
     }
 
+    let sanitizedImages = [];
+    if (Array.isArray(images)) {
+      sanitizedImages = images.filter((img) => typeof img === 'string' && img.trim().length > 0);
+    } else if (typeof images === 'string') {
+      try {
+        const parsed = JSON.parse(images);
+        if (Array.isArray(parsed)) sanitizedImages = parsed.filter((img) => typeof img === 'string' && img.trim().length > 0);
+      } catch {
+        if (images.trim()) sanitizedImages = [images.trim()];
+      }
+    }
+    if (sanitizedImages.length === 0 && frontImage && String(frontImage).trim()) {
+      sanitizedImages.push(String(frontImage).trim());
+    }
+    if (sanitizedImages.length <= 1 && backImage && String(backImage).trim()) {
+      sanitizedImages.push(String(backImage).trim());
+    }
+
+    const finalBackImage = sanitizedImages[1] || (backImage && String(backImage).trim()) || null;
+
     const product = await prisma.product.create({
       data: {
         ...restData,
         slug,
         categoryId: resolvedCategoryId,
-        // MariaDB: images là JSON — ép về mảng (mặc định rỗng)
-        images: Array.isArray(images) ? images : [],
+        // MariaDB: images là JSON — lưu mảng URL
+        images: sanitizedImages,
         shortName: shortName || null,
-        backImage: backImage || null,
+        backImage: finalBackImage,
         tcgplayerId: tcgplayerId || null,
         // TCG metadata (single cards)
         language: language || null,
@@ -514,7 +556,15 @@ const createProduct = async (req, res, next) => {
       include: { variants: true, sets: true, category: true }
     });
 
-    res.status(201).json({ success: true, data: product, message: 'Product created' });
+    const responseData = {
+      ...product,
+      images: sanitizedImages,
+      frontImage: sanitizedImages[0] || null,
+      backImage: finalBackImage
+    };
+
+    clearCatalogCache();
+    res.status(201).json({ success: true, data: responseData, message: 'Product created' });
   } catch (error) { next(error); }
 };
 
@@ -522,7 +572,7 @@ const updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
     const data = { ...req.body };
-    const product = await prisma.product.findUnique({ where: { id }, include: { variants: true, sets: true } });
+    const product = await prisma.product.findUnique({ where: { id }, include: { variants: true, sets: true, category: true } });
     if (!product) throw new NotFoundError('Product not found');
 
     let slug = product.slug;
@@ -533,7 +583,7 @@ const updateProduct = async (req, res, next) => {
       if (existing && existing.id !== id) throw new ConflictError('Slug already exists');
     }
 
-    const { variants, setIds, newSetName, shortName, backImage, tcgplayerId, category, categoryPath, images, language, cardSet, artist, ...restData } = data;
+    const { variants, setIds, newSetName, shortName, frontImage, backImage, tcgplayerId, category, categoryPath, images, language, cardSet, artist, ...restData } = data;
 
     // Resolve the category reference if it is being changed
     let resolvedCategoryId = product.categoryId;
@@ -553,14 +603,43 @@ const updateProduct = async (req, res, next) => {
     // Xử lý variants: xóa cũ, tạo mới (đơn giản và an toàn)
     await prisma.productVariant.deleteMany({ where: { productId: id } });
 
+    let updatedImages = product.images || [];
+    if (typeof updatedImages === 'string') {
+      try { updatedImages = JSON.parse(updatedImages); } catch { updatedImages = []; }
+    }
+    if (!Array.isArray(updatedImages)) updatedImages = [];
+
+    let hasImageUpdate = false;
+    if (images !== undefined) {
+      hasImageUpdate = true;
+      updatedImages = Array.isArray(images)
+        ? images.filter((img) => typeof img === 'string' && img.trim().length > 0)
+        : [];
+    }
+    if (frontImage !== undefined && String(frontImage).trim()) {
+      hasImageUpdate = true;
+      if (updatedImages.length === 0) updatedImages.push(String(frontImage).trim());
+      else updatedImages[0] = String(frontImage).trim();
+    }
+    if (backImage !== undefined && String(backImage).trim()) {
+      hasImageUpdate = true;
+      if (updatedImages.length <= 1) {
+        if (updatedImages.length === 0) updatedImages.push('');
+        updatedImages[1] = String(backImage).trim();
+      } else {
+        updatedImages[1] = String(backImage).trim();
+      }
+    }
+
+    const finalBackImage = updatedImages[1] || (backImage !== undefined ? (backImage || null) : product.backImage);
+
     const updateData = {
       ...restData,
       slug,
       categoryId: resolvedCategoryId,
-      // MariaDB: images là JSON — chỉ cập nhật khi client gửi, ép về mảng
-      ...(images !== undefined && { images: Array.isArray(images) ? images : [] }),
+      ...(hasImageUpdate && { images: updatedImages }),
       shortName: shortName !== undefined ? (shortName || null) : product.shortName,
-      backImage: backImage !== undefined ? (backImage || null) : product.backImage,
+      backImage: finalBackImage,
       tcgplayerId: tcgplayerId !== undefined ? (tcgplayerId || null) : product.tcgplayerId,
       // TCG metadata (single cards) — null clears, undefined keeps existing
       language: language !== undefined ? (language || null) : product.language,
@@ -577,6 +656,13 @@ const updateProduct = async (req, res, next) => {
       data: updateData,
     });
 
+    // Auto-purge rule: if the product was re-tagged away from its previous
+    // category and no products remain there, archive the empty sealed
+    // category (opt-in via AUTO_CLEAN_EMPTY_CATEGORIES=true).
+    if (product.category?.slug && product.categoryId !== resolvedCategoryId) {
+      await autoArchiveEmptySealedCategory(product.category.slug);
+    }
+
     if (variants && variants.length > 0) {
       await prisma.productVariant.createMany({
         data: variants.map(v => ({
@@ -592,18 +678,38 @@ const updateProduct = async (req, res, next) => {
     }
 
     const updated = await prisma.product.findUnique({ where: { id }, include: { variants: true, sets: true, category: true } });
-    res.status(200).json({ success: true, data: updated, message: 'Product updated' });
+    let finalImgs = updated.images;
+    if (typeof finalImgs === 'string') {
+      try { finalImgs = JSON.parse(finalImgs); } catch { finalImgs = []; }
+    }
+    if (!Array.isArray(finalImgs)) finalImgs = [];
+
+    const responseData = {
+      ...updated,
+      images: finalImgs,
+      frontImage: finalImgs[0] || null,
+      backImage: finalImgs[1] || updated.backImage || null
+    };
+
+    clearCatalogCache();
+    res.status(200).json({ success: true, data: responseData, message: 'Product updated' });
   } catch (error) { next(error); }
 };
 
 const deleteProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const product = await prisma.product.findUnique({ where: { id } });
+    const product = await prisma.product.findUnique({ where: { id }, include: { category: true } });
     if (!product) throw new NotFoundError('Product not found');
 
     await prisma.productVariant.deleteMany({ where: { productId: id } });
     await prisma.product.delete({ where: { id } });
+
+    // Auto-purge rule: if this was the last product tagged with a sealed
+    // category, archive the now-empty catalogue entry (opt-in).
+    await autoArchiveEmptySealedCategory(product.category?.slug);
+
+    clearCatalogCache();
     res.status(200).json({ success: true, message: 'Product deleted permanently' });
   } catch (error) { next(error); }
 };
@@ -656,6 +762,7 @@ const createCategory = async (req, res, next) => {
       },
       include: { parent: { select: { id: true, name: true, slug: true } } }
     });
+    clearCatalogCache();
     res.status(201).json({ success: true, data: category, message: 'Category created' });
   } catch (error) { next(error); }
 };
@@ -684,6 +791,7 @@ const updateCategory = async (req, res, next) => {
     }
 
     const updated = await prisma.category.update({ where: { id }, data });
+    clearCatalogCache();
     res.status(200).json({ success: true, data: updated, message: 'Category updated' });
   } catch (error) { next(error); }
 };
@@ -708,6 +816,7 @@ const deleteCategory = async (req, res, next) => {
     }
 
     await prisma.category.delete({ where: { id } });
+    clearCatalogCache();
     res.status(200).json({ success: true, message: 'Category deleted' });
   } catch (error) { next(error); }
 };
@@ -786,6 +895,7 @@ const createSet = async (req, res, next) => {
       if (codeTaken) throw new ConflictError(`Set code "${code}" is already used by "${codeTaken.name}"`);
     }
     const set = await prisma.set.create({ data: { name, slug, code: code || null } });
+    clearCatalogCache();
     res.status(201).json({ success: true, data: set, message: 'Set created' });
   } catch (error) { next(error); }
 };
@@ -806,6 +916,7 @@ const updateSet = async (req, res, next) => {
       if (codeTaken) throw new ConflictError(`Set code "${nextCode}" is already used by "${codeTaken.name}"`);
     }
     const updated = await prisma.set.update({ where: { id }, data: { name: name ?? set.name, slug, code: nextCode, updatedAt: new Date() } });
+    clearCatalogCache();
     res.status(200).json({ success: true, data: updated, message: 'Set updated' });
   } catch (error) { next(error); }
 };
@@ -821,11 +932,39 @@ const deleteSet = async (req, res, next) => {
       await tx.product.deleteMany({ where: { sets: { some: { id } } } });
       await tx.set.delete({ where: { id } });
     });
+    clearCatalogCache();
     res.status(200).json({ success: true, message: 'Set and its products deleted' });
   } catch (error) { next(error); }
 };
 
 // ==================== RARITY MANAGEMENT (Độ hiếm) ====================
+
+// Batch usage counts for a list of rarity options — one grouped product scan
+// instead of N queries. Product.rarity stores the rarity `name`. Returns
+// Map(rarityId -> non-deleted product count).
+const rarityUsageCounts = async (rarities) => {
+  const counts = new Map();
+  if (!rarities.length) return counts;
+
+  const groups = await prisma.product.groupBy({
+    by: ['rarity'],
+    where: { deletedAt: null, rarity: { not: null } },
+    _count: { _all: true }
+  });
+
+  const byRarityValue = new Map();
+  for (const group of groups) {
+    const key = String(group.rarity || '').trim().toLowerCase();
+    if (!key) continue;
+    byRarityValue.set(key, (byRarityValue.get(key) || 0) + group._count._all);
+  }
+
+  for (const rarity of rarities) {
+    const key = String(rarity.name || '').trim().toLowerCase();
+    counts.set(rarity.id, key ? (byRarityValue.get(key) || 0) : 0);
+  }
+  return counts;
+};
 
 // Dynamic rarity options — managed like Series/Era + Expansion Sets.
 // `activeOnly=false` returns disabled rarities too (catalog settings page).
@@ -834,28 +973,22 @@ const listRarities = async (req, res, next) => {
     const activeOnly = req.query.activeOnly !== 'false';
     const rarities = await prisma.rarity.findMany({
       where: activeOnly ? { isActive: true } : {},
-      orderBy: [{ code: 'asc' }]
+      orderBy: [{ name: 'asc' }]
     });
-    res.status(200).json({ success: true, data: rarities, message: 'Rarities retrieved' });
+    const usageCounts = await rarityUsageCounts(rarities);
+    const data = rarities.map((r) => ({ ...r, productCount: usageCounts.get(r.id) || 0 }));
+    res.status(200).json({ success: true, data, message: 'Rarities retrieved' });
   } catch (error) { next(error); }
 };
 
 const createRarity = async (req, res, next) => {
   try {
-    const { name, code, description, isActive } = req.body;
+    const { name, isActive } = req.body;
     const finalName = String(name).trim();
-    const finalCode = String(code || name).trim();
-    const dupe = await prisma.rarity.findFirst({
-      where: { OR: [{ code: finalCode }, { name: finalName }] }
-    });
-    if (dupe) throw new ConflictError(`Rarity "${dupe.code}" already exists`);
+    const dupe = await prisma.rarity.findFirst({ where: { name: finalName } });
+    if (dupe) throw new ConflictError(`Rarity "${dupe.name}" already exists`);
     const rarity = await prisma.rarity.create({
-      data: {
-        name: finalName,
-        code: finalCode,
-        description: description ? String(description).trim() : null,
-        isActive: isActive ?? true
-      }
+      data: { name: finalName, isActive: isActive ?? true }
     });
     res.status(201).json({ success: true, data: rarity, message: 'Rarity created' });
   } catch (error) { next(error); }
@@ -866,7 +999,7 @@ const updateRarity = async (req, res, next) => {
     const { id } = req.params;
     const existing = await prisma.rarity.findUnique({ where: { id } });
     if (!existing) throw new NotFoundError('Rarity not found');
-    const { name, code, description, isActive } = req.body;
+    const { name, isActive } = req.body;
 
     const data = {};
     if (name !== undefined) {
@@ -877,15 +1010,6 @@ const updateRarity = async (req, res, next) => {
       }
       data.name = nextName;
     }
-    if (code !== undefined) {
-      const nextCode = String(code).trim();
-      if (nextCode !== existing.code) {
-        const taken = await prisma.rarity.findFirst({ where: { code: nextCode, id: { not: id } } });
-        if (taken) throw new ConflictError(`Rarity code "${nextCode}" already exists`);
-      }
-      data.code = nextCode;
-    }
-    if (description !== undefined) data.description = description ? String(description).trim() : null;
     if (isActive !== undefined) data.isActive = isActive;
 
     const updated = await prisma.rarity.update({ where: { id }, data });
@@ -900,6 +1024,343 @@ const deleteRarity = async (req, res, next) => {
     if (!rarity) throw new NotFoundError('Rarity not found');
     await prisma.rarity.delete({ where: { id } });
     res.status(200).json({ success: true, message: 'Rarity deleted' });
+  } catch (error) { next(error); }
+};
+
+// ==================== CARD CONDITION MANAGEMENT (Tình trạng thẻ) ===========
+
+// Batch usage counts for a list of card-condition options — one grouped
+// ProductVariant scan instead of N queries. ProductVariant.condition stores
+// the condition `name`. Returns Map(conditionId -> non-deleted product count).
+const conditionUsageCounts = async (conditions) => {
+  const counts = new Map();
+  if (!conditions.length) return counts;
+
+  const groups = await prisma.productVariant.groupBy({
+    by: ['condition'],
+    where: { product: { deletedAt: null } },
+    _count: { _all: true }
+  });
+
+  const byValue = new Map();
+  for (const group of groups) {
+    const key = String(group.condition || '').trim().toLowerCase();
+    if (!key) continue;
+    byValue.set(key, (byValue.get(key) || 0) + group._count._all);
+  }
+
+  for (const condition of conditions) {
+    const key = String(condition.name || '').trim().toLowerCase();
+    counts.set(condition.id, key ? (byValue.get(key) || 0) : 0);
+  }
+  return counts;
+};
+
+// Dynamic card-condition options ("Tình trạng thẻ") — managed like Rarities /
+// Sealed Categories. `activeOnly=false` returns disabled rows too (catalog
+// settings); the inventory modal reads the default active-only list.
+const listCardConditions = async (req, res, next) => {
+  try {
+    const activeOnly = req.query.activeOnly !== 'false';
+    const conditions = await prisma.cardConditionOption.findMany({
+      where: activeOnly ? { isActive: true } : {},
+      orderBy: [{ name: 'asc' }]
+    });
+    const usageCounts = await conditionUsageCounts(conditions);
+    const data = conditions.map((c) => ({ ...c, productCount: usageCounts.get(c.id) || 0 }));
+    res.status(200).json({ success: true, data, message: 'Card conditions retrieved' });
+  } catch (error) { next(error); }
+};
+
+const createCardCondition = async (req, res, next) => {
+  try {
+    const { name, isActive } = req.body;
+    const finalName = String(name).trim();
+    const dupe = await prisma.cardConditionOption.findFirst({ where: { name: finalName } });
+    if (dupe) throw new ConflictError(`Card condition "${dupe.name}" already exists`);
+    const condition = await prisma.cardConditionOption.create({
+      data: { name: finalName, isActive: isActive ?? true }
+    });
+    res.status(201).json({ success: true, data: condition, message: 'Card condition created' });
+  } catch (error) { next(error); }
+};
+
+const updateCardCondition = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.cardConditionOption.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundError('Card condition not found');
+    const { name, isActive } = req.body;
+
+    const data = {};
+    if (name !== undefined) {
+      const nextName = String(name).trim();
+      if (nextName !== existing.name) {
+        const taken = await prisma.cardConditionOption.findFirst({ where: { name: nextName, id: { not: id } } });
+        if (taken) throw new ConflictError(`Card condition name "${nextName}" already exists`);
+      }
+      data.name = nextName;
+    }
+    if (isActive !== undefined) data.isActive = isActive;
+
+    const updated = await prisma.cardConditionOption.update({ where: { id }, data });
+    res.status(200).json({ success: true, data: updated, message: 'Card condition updated' });
+  } catch (error) { next(error); }
+};
+
+const deleteCardCondition = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const condition = await prisma.cardConditionOption.findUnique({ where: { id } });
+    if (!condition) throw new NotFoundError('Card condition not found');
+    await prisma.cardConditionOption.delete({ where: { id } });
+    res.status(200).json({ success: true, message: 'Card condition deleted' });
+  } catch (error) { next(error); }
+};
+
+// ==================== CARD LANGUAGE MANAGEMENT (Ngôn ngữ) ==================
+
+// Batch usage counts for a list of language options — one grouped product scan
+// instead of N queries. Product.language stores the language `name` as a free
+// string. Returns Map(languageId -> non-deleted product count).
+const languageUsageCounts = async (languages) => {
+  const counts = new Map();
+  if (!languages.length) return counts;
+
+  const groups = await prisma.product.groupBy({
+    by: ['language'],
+    where: { deletedAt: null, language: { not: null } },
+    _count: { _all: true }
+  });
+
+  const byValue = new Map();
+  for (const group of groups) {
+    const key = String(group.language || '').trim().toLowerCase();
+    if (!key) continue;
+    byValue.set(key, (byValue.get(key) || 0) + group._count._all);
+  }
+
+  for (const language of languages) {
+    const key = String(language.name || '').trim().toLowerCase();
+    counts.set(language.id, key ? (byValue.get(key) || 0) : 0);
+  }
+  return counts;
+};
+
+// Dynamic product-language options ("Ngôn ngữ") — managed like Rarities /
+// Sealed Categories / Card Conditions. `activeOnly=false` returns disabled
+// rows too (catalog settings page). Aggregates the linked product count as
+// `productCount` (equivalent to `_count.products`) for the "SỐ SẢN PHẨM" column.
+const listLanguages = async (req, res, next) => {
+  try {
+    const activeOnly = req.query.activeOnly !== 'false';
+    const languages = await prisma.cardLanguage.findMany({
+      where: activeOnly ? { isActive: true } : {},
+      orderBy: [{ name: 'asc' }]
+    });
+    const usageCounts = await languageUsageCounts(languages);
+    const data = languages.map((l) => ({ ...l, productCount: usageCounts.get(l.id) || 0 }));
+    res.status(200).json({ success: true, data, message: 'Languages retrieved' });
+  } catch (error) { next(error); }
+};
+
+const createLanguage = async (req, res, next) => {
+  try {
+    const { name, isActive } = req.body;
+    const finalName = String(name).trim();
+    const dupe = await prisma.cardLanguage.findFirst({ where: { name: finalName } });
+    if (dupe) throw new ConflictError(`Language "${dupe.name}" already exists`);
+    const language = await prisma.cardLanguage.create({
+      data: { name: finalName, isActive: isActive ?? true }
+    });
+    res.status(201).json({ success: true, data: language, message: 'Language created' });
+  } catch (error) { next(error); }
+};
+
+const updateLanguage = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.cardLanguage.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundError('Language not found');
+    const { name, isActive } = req.body;
+
+    const data = {};
+    if (name !== undefined) {
+      const nextName = String(name).trim();
+      if (nextName !== existing.name) {
+        const taken = await prisma.cardLanguage.findFirst({ where: { name: nextName, id: { not: id } } });
+        if (taken) throw new ConflictError(`Language name "${nextName}" already exists`);
+      }
+      data.name = nextName;
+    }
+    if (isActive !== undefined) data.isActive = isActive;
+
+    const updated = await prisma.cardLanguage.update({ where: { id }, data });
+    res.status(200).json({ success: true, data: updated, message: 'Language updated' });
+  } catch (error) { next(error); }
+};
+
+const deleteLanguage = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const language = await prisma.cardLanguage.findUnique({ where: { id } });
+    if (!language) throw new NotFoundError('Language not found');
+
+    const usageCounts = await languageUsageCounts([language]);
+    const productCount = usageCounts.get(language.id) || 0;
+    if (productCount > 0) {
+      throw new ConflictError('Không thể xoá khi còn sản phẩm liên kết');
+    }
+
+    await prisma.cardLanguage.delete({ where: { id } });
+    res.status(200).json({ success: true, message: 'Language deleted' });
+  } catch (error) { next(error); }
+};
+
+// ==================== SEALED CATEGORY MANAGEMENT (Danh mục Sealed Product) ==
+
+// Dynamic sealed-product categories — CRUD parity with Rarities. GET returns
+// all rows so catalog settings can manage disabled options too; the product
+// modal reads the public /sealed-categories endpoint (active only).
+const listSealedCategories = async (req, res, next) => {
+  try {
+    const activeOnly = req.query.activeOnly !== 'false';
+    const categories = await prisma.sealedCategory.findMany({
+      where: activeOnly ? { isActive: true } : {},
+      orderBy: [{ name: 'asc' }]
+    });
+    const usageCounts = await sealedCategoryUsageCounts(categories);
+    const data = categories.map((c) => ({ ...c, productCount: usageCounts.get(c.id) || 0 }));
+    res.status(200).json({ success: true, data, message: 'Sealed categories retrieved' });
+  } catch (error) { next(error); }
+};
+
+const createSealedCategory = async (req, res, next) => {
+  try {
+    const { name, isActive } = req.body;
+    const finalName = String(name).trim();
+    const dupe = await prisma.sealedCategory.findFirst({ where: { name: finalName } });
+    if (dupe) throw new ConflictError(`Sealed category "${dupe.name}" already exists`);
+    const category = await prisma.sealedCategory.create({
+      data: { name: finalName, isActive: isActive ?? true }
+    });
+    res.status(201).json({ success: true, data: category, message: 'Sealed category created' });
+  } catch (error) { next(error); }
+};
+
+const updateSealedCategory = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.sealedCategory.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundError('Sealed category not found');
+    const { name, isActive } = req.body;
+
+    const data = {};
+    if (name !== undefined) {
+      const nextName = String(name).trim();
+      if (nextName !== existing.name) {
+        const taken = await prisma.sealedCategory.findFirst({ where: { name: nextName, id: { not: id } } });
+        if (taken) throw new ConflictError(`Sealed category name "${nextName}" already exists`);
+      }
+      data.name = nextName;
+    }
+    if (isActive !== undefined) data.isActive = isActive;
+
+    const updated = await prisma.sealedCategory.update({ where: { id }, data });
+    res.status(200).json({ success: true, data: updated, message: 'Sealed category updated' });
+  } catch (error) { next(error); }
+};
+
+// The product form stores a SealedCategory `name` as the leaf Category slug
+// (categoryPath ["BOX", name]) and, for legacy rows, the category name. So a
+// sealed category's usage count is the number of non-deleted products whose
+// leaf Category slug matches any normalized variant of name / slugified name.
+const sealedCategoryProductSlugs = (category) => {
+  const slugs = new Set();
+  const raw = category?.name;
+  if (raw !== undefined && raw !== null) {
+    const value = String(raw).trim();
+    if (value) {
+      slugs.add(value);
+      const slug = slugify(value);
+      if (slug) slugs.add(slug);
+    }
+  }
+  return [...slugs];
+};
+
+const countProductsForSealedCategory = async (category) => {
+  const slugs = sealedCategoryProductSlugs(category);
+  if (slugs.length === 0) return 0;
+  return prisma.product.count({
+    where: { deletedAt: null, category: { slug: { in: slugs } } }
+  });
+};
+
+// Batch usage counts for a list of sealed categories — a single product scan
+// instead of N queries. Returns Map(sealedCategoryId -> linked product count),
+// used by the Catalog Settings "Số sản phẩm" column.
+const sealedCategoryUsageCounts = async (categories) => {
+  const slugToCategoryIds = new Map();
+  for (const category of categories) {
+    for (const slug of sealedCategoryProductSlugs(category)) {
+      const ids = slugToCategoryIds.get(slug) || [];
+      if (!ids.includes(category.id)) ids.push(category.id);
+      slugToCategoryIds.set(slug, ids);
+    }
+  }
+  const slugs = [...slugToCategoryIds.keys()];
+  const counts = new Map();
+  if (slugs.length === 0) return counts;
+
+  const rows = await prisma.product.findMany({
+    where: { deletedAt: null, category: { slug: { in: slugs } } },
+    select: { category: { select: { slug: true } } }
+  });
+  for (const row of rows) {
+    const slug = row.category?.slug;
+    for (const id of (slugToCategoryIds.get(slug) || [])) {
+      counts.set(id, (counts.get(id) || 0) + 1);
+    }
+  }
+  return counts;
+};
+
+// Optional dynamic rule: when enabled via AUTO_CLEAN_EMPTY_CATEGORIES=true,
+// deleting/unlinking the last product of a sealed category archives (soft
+// disables) the now-empty catalogue entry instead of leaving it dangling.
+const isAutoCleanEmptyCategoriesEnabled = () =>
+  String(process.env.AUTO_CLEAN_EMPTY_CATEGORIES || '').toLowerCase() === 'true';
+
+const autoArchiveEmptySealedCategory = async (categorySlug) => {
+  const slug = categorySlug ? String(categorySlug).trim() : '';
+  if (!isAutoCleanEmptyCategoriesEnabled() || !slug) return null;
+  const sealed = await prisma.sealedCategory.findFirst({
+    where: { OR: [{ name: slug }, { name: slugify(slug) }] }
+  });
+  if (!sealed || !sealed.isActive) return null;
+  const remaining = await countProductsForSealedCategory(sealed);
+  if (remaining > 0) return null;
+  return prisma.sealedCategory.update({ where: { id: sealed.id }, data: { isActive: false } });
+};
+
+const deleteSealedCategory = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const category = await prisma.sealedCategory.findUnique({ where: { id } });
+    if (!category) throw new NotFoundError('Sealed category not found');
+
+    // Safeguard: never orphan products that are still tagged with this
+    // category. Admin must unlink/re-tag them first.
+    const usageCount = await countProductsForSealedCategory(category);
+    if (usageCount > 0) {
+      throw new ConflictError(
+        `Không thể xóa danh mục này vì còn ${usageCount} sản phẩm đang sử dụng. Vui lòng gỡ tag sản phẩm trước.`
+      );
+    }
+
+    await prisma.sealedCategory.delete({ where: { id } });
+    res.status(200).json({ success: true, message: 'Sealed category deleted' });
   } catch (error) { next(error); }
 };
 
@@ -1386,21 +1847,17 @@ const updateVirtualBox = async (req, res, next) => {
 const deleteVirtualBox = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const permanent = req.query.permanent === 'true';
-    const box = await prisma.virtualBox.findUnique({ where: { id }, include: { _count: { select: { openings: true } } } });
+    const box = await prisma.virtualBox.findUnique({ where: { id }, select: { id: true } });
     if (!box) throw new NotFoundError('Virtual box not found');
 
-    if (permanent) {
-      if (box._count.openings > 0) {
-        throw new ConflictError('Cannot permanently delete a virtual box with opening history. Archive it instead.');
-      }
-      await prisma.virtualBox.delete({ where: { id } });
-      return res.status(200).json({ success: true, message: 'Virtual box deleted permanently' });
-    }
+    // Hard delete: purge the card pool mappings first, then the box record.
+    // Drop rates / openings are removed by the schema's ON DELETE CASCADE.
+    await prisma.$transaction(async (tx) => {
+      await tx.virtualBoxPoolItem.deleteMany({ where: { boxId: id } });
+      await tx.virtualBox.delete({ where: { id } });
+    });
 
-    if (box.status === 'ARCHIVED') throw new ConflictError('Virtual box is already archived');
-    await prisma.virtualBox.update({ where: { id }, data: { status: 'ARCHIVED' } });
-    res.status(200).json({ success: true, message: 'Virtual box archived' });
+    res.status(200).json({ success: true, message: 'Virtual box deleted permanently' });
   } catch (error) { next(error); }
 };
 
@@ -1462,6 +1919,153 @@ const updateSiteSettings = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+// ==================== TOP VIEWED ANALYTICS ====================
+
+const firstImage = (images) => (Array.isArray(images) ? images.find(Boolean) || null : null);
+
+const mapOrderRow = (order) => ({
+  id: order.id,
+  orderCode: order.orderCode,
+  status: order.status,
+  grandTotal: order.grandTotal,
+  createdAt: order.createdAt,
+  updatedAt: order.updatedAt,
+  customer: order.user?.fullName || order.user?.email || null
+});
+
+// GET /api/v1/admin/analytics/top-viewed
+// Merges the most-viewed ACTIVE products and virtual boxes (by the monotonic
+// `view_count` column) into one ranked list for the admin dashboard widget.
+const getTopViewed = async (req, res, next) => {
+  try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 3, 1), 20);
+    const [products, boxes] = await Promise.all([
+      prisma.product.findMany({
+        where: { status: 'ACTIVE' },
+        orderBy: [{ viewCount: 'desc' }, { updatedAt: 'desc' }],
+        take: limit,
+        include: { category: { select: { name: true, slug: true } } }
+      }),
+      prisma.virtualBox.findMany({
+        where: { status: 'ACTIVE' },
+        orderBy: [{ viewCount: 'desc' }, { updatedAt: 'desc' }],
+        take: limit
+      })
+    ]);
+
+    const items = [
+      ...products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        type: 'PRODUCT',
+        href: `/product/${p.id}`,
+        imageUrl: firstImage(p.images),
+        category: p.category?.name || 'Single Card',
+        tag: p.rarity || p.cardSet || null,
+        viewCount: p.viewCount || 0
+      })),
+      ...boxes.map((b) => ({
+        id: b.id,
+        name: b.name,
+        type: 'VIRTUAL_BOX',
+        href: `/virtual-boxes/${b.id}`,
+        imageUrl: b.imageUrl || null,
+        category: 'Virtual Box',
+        tag: 'Hộp ảo',
+        viewCount: b.viewCount || 0
+      }))
+    ]
+      .sort((a, b) => b.viewCount - a.viewCount)
+      .slice(0, limit);
+
+    res.status(200).json({ success: true, data: { items }, message: 'Top viewed items retrieved' });
+  } catch (error) { next(error); }
+};
+
+// ==================== STAFF OPERATIONAL DASHBOARD ====================
+
+const startOfToday = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+// GET /api/v1/admin/staff-dashboard
+// 100% operational payload: packing queue, daily fulfillment progress, active
+// virtual boxes with real-time daily unboxing counts, recent completions.
+const getStaffDashboard = async (req, res, next) => {
+  try {
+    const today = startOfToday();
+    const PROCESSED = ['PACKAGING', 'SHIPPING', 'DELIVERED'];
+
+    const [
+      packingQueue,
+      packingTotal,
+      todayTotal,
+      todayProcessed,
+      activeBoxes,
+      todayOpenings,
+      totalOpenings,
+      recentlyCompleted
+    ] = await Promise.all([
+      prisma.order.findMany({
+        where: { status: 'PACKAGING' },
+        orderBy: { createdAt: 'asc' },
+        take: 8,
+        include: { user: { select: { fullName: true, email: true } } }
+      }),
+      prisma.order.count({ where: { status: 'PACKAGING' } }),
+      prisma.order.count({ where: { createdAt: { gte: today } } }),
+      prisma.order.count({ where: { createdAt: { gte: today }, status: { in: PROCESSED } } }),
+      prisma.virtualBox.findMany({
+        where: { status: 'ACTIVE' },
+        orderBy: { createdAt: 'asc' },
+        take: 6,
+        select: { id: true, name: true, slug: true, imageUrl: true, gradient: true, price: true, viewCount: true }
+      }),
+      prisma.virtualBoxOpening.groupBy({
+        by: ['boxId'],
+        where: { createdAt: { gte: today } },
+        _count: { _all: true }
+      }),
+      prisma.virtualBoxOpening.groupBy({ by: ['boxId'], _count: { _all: true } }),
+      prisma.order.findMany({
+        where: { status: { in: ['SHIPPING', 'DELIVERED'] } },
+        orderBy: { updatedAt: 'desc' },
+        take: 5,
+        include: { user: { select: { fullName: true, email: true } } }
+      })
+    ]);
+
+    const todayMap = new Map(todayOpenings.map((r) => [r.boxId, r._count?._all || 0]));
+    const totalMap = new Map(totalOpenings.map((r) => [r.boxId, r._count?._all || 0]));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        packingQueue: packingQueue.map(mapOrderRow),
+        packingTotal,
+        todayTotal,
+        todayProcessed,
+        processedRate: todayTotal > 0 ? Math.round((todayProcessed / todayTotal) * 100) : 0,
+        activeBoxes: activeBoxes.map((b) => ({
+          id: b.id,
+          name: b.name,
+          slug: b.slug,
+          imageUrl: b.imageUrl || null,
+          gradient: b.gradient || null,
+          price: b.price,
+          viewCount: b.viewCount || 0,
+          todayOpenings: todayMap.get(b.id) || 0,
+          totalOpenings: totalMap.get(b.id) || 0
+        })),
+        recentlyCompleted: recentlyCompleted.map(mapOrderRow)
+      },
+      message: 'Staff dashboard retrieved'
+    });
+  } catch (error) { next(error); }
+};
+
 // ==================== EXPORT ====================
 
 module.exports = {
@@ -1469,11 +2073,15 @@ module.exports = {
   listProducts, createProduct, updateProduct, deleteProduct, addCards, updateCard, uploadImage,
   listSets, createSet, updateSet, deleteSet,
   listRarities, createRarity, updateRarity, deleteRarity,
+  listCardConditions, createCardCondition, updateCardCondition, deleteCardCondition,
+  listLanguages, createLanguage, updateLanguage, deleteLanguage,
+  listSealedCategories, createSealedCategory, updateSealedCategory, deleteSealedCategory,
   listCategories: listAdminCategories, createCategory, updateCategory, deleteCategory,
   listPosts, createPost, updatePost, deletePost,
   listOrders, updateOrderStatus,
   listPaymentLogs, reconcilePayment,
   getDashboardStats,
+  getTopViewed, getStaffDashboard,
   listVirtualBoxes, createVirtualBox, updateVirtualBox, deleteVirtualBox,
   getSepaySettings, updateSepaySettings,
   getShopSettings, updateShopSettings,

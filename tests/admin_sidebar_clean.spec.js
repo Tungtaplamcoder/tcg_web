@@ -30,9 +30,13 @@ async function loginAsAdmin(page) {
   await page.locator('input[type="text"]').first().fill(ADMIN_EMAIL);
   await page.locator('input[type="password"]').first().fill(ADMIN_PASSWORD);
   await Promise.all([
-    page.waitForURL(/\/admin(\/.*)?$/, { timeout: 30_000 }),
+    page.waitForURL((url) => url.pathname !== '/login', { timeout: 30_000 }),
     page.getByRole('button', { name: /đăng nhập|login|logging/i }).first().click()
   ]);
+  await page.waitForLoadState('networkidle').catch(() => {});
+  // Every role lands on the Homepage after login; open the Admin panel next.
+  await page.goto('/admin', { waitUntil: 'domcontentloaded' });
+  await page.waitForLoadState('networkidle').catch(() => {});
 }
 
 /** sRGB relative luminance (0 = black, 1 = white). */

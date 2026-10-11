@@ -15,7 +15,9 @@
  * so we never hit the LVE NPROC limit ("fork: Resource temporarily
  * unavailable"). Small libuv threadpool to bound per-process memory.
  */
-process.env.UV_THREADPOOL_SIZE = '4';
+process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || '2';
+process.env.TOKIO_WORKER_THREADS = process.env.TOKIO_WORKER_THREADS || '1';
+process.env.PRISMA_QUERY_ENGINE_MAX_THREADS = process.env.PRISMA_QUERY_ENGINE_MAX_THREADS || '1';
 
 // Defensive guard: refuse to run if Passenger/PM2 config drift ever launches
 // us as a cluster worker — this entry point must stay single-instance.

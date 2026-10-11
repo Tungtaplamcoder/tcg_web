@@ -66,7 +66,7 @@ const dbPort = parseInt(process.env.DB_PORT, 10) || 3306;
 const dbUser = process.env.DB_USER;
 const dbPass = process.env.DB_PASS;
 const dbName = process.env.DB_NAME;
-const dbPoolLimit = parseInt(process.env.DB_POOL_LIMIT, 10) || 5;
+const dbPoolLimit = Math.min(parseInt(process.env.DB_POOL_LIMIT, 10) || 5, 5);
 const dbPoolTimeout = parseInt(process.env.DB_POOL_TIMEOUT, 10) || 10;
 // Retry knobs consumed by src/server.js (see connectWithRetry there)
 const dbConnectRetries = parseInt(process.env.DB_CONNECT_RETRIES, 10) || 10;

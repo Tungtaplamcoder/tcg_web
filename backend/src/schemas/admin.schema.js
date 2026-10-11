@@ -36,26 +36,14 @@ const changeUserPasswordSchema = z.object({
 
 // ==================== PRODUCT SCHEMAS ====================
 
-// Phải khớp với enum CardCondition trong prisma/schema.prisma
-const cardConditionEnum = z.enum([
-  'MINT',
-  'NEAR_MINT',
-  'LIGHTLY_PLAYED',
-  'MODERATELY_PLAYED',
-  'HEAVILY_PLAYED',
-  'DAMAGED',
-  'EXCELLENT',
-  'GOOD',
-  'POOR'
-]);
-
 // Mỗi biến thể (variant) của sản phẩm — lưu giá và tồn kho theo condition.
-// `condition` is optional/nullable: Sealed Products (BOX) submit an empty
-// string for condition and the controller falls back to 'NEAR_MINT' when
-// saving, so the enum must accept '', null, and undefined without throwing.
+// `condition` is a FREE STRING (no longer the CardCondition enum) so
+// dynamically managed conditions ("Tình trạng thẻ") can be stored. It stays
+// optional/nullable: Sealed Products (BOX) submit an empty string for
+// condition and the controller falls back to 'NEAR_MINT' when saving.
 const productVariantSchema = z.object({
   id: z.string().uuid().optional(),
-  condition: cardConditionEnum.optional().nullable().or(z.literal('')),
+  condition: z.string().trim().max(64).optional().nullable().or(z.literal('')),
   variant: z.string().max(100).optional().default('Normal'),
   price: z.coerce.number().min(0, 'Giá phải là số >= 0'),
   stockQuantity: z.coerce.number().int().min(0, 'Tồn kho phải là số nguyên >= 0').default(0)
@@ -91,8 +79,15 @@ const createProductSchema = z.object({
   language: z.string().trim().max(32).optional().nullable(),
   // TCG metadata (single cards): card set / expansion name
   cardSet: z.string().trim().max(200).optional().nullable(),
-  images: z.array(z.string().url()).max(10).optional(),
-  backImage: z.string().url().optional().nullable(),
+  images: z.preprocess((val) => {
+    if (typeof val === 'string') {
+      try { val = JSON.parse(val); } catch { return []; }
+    }
+    if (!Array.isArray(val)) return [];
+    return val.filter((item) => typeof item === 'string' && item.trim().length > 0);
+  }, z.array(z.union([z.string().url(), z.string().startsWith('/'), z.string()])).max(20)).optional().default([]),
+  frontImage: z.union([z.string().url(), z.string().startsWith('/'), z.literal('')]).optional().nullable(),
+  backImage: z.union([z.string().url(), z.string().startsWith('/'), z.literal('')]).optional().nullable(),
   attributes: z.record(z.any()).optional(),
   tcgplayerId: z.string().optional().nullable(),
   variants: z.array(productVariantSchema).optional()
@@ -146,17 +141,50 @@ const updateSetSchema = createSetSchema.partial();
 
 // ==================== RARITY SCHEMAS (Độ hiếm) ====================
 
-// Dynamic rarity option. `code` is the canonical short identifier stored on
-// Product.rarity (e.g. "HR"); `name` is the human label (e.g. "Hyper Rare").
-// When `code` is omitted the controller derives it from `name`.
+// Dynamic rarity option. Simplified to a single `name` field — it is both the
+// human label and the value stored on Product.rarity.
 const createRaritySchema = z.object({
   name: z.string().trim().min(1).max(100),
-  code: z.string().trim().min(1).max(32).optional().nullable(),
-  description: z.string().trim().max(200).optional().nullable(),
   isActive: z.boolean().optional()
 });
 
 const updateRaritySchema = createRaritySchema.partial();
+
+// ==================== SEALED CATEGORY SCHEMAS (Danh mục Sealed Product) =====
+
+// Dynamic sealed-product category. Simplified to a single `name` field — it is
+// both the human label and the seeded/slug source of the product's sealed
+// sub-type.
+const createSealedCategorySchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  isActive: z.boolean().optional()
+});
+
+const updateSealedCategorySchema = createSealedCategorySchema.partial();
+
+// ==================== CARD CONDITION SCHEMAS (Tình trạng thẻ) ===============
+
+// Dynamic card-condition option. Simplified to a single `name` field — it is
+// both the human label and the value stored on ProductVariant.condition.
+const createCardConditionSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  isActive: z.boolean().optional()
+});
+
+const updateCardConditionSchema = createCardConditionSchema.partial();
+
+// ==================== CARD LANGUAGE SCHEMAS (Ngôn ngữ) ======================
+
+// Dynamic product-language option. Simplified to a single `name` field — the
+// full canonical language name (e.g. "English", "Japanese"), which is also the
+// value stored on Product.language. `code` / `description` are intentionally
+// absent.
+const createCardLanguageSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  isActive: z.boolean().optional()
+});
+
+const updateCardLanguageSchema = createCardLanguageSchema.partial();
 
 // ==================== POST SCHEMAS ====================
 
@@ -446,6 +474,12 @@ module.exports = {
   updateSetSchema,
   createRaritySchema,
   updateRaritySchema,
+  createSealedCategorySchema,
+  updateSealedCategorySchema,
+  createCardConditionSchema,
+  updateCardConditionSchema,
+  createCardLanguageSchema,
+  updateCardLanguageSchema,
   createPostSchema,
   updatePostSchema,
   listPostsQuerySchema,

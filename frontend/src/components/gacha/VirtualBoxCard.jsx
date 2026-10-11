@@ -1,10 +1,11 @@
 import React from 'react';
-import { Boxes, Layers, PackageOpen } from 'lucide-react';
+import { Boxes, Layers, ArrowRight } from 'lucide-react';
 import ProductImage from '../ProductImage';
 import TiltCard from '../TiltCard';
 import { useLanguage } from '../../i18n/LanguageContext';
 
-/* ── Rarity spectrum — Slate / Blue / Purple / Gold ── */
+/* ── Rarity spectrum — neutral silver → pastel pink → deep magenta.
+   Strictly cool/brand-safe: no amber/gold/orange tones. ── */
 const RARITY_ORDER = ['COMMON', 'RARE', 'EPIC', 'LEGENDARY'];
 
 const RARITY_META = {
@@ -15,18 +16,18 @@ const RARITY_META = {
   },
   RARE: {
     labelKey: 'gacha.rarity.RARE',
-    bar: 'linear-gradient(90deg, #60a5fa, #3b82f6)',
-    dot: '#3b82f6'
+    bar: 'linear-gradient(90deg, #f9a8d4, #ec4899)',
+    dot: '#ec4899'
   },
   EPIC: {
     labelKey: 'gacha.rarity.EPIC',
-    bar: 'linear-gradient(90deg, #a78bfa, #7c3aed)',
-    dot: '#7c3aed'
+    bar: 'linear-gradient(90deg, #ec4899, #d946ef)',
+    dot: '#d946ef'
   },
   LEGENDARY: {
     labelKey: 'gacha.rarity.LEGENDARY',
-    bar: 'linear-gradient(90deg, #fcd34d, #f59e0b)',
-    dot: '#f59e0b'
+    bar: 'linear-gradient(90deg, #db2777, #d946ef)',
+    dot: '#db2777'
   }
 };
 
@@ -42,8 +43,8 @@ const normalizeRates = (dropRates = []) =>
     .sort((a, b) => RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity));
 
 /* ── Sleek 4-segment gradient drop-rate bar — one multi-color
-    strip (Slate → Blue → Purple → Gold); each rarity segment is
-    focusable and lifts a clean light-glass tooltip with its
+    strip (neutral silver → pink → fuchsia → deep magenta); each rarity
+    segment is focusable and lifts a clean light-glass tooltip with its
     exact percentage on hover/focus. No text-heavy legend. ── */
 const DropRateBar = ({ dropRates }) => {
   const { t } = useLanguage();
@@ -120,18 +121,20 @@ const PackHero = ({ box }) => (
   </div>
 );
 
-/* ── Open-Box CTA — full-width violet pill, springy press ── */
+/* ── Explore CTA — full-width pink pill, springy press. Opens the free
+     detail/opening page for the box (no currency, no purchase bundle). ── */
 const OpenBoxCta = ({ box, onPlay }) => {
   const { t } = useLanguage();
   return (
     <button
       type="button"
       onClick={() => onPlay(box)}
-      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-2.5 text-[13px] font-semibold text-white shadow-lg shadow-purple-500/25 ring-1 ring-inset ring-white/20 touch-manipulation transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-purple-500/30 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 active:translate-y-0 active:scale-[0.98]"
-      aria-label={t('virtualBox.openNamed', { name: box.name })}
+      data-testid="vbox-card-open"
+      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary-600 to-primary-500 px-4 py-2.5 text-[13px] font-semibold text-white shadow-lg shadow-pink-500/25 ring-1 ring-inset ring-white/20 touch-manipulation transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-pink-500/30 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 active:translate-y-0 active:scale-[0.98]"
+      aria-label={t('virtualBox.exploreNow')}
     >
-      <PackageOpen className="h-4 w-4" />
-      {t('virtualBox.openBox')}
+      {t('virtualBox.exploreNow')}
+      <ArrowRight className="h-4 w-4" />
     </button>
   );
 };
@@ -151,7 +154,7 @@ const VirtualBoxCard = ({ box, index = 0, onPlay }) => {
   const { t } = useLanguage();
   return (
   <div className="h-full animate-tcg-reveal will-change-transform translate-z-0" style={{ animationDelay: `${Math.min(index * 0.06, 0.42)}s` }}>
-    <article className="group vb-lift will-change-transform translate-z-0 flex h-full flex-col overflow-hidden rounded-2xl border border-purple-100/60 dark:border-white/10 bg-white/90 md:bg-white/80 dark:bg-[#1c1216]/90 md:dark:bg-[#1c1216]/80 shadow-xl shadow-purple-500/5 dark:shadow-black/40 dark:shadow-2xl backdrop-blur-sm md:backdrop-blur-md transition-all duration-300 hover:-translate-y-2 hover:scale-[1.02] hover:shadow-2xl hover:shadow-purple-500/10 dark:hover:shadow-black/60">
+    <article data-testid="vbox-card" className="group vb-lift will-change-transform translate-z-0 flex h-full flex-col overflow-hidden rounded-2xl border border-purple-100/60 dark:border-white/10 bg-white/90 md:bg-white/80 dark:bg-[#1c1216]/90 md:dark:bg-[#1c1216]/80 shadow-xl shadow-purple-500/5 dark:shadow-black/40 dark:shadow-2xl backdrop-blur-sm md:backdrop-blur-md transition-all duration-300 hover:-translate-y-2 hover:scale-[1.02] hover:shadow-2xl hover:shadow-purple-500/10 dark:hover:shadow-black/60">
       <PackHero box={box} />
 
       {/* Copy block — high-contrast ink text directly on the light glass card */}

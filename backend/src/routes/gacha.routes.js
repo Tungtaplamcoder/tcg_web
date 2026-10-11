@@ -9,6 +9,9 @@ const { listVirtualBoxesQuerySchema } = require('../schemas/gacha.schema');
 // Public: list active virtual boxes for the storefront
 router.get('/virtual-boxes', apiLimiter, validate(listVirtualBoxesQuerySchema, 'query'), gachaController.listVirtualBoxes);
 
+// Public: single active virtual box detail (by id or slug)
+router.get('/virtual-boxes/:id', apiLimiter, gachaController.getVirtualBoxById);
+
 // Authenticated: open a virtual box (balance debit + weighted RNG + card grant, atomic)
 router.post('/virtual-boxes/:id/open', apiLimiter, authenticate, gachaController.openVirtualBox);
 

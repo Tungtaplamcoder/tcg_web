@@ -1,3 +1,4 @@
+const prisma = require('../config/prisma');
 const productService = require('../services/product.service');
 const { isDatabaseError, emptyPage, sendDbEmpty } = require('../utils/dbGuard');
 
@@ -22,6 +23,11 @@ const listProducts = async (req, res, next) => {
 const getProduct = async (req, res, next) => {
   try {
     const product = await productService.getProductById(req.params.id);
+    // Real-time view counter — fire-and-forget so a counter hiccup can never
+    // block or fail the detail-page response.
+    prisma.product
+      .update({ where: { id: product.id }, data: { viewCount: { increment: 1 } } })
+      .catch(() => {});
     res.status(200).json({
       success: true,
       data: product,
@@ -121,6 +127,38 @@ const listRarities = async (req, res, next) => {
   }
 };
 
+const listSealedCategories = async (req, res, next) => {
+  try {
+    const categories = await productService.listSealedCategories();
+    res.status(200).json({
+      success: true,
+      data: categories,
+      message: 'Sealed categories retrieved'
+    });
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      return sendDbEmpty(res, 'product.listSealedCategories', error, []);
+    }
+    next(error);
+  }
+};
+
+const listLanguages = async (req, res, next) => {
+  try {
+    const languages = await productService.listLanguages();
+    res.status(200).json({
+      success: true,
+      data: languages,
+      message: 'Languages retrieved'
+    });
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      return sendDbEmpty(res, 'product.listLanguages', error, []);
+    }
+    next(error);
+  }
+};
+
 const listCards = async (req, res, next) => {  try {
     const result = await productService.listCards(req.query);
     res.status(200).json({
@@ -160,6 +198,8 @@ module.exports = {
   listCategories,
   listSets,
   listRarities,
+  listSealedCategories,
+  listLanguages,
   listCards,
   getCard
 };

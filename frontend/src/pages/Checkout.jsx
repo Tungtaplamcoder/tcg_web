@@ -286,21 +286,21 @@ const Checkout = () => {
             <p className="mt-2 text-ink-500 dark:text-ink-300">{t('checkout.redirectBody')}</p>
           </div>
 
-          <div className="mt-7 rounded-2xl bg-ink-50/80 ring-1 ring-ink-100 dark:ring-white/10 p-5 space-y-3.5 text-sm">
+          <div className="mt-7 rounded-2xl bg-ink-50/80 dark:bg-neutral-900/80 ring-1 ring-ink-100 dark:ring-white/10 p-5 space-y-3.5 text-sm">
             <div className="flex justify-between items-center">
-              <span className="text-ink-500 dark:text-ink-300">{t('checkout.orderCode')}</span>
-              <span className="font-mono font-semibold text-ink-900 dark:text-white">{orderData.order.orderCode}</span>
+              <span className="text-ink-600 dark:text-neutral-200">{t('checkout.orderCode')}</span>
+              <span className="font-mono font-medium text-ink-900 dark:text-white">{orderData.order.orderCode}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-ink-500 dark:text-ink-300">{t('checkout.amountVnd')}</span>
-              <span className="font-display font-bold text-xl text-gradient-brand">
+              <span className="text-ink-600 dark:text-neutral-200">{t('checkout.amountVnd')}</span>
+              <span className="font-display font-medium text-xl text-primary-600 dark:text-white">
                 {formatVND(amount ?? orderData.order.grandTotal)}
               </span>
             </div>
             {transferContent && (
               <div className="flex justify-between items-center gap-4">
-                <span className="text-ink-500 dark:text-ink-300 shrink-0">{t('checkout.transferContent')}</span>
-                <span className="font-mono font-semibold text-ink-900 dark:text-white break-all text-right">{transferContent}</span>
+                <span className="text-ink-600 dark:text-neutral-200 shrink-0">{t('checkout.transferContent')}</span>
+                <span className="font-mono font-medium text-ink-900 dark:text-white break-all text-right">{transferContent}</span>
               </div>
             )}
           </div>

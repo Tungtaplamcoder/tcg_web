@@ -484,6 +484,8 @@ mkdir -p "$STAGE/backend/public/uploads"
 # Stage pre-built SPA
 info "Staging pre-built SPA into backend/public/"
 cp -R "$FRONTEND/dist/." "$STAGE/backend/public/"
+[ -f "$ROOT/backend/public/.htaccess" ] && cp "$ROOT/backend/public/.htaccess" "$STAGE/backend/public/.htaccess"
+[ -f "$ROOT/backend/.htaccess" ] && cp "$ROOT/backend/.htaccess" "$STAGE/backend/.htaccess"
 [ -f "$STAGE/backend/public/index.html" ] || die "Frontend build was not staged"
 
 # Verify generated client staged
@@ -577,6 +579,14 @@ DB_POOL_LIMIT=5
 DB_POOL_TIMEOUT=10
 DATABASE_SSL_MODE=disable
 
+# --- Process & Thread Optimization (CloudLinux LVE: 100 NPROC limit) ---
+UV_THREADPOOL_SIZE=2
+TOKIO_WORKER_THREADS=1
+PRISMA_QUERY_ENGINE_MAX_THREADS=1
+ORDER_CRON_SCHEDULE="*/2 * * * *"
+CATALOG_RATE_LIMIT_MAX=1000
+CHECKOUT_RATE_LIMIT_MAX=20
+
 # --- Auth secrets (generate two DIFFERENT random base64 strings) ---
 JWT_ACCESS_SECRET=<random-base64-string-1>
 JWT_REFRESH_SECRET=<random-base64-string-2>
@@ -613,36 +623,122 @@ ok "Configs written, seed.sql copied"
 # ─── Step 12: Write .htaccess and zip ───
 log "11/12 Writing Apache .htaccess"
 cat > "$STAGE/.htaccess" <<'HTACCESS'
-# cPanel / Apache + Phusion Passenger — TCG E-Commerce
-# The Node app (Passenger entry: app.js) serves the SPA from public/ and the
-# API under /api/v1. This file only passes requests through and never exposes
-# .env.
+# ==============================================================================
+# Apache / LiteSpeed + Phusion Passenger Configuration — TCG E-Commerce
+# Optimized for cPanel CloudLinux Shared Hosting (LVE: 20 EP, 100 NPROC, 1.5GB RAM)
+# ==============================================================================
 
-PassengerEnabled On
-PassengerAppType node
-PassengerStartupFile app.js
+# ------------------------------------------------------------------------------
+# 1. Phusion Passenger Process Footprint Optimization (Mitigate 100 NPROC limit)
+# ------------------------------------------------------------------------------
+<IfModule mod_passenger.c>
+  PassengerEnabled On
+  PassengerAppType node
+  PassengerStartupFile app.js
+  # Prevent Passenger from aggressively spawning processes and exhausting 100 NPROC
+  PassengerMinInstances 1
+  PassengerMaxInstancesPerApp 2
+  PassengerMaxPoolSize 2
+  PassengerPoolIdleTime 300
+  PassengerHighPerformance on
+</IfModule>
 
-# Do NOT serve dotfiles (.env, .git) — always deny.
+# ------------------------------------------------------------------------------
+# 2. Security: Deny direct access to sensitive files and dotfiles
+# ------------------------------------------------------------------------------
 <FilesMatch "^\.(?!well-known)">
   Require all denied
 </FilesMatch>
 
-# Never serve the environment file.
-<Files ".env">
+<FilesMatch "(^#.*#|\.(bak|config|dist|fla|inc|ini|log|psd|sh|sql|sw[op]|env))$">
+  Require all denied
+</FilesMatch>
+
+<Files ".env*">
   Require all denied
 </Files>
 
-# Compress text assets served by Apache (API responses are gzipped by Express).
+# ------------------------------------------------------------------------------
+# 3. Compression (Gzip / Deflate)
+# ------------------------------------------------------------------------------
 <IfModule mod_deflate.c>
   AddOutputFilterByType DEFLATE text/html text/plain text/css application/javascript application/json image/svg+xml
 </IfModule>
 
-# Sensible caching for the hashed SPA bundle.
+# ------------------------------------------------------------------------------
+# 4. Aggressive Browser Caching for Static Files & Immutable Assets
+# ------------------------------------------------------------------------------
 <IfModule mod_expires.c>
   ExpiresActive On
+  ExpiresDefault "access plus 1 month"
+  ExpiresByType text/html "access plus 0 seconds"
   ExpiresByType text/css "access plus 1 year"
   ExpiresByType application/javascript "access plus 1 year"
-  ExpiresByType image/svg+xml "access plus 1 month"
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/gif "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType image/x-icon "access plus 1 year"
+</IfModule>
+
+<IfModule mod_headers.c>
+  # 1-year immutable caching for static bundles, images, fonts, uploads
+  <FilesMatch "\.(css|js|woff2?|ttf|eot|svg|png|jpe?g|gif|webp|avif|ico)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+
+  # HTML files (SPA entry index.html) must always revalidate to receive new app versions
+  <FilesMatch "\.(html|htm)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+  </FilesMatch>
+</IfModule>
+
+# ------------------------------------------------------------------------------
+# 5. Static Asset Delegation & SPA Fallback via mod_rewrite
+#    Completely bypasses Passenger/Node.js to preserve 20 Entry Processes (EP)
+#    exclusively for dynamic API requests (/api/*, /health).
+# ------------------------------------------------------------------------------
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # 5a. If the requested file or directory physically exists, serve it directly!
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # 5b. Map static requests (/assets/*, /uploads/*, favicon.ico, etc.) to public/
+  RewriteCond %{DOCUMENT_ROOT}/public/$1 -f
+  RewriteRule ^(.*)$ public/$1 [L]
+
+  # 5c. Map static requests to backend/public/ if deployed under root/backend/public
+  RewriteCond %{DOCUMENT_ROOT}/backend/public/$1 -f
+  RewriteRule ^(.*)$ backend/public/$1 [L]
+
+  # 5d. Do NOT intercept API, uploads or health routes — pass directly to Express
+  RewriteCond %{REQUEST_URI} ^/(api|health|uploads|socket\.io)(/|$) [NC]
+  RewriteRule ^ - [L]
+
+  # 5e. SPA Client-Side Route Fallback:
+  # Any non-API route serves index.html directly via the web server (LiteSpeed/Apache),
+  # avoiding Node.js Passenger execution and saving 1 Entry Process per page visit!
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{DOCUMENT_ROOT}/public/index.html -f
+  RewriteRule ^.*$ public/index.html [L]
+
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{DOCUMENT_ROOT}/backend/public/index.html -f
+  RewriteRule ^.*$ backend/public/index.html [L]
+
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{DOCUMENT_ROOT}/index.html -f
+  RewriteRule ^.*$ index.html [L]
 </IfModule>
 HTACCESS
 

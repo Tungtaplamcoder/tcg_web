@@ -75,6 +75,50 @@ const listVirtualBoxes = async (req, res, next) => {
   }
 };
 
+// GET /api/v1/virtual-boxes/:id — public single-box detail for the storefront
+// detail/opening page. Same shape as a list item (dropRates + embedded card
+// pool) so the listing and the detail page share one box model. Accepts the
+// UUID or the slug so deep links stay readable.
+const getVirtualBoxById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const box = await prisma.virtualBox.findFirst({
+      where: { status: 'ACTIVE', OR: [{ id }, { slug: id }] },
+      select: {
+        ...BOX_SELECT_FIELDS,
+        dropRates: { select: { rarity: true, rate: true } },
+        poolItems: {
+          select: { rarity: true, gachaCard: { select: POOL_CARD_FIELDS } }
+        }
+      }
+    });
+
+    if (!box) throw new NotFoundError('Virtual box not found');
+
+    // Real-time view counter — fire-and-forget; never blocks the response.
+    prisma.virtualBox
+      .update({ where: { id: box.id }, data: { viewCount: { increment: 1 } } })
+      .catch(() => {});
+
+    const { dropRates, poolItems, ...rest } = box;
+    res.status(200).json({
+      success: true,
+      data: {
+        ...rest,
+        dropRates,
+        cardPoolCount: poolItems.length,
+        cards: poolItems.map((item) => item.gachaCard)
+      },
+      message: 'Virtual box retrieved'
+    });
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      return sendDbError(res, 'gacha.getVirtualBoxById', error);
+    }
+    next(error);
+  }
+};
+
 // POST /api/v1/virtual-boxes/:id/open — authenticated gacha opening.
 // Gacha is 100% free: no balance is charged. The endpoint rolls the weighted
 // RNG over the box's GachaCard pool, grants the pulled card to the user's
@@ -170,5 +214,6 @@ const openVirtualBox = async (req, res, next) => {
 
 module.exports = {
   listVirtualBoxes,
+  getVirtualBoxById,
   openVirtualBox
 };

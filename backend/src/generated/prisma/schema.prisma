@@ -229,19 +229,70 @@ model Set {
 }
 
 // Dynamic rarity catalogue ("Độ hiếm") — administered like Series/Era and
-// Expansion Sets. `Product.rarity` keeps storing the rarity `code` as a free
-// string, so existing products remain valid while this table becomes the
-// authoritative option source for the admin product modal.
+// Expansion Sets. Simplified to a single `name` field: `Product.rarity`
+// stores the rarity name as a free string, so existing products remain valid
+// while this table becomes the authoritative option source for the admin
+// product modal. `code` / `description` were dropped as redundant.
 model Rarity {
-  id          String   @id @default(uuid())
-  name        String   @unique
-  code        String   @unique
-  description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([isActive])
+}
+
+// Dynamic sealed-product category catalogue ("Danh mục Sealed Product") —
+// administered from Catalog Settings and bound to the product modal's
+// "Loại sản phẩm niêm phong" dropdown (Booster Box, ETB, Special Collection,
+// Blister Pack, Mini Tin, Display Case…). Mirrors the dynamic `Rarity`
+// catalogue pattern so sealed sub-types are DB-driven instead of hardcoded.
+// Simplified to a single `name` field; `code` / `description` were dropped.
+model SealedCategory {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+// Dynamic card-condition catalogue ("Tình trạng thẻ") — administered from
+// Catalog Settings (Admin only) and bound to the inventory product modal's
+// "TÌNH TRẠNG" variant dropdown for BOTH Admin and Staff. `ProductVariant.condition`
+// stores the condition `name` as a free string so quick-added conditions like
+// "PSA 10" work without a schema enum change. Simplified to a single `name`
+// field; `code` / `description` were dropped. Table name is snake_case per the
+// API contract.
+model CardConditionOption {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("card_conditions")
+}
+
+// Dynamic product-language catalogue ("Ngôn ngữ") — administered from Catalog
+// Settings and bound to the inventory product modal's "Ngôn ngữ (Language)"
+// dropdown and the "Tất cả ngôn ngữ" filter. Stores ONLY the full canonical
+// language name (e.g. "English", "Japanese") — `code` / `description` are
+// intentionally absent. `Product.language` stores the same full name as a free
+// string, so the catalogue is the authoritative option source. Table name is
+// snake_case per the API contract.
+model CardLanguage {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("card_languages")
 }
 
 model Product {
@@ -249,7 +300,7 @@ model Product {
   name        String
   shortName   String?
   slug        String        @unique
-  description String?
+  description String?       @db.Text
   cardNumber  String?
   rarity      String?
   // TCG metadata for single cards — language of the print (JP, ENG, …)
@@ -266,6 +317,9 @@ model Product {
   attributes  Json?
   status      ProductStatus @default(ACTIVE)
   version     Int           @default(0)
+  // Real-time detail-page view counter (incremented on GET /products/:id).
+  // DB column kept snake_case to match the analytics contract (`view_count`).
+  viewCount   Int           @default(0) @map("view_count")
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   deletedAt   DateTime?
@@ -285,6 +339,7 @@ model Product {
   @@index([cardSet])
   @@index([rarity])
   @@index([artist])
+  @@index([viewCount])
   @@index([categoryId, language, rarity])
   @@index([categoryId, cardSet])
 }
@@ -293,7 +348,9 @@ model ProductVariant {
   id            String        @id @default(uuid())
   productId     String
   product       Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
-  condition     CardCondition @default(NEAR_MINT)
+  // Free string (was the CardCondition enum) so dynamically managed
+  // conditions ("Tình trạng thẻ", e.g. "PSA 10", "Ungraded") can be stored.
+  condition     String        @default("NEAR_MINT") @db.VarChar(64)
   variant       String        @default("Normal")
   price         Decimal       @db.Decimal(10, 2)
   stockQuantity Int           @default(0)
@@ -538,6 +595,8 @@ model VirtualBox {
   gradient    String?
   price       Decimal          @db.Decimal(10, 2)
   status      VirtualBoxStatus @default(DRAFT)
+  // Real-time detail-page view counter (incremented on GET /virtual-boxes/:id).
+  viewCount   Int              @default(0) @map("view_count")
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
@@ -546,6 +605,7 @@ model VirtualBox {
   openings  VirtualBoxOpening[]
 
   @@index([status])
+  @@index([viewCount])
 }
 
 model VirtualBoxDropRate {

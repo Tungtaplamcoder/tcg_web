@@ -49,6 +49,21 @@ export type Set = $Result.DefaultSelection<Prisma.$SetPayload>
  */
 export type Rarity = $Result.DefaultSelection<Prisma.$RarityPayload>
 /**
+ * Model SealedCategory
+ * 
+ */
+export type SealedCategory = $Result.DefaultSelection<Prisma.$SealedCategoryPayload>
+/**
+ * Model CardConditionOption
+ * 
+ */
+export type CardConditionOption = $Result.DefaultSelection<Prisma.$CardConditionOptionPayload>
+/**
+ * Model CardLanguage
+ * 
+ */
+export type CardLanguage = $Result.DefaultSelection<Prisma.$CardLanguagePayload>
+/**
  * Model Product
  * 
  */
@@ -528,6 +543,36 @@ export class PrismaClient<
     * ```
     */
   get rarity(): Prisma.RarityDelegate<ExtArgs>;
+
+  /**
+   * `prisma.sealedCategory`: Exposes CRUD operations for the **SealedCategory** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more SealedCategories
+    * const sealedCategories = await prisma.sealedCategory.findMany()
+    * ```
+    */
+  get sealedCategory(): Prisma.SealedCategoryDelegate<ExtArgs>;
+
+  /**
+   * `prisma.cardConditionOption`: Exposes CRUD operations for the **CardConditionOption** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more CardConditionOptions
+    * const cardConditionOptions = await prisma.cardConditionOption.findMany()
+    * ```
+    */
+  get cardConditionOption(): Prisma.CardConditionOptionDelegate<ExtArgs>;
+
+  /**
+   * `prisma.cardLanguage`: Exposes CRUD operations for the **CardLanguage** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more CardLanguages
+    * const cardLanguages = await prisma.cardLanguage.findMany()
+    * ```
+    */
+  get cardLanguage(): Prisma.CardLanguageDelegate<ExtArgs>;
 
   /**
    * `prisma.product`: Exposes CRUD operations for the **Product** model.
@@ -1146,6 +1191,9 @@ export namespace Prisma {
     Category: 'Category',
     Set: 'Set',
     Rarity: 'Rarity',
+    SealedCategory: 'SealedCategory',
+    CardConditionOption: 'CardConditionOption',
+    CardLanguage: 'CardLanguage',
     Product: 'Product',
     ProductVariant: 'ProductVariant',
     Card: 'Card',
@@ -1178,7 +1226,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "user" | "post" | "refreshToken" | "passwordResetToken" | "category" | "set" | "rarity" | "product" | "productVariant" | "card" | "order" | "orderItem" | "payment" | "paymentLog" | "orderStatusHistory" | "voucher" | "userVoucher" | "appSetting" | "gachaCard" | "virtualBox" | "virtualBoxDropRate" | "virtualBoxPoolItem" | "userCard" | "virtualBoxOpening"
+      modelProps: "user" | "post" | "refreshToken" | "passwordResetToken" | "category" | "set" | "rarity" | "sealedCategory" | "cardConditionOption" | "cardLanguage" | "product" | "productVariant" | "card" | "order" | "orderItem" | "payment" | "paymentLog" | "orderStatusHistory" | "voucher" | "userVoucher" | "appSetting" | "gachaCard" | "virtualBox" | "virtualBoxDropRate" | "virtualBoxPoolItem" | "userCard" | "virtualBoxOpening"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1641,6 +1689,204 @@ export namespace Prisma {
           count: {
             args: Prisma.RarityCountArgs<ExtArgs>
             result: $Utils.Optional<RarityCountAggregateOutputType> | number
+          }
+        }
+      }
+      SealedCategory: {
+        payload: Prisma.$SealedCategoryPayload<ExtArgs>
+        fields: Prisma.SealedCategoryFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.SealedCategoryFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SealedCategoryPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.SealedCategoryFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SealedCategoryPayload>
+          }
+          findFirst: {
+            args: Prisma.SealedCategoryFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SealedCategoryPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.SealedCategoryFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SealedCategoryPayload>
+          }
+          findMany: {
+            args: Prisma.SealedCategoryFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SealedCategoryPayload>[]
+          }
+          create: {
+            args: Prisma.SealedCategoryCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SealedCategoryPayload>
+          }
+          createMany: {
+            args: Prisma.SealedCategoryCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          delete: {
+            args: Prisma.SealedCategoryDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SealedCategoryPayload>
+          }
+          update: {
+            args: Prisma.SealedCategoryUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SealedCategoryPayload>
+          }
+          deleteMany: {
+            args: Prisma.SealedCategoryDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.SealedCategoryUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.SealedCategoryUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SealedCategoryPayload>
+          }
+          aggregate: {
+            args: Prisma.SealedCategoryAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateSealedCategory>
+          }
+          groupBy: {
+            args: Prisma.SealedCategoryGroupByArgs<ExtArgs>
+            result: $Utils.Optional<SealedCategoryGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.SealedCategoryCountArgs<ExtArgs>
+            result: $Utils.Optional<SealedCategoryCountAggregateOutputType> | number
+          }
+        }
+      }
+      CardConditionOption: {
+        payload: Prisma.$CardConditionOptionPayload<ExtArgs>
+        fields: Prisma.CardConditionOptionFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.CardConditionOptionFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CardConditionOptionPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.CardConditionOptionFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CardConditionOptionPayload>
+          }
+          findFirst: {
+            args: Prisma.CardConditionOptionFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CardConditionOptionPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.CardConditionOptionFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CardConditionOptionPayload>
+          }
+          findMany: {
+            args: Prisma.CardConditionOptionFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CardConditionOptionPayload>[]
+          }
+          create: {
+            args: Prisma.CardConditionOptionCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CardConditionOptionPayload>
+          }
+          createMany: {
+            args: Prisma.CardConditionOptionCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          delete: {
+            args: Prisma.CardConditionOptionDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CardConditionOptionPayload>
+          }
+          update: {
+            args: Prisma.CardConditionOptionUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CardConditionOptionPayload>
+          }
+          deleteMany: {
+            args: Prisma.CardConditionOptionDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.CardConditionOptionUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.CardConditionOptionUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CardConditionOptionPayload>
+          }
+          aggregate: {
+            args: Prisma.CardConditionOptionAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateCardConditionOption>
+          }
+          groupBy: {
+            args: Prisma.CardConditionOptionGroupByArgs<ExtArgs>
+            result: $Utils.Optional<CardConditionOptionGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.CardConditionOptionCountArgs<ExtArgs>
+            result: $Utils.Optional<CardConditionOptionCountAggregateOutputType> | number
+          }
+        }
+      }
+      CardLanguage: {
+        payload: Prisma.$CardLanguagePayload<ExtArgs>
+        fields: Prisma.CardLanguageFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.CardLanguageFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CardLanguagePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.CardLanguageFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CardLanguagePayload>
+          }
+          findFirst: {
+            args: Prisma.CardLanguageFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CardLanguagePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.CardLanguageFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CardLanguagePayload>
+          }
+          findMany: {
+            args: Prisma.CardLanguageFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CardLanguagePayload>[]
+          }
+          create: {
+            args: Prisma.CardLanguageCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CardLanguagePayload>
+          }
+          createMany: {
+            args: Prisma.CardLanguageCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          delete: {
+            args: Prisma.CardLanguageDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CardLanguagePayload>
+          }
+          update: {
+            args: Prisma.CardLanguageUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CardLanguagePayload>
+          }
+          deleteMany: {
+            args: Prisma.CardLanguageDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.CardLanguageUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.CardLanguageUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CardLanguagePayload>
+          }
+          aggregate: {
+            args: Prisma.CardLanguageAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateCardLanguage>
+          }
+          groupBy: {
+            args: Prisma.CardLanguageGroupByArgs<ExtArgs>
+            result: $Utils.Optional<CardLanguageGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.CardLanguageCountArgs<ExtArgs>
+            result: $Utils.Optional<CardLanguageCountAggregateOutputType> | number
           }
         }
       }
@@ -9302,8 +9548,6 @@ export namespace Prisma {
   export type RarityMinAggregateOutputType = {
     id: string | null
     name: string | null
-    code: string | null
-    description: string | null
     isActive: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -9312,8 +9556,6 @@ export namespace Prisma {
   export type RarityMaxAggregateOutputType = {
     id: string | null
     name: string | null
-    code: string | null
-    description: string | null
     isActive: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -9322,8 +9564,6 @@ export namespace Prisma {
   export type RarityCountAggregateOutputType = {
     id: number
     name: number
-    code: number
-    description: number
     isActive: number
     createdAt: number
     updatedAt: number
@@ -9334,8 +9574,6 @@ export namespace Prisma {
   export type RarityMinAggregateInputType = {
     id?: true
     name?: true
-    code?: true
-    description?: true
     isActive?: true
     createdAt?: true
     updatedAt?: true
@@ -9344,8 +9582,6 @@ export namespace Prisma {
   export type RarityMaxAggregateInputType = {
     id?: true
     name?: true
-    code?: true
-    description?: true
     isActive?: true
     createdAt?: true
     updatedAt?: true
@@ -9354,8 +9590,6 @@ export namespace Prisma {
   export type RarityCountAggregateInputType = {
     id?: true
     name?: true
-    code?: true
-    description?: true
     isActive?: true
     createdAt?: true
     updatedAt?: true
@@ -9437,8 +9671,6 @@ export namespace Prisma {
   export type RarityGroupByOutputType = {
     id: string
     name: string
-    code: string
-    description: string | null
     isActive: boolean
     createdAt: Date
     updatedAt: Date
@@ -9464,8 +9696,6 @@ export namespace Prisma {
   export type RaritySelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     name?: boolean
-    code?: boolean
-    description?: boolean
     isActive?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -9475,8 +9705,6 @@ export namespace Prisma {
   export type RaritySelectScalar = {
     id?: boolean
     name?: boolean
-    code?: boolean
-    description?: boolean
     isActive?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -9489,8 +9717,6 @@ export namespace Prisma {
     scalars: $Extensions.GetPayloadResult<{
       id: string
       name: string
-      code: string
-      description: string | null
       isActive: boolean
       createdAt: Date
       updatedAt: Date
@@ -9865,8 +10091,6 @@ export namespace Prisma {
   interface RarityFieldRefs {
     readonly id: FieldRef<"Rarity", 'String'>
     readonly name: FieldRef<"Rarity", 'String'>
-    readonly code: FieldRef<"Rarity", 'String'>
-    readonly description: FieldRef<"Rarity", 'String'>
     readonly isActive: FieldRef<"Rarity", 'Boolean'>
     readonly createdAt: FieldRef<"Rarity", 'DateTime'>
     readonly updatedAt: FieldRef<"Rarity", 'DateTime'>
@@ -10144,6 +10368,2502 @@ export namespace Prisma {
 
 
   /**
+   * Model SealedCategory
+   */
+
+  export type AggregateSealedCategory = {
+    _count: SealedCategoryCountAggregateOutputType | null
+    _min: SealedCategoryMinAggregateOutputType | null
+    _max: SealedCategoryMaxAggregateOutputType | null
+  }
+
+  export type SealedCategoryMinAggregateOutputType = {
+    id: string | null
+    name: string | null
+    isActive: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type SealedCategoryMaxAggregateOutputType = {
+    id: string | null
+    name: string | null
+    isActive: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type SealedCategoryCountAggregateOutputType = {
+    id: number
+    name: number
+    isActive: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type SealedCategoryMinAggregateInputType = {
+    id?: true
+    name?: true
+    isActive?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type SealedCategoryMaxAggregateInputType = {
+    id?: true
+    name?: true
+    isActive?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type SealedCategoryCountAggregateInputType = {
+    id?: true
+    name?: true
+    isActive?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type SealedCategoryAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which SealedCategory to aggregate.
+     */
+    where?: SealedCategoryWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SealedCategories to fetch.
+     */
+    orderBy?: SealedCategoryOrderByWithRelationInput | SealedCategoryOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: SealedCategoryWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SealedCategories from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SealedCategories.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned SealedCategories
+    **/
+    _count?: true | SealedCategoryCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: SealedCategoryMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: SealedCategoryMaxAggregateInputType
+  }
+
+  export type GetSealedCategoryAggregateType<T extends SealedCategoryAggregateArgs> = {
+        [P in keyof T & keyof AggregateSealedCategory]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateSealedCategory[P]>
+      : GetScalarType<T[P], AggregateSealedCategory[P]>
+  }
+
+
+
+
+  export type SealedCategoryGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: SealedCategoryWhereInput
+    orderBy?: SealedCategoryOrderByWithAggregationInput | SealedCategoryOrderByWithAggregationInput[]
+    by: SealedCategoryScalarFieldEnum[] | SealedCategoryScalarFieldEnum
+    having?: SealedCategoryScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: SealedCategoryCountAggregateInputType | true
+    _min?: SealedCategoryMinAggregateInputType
+    _max?: SealedCategoryMaxAggregateInputType
+  }
+
+  export type SealedCategoryGroupByOutputType = {
+    id: string
+    name: string
+    isActive: boolean
+    createdAt: Date
+    updatedAt: Date
+    _count: SealedCategoryCountAggregateOutputType | null
+    _min: SealedCategoryMinAggregateOutputType | null
+    _max: SealedCategoryMaxAggregateOutputType | null
+  }
+
+  type GetSealedCategoryGroupByPayload<T extends SealedCategoryGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<SealedCategoryGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof SealedCategoryGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], SealedCategoryGroupByOutputType[P]>
+            : GetScalarType<T[P], SealedCategoryGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type SealedCategorySelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    isActive?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["sealedCategory"]>
+
+
+  export type SealedCategorySelectScalar = {
+    id?: boolean
+    name?: boolean
+    isActive?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+
+  export type $SealedCategoryPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "SealedCategory"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      name: string
+      isActive: boolean
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["sealedCategory"]>
+    composites: {}
+  }
+
+  type SealedCategoryGetPayload<S extends boolean | null | undefined | SealedCategoryDefaultArgs> = $Result.GetResult<Prisma.$SealedCategoryPayload, S>
+
+  type SealedCategoryCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<SealedCategoryFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: SealedCategoryCountAggregateInputType | true
+    }
+
+  export interface SealedCategoryDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['SealedCategory'], meta: { name: 'SealedCategory' } }
+    /**
+     * Find zero or one SealedCategory that matches the filter.
+     * @param {SealedCategoryFindUniqueArgs} args - Arguments to find a SealedCategory
+     * @example
+     * // Get one SealedCategory
+     * const sealedCategory = await prisma.sealedCategory.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends SealedCategoryFindUniqueArgs>(args: SelectSubset<T, SealedCategoryFindUniqueArgs<ExtArgs>>): Prisma__SealedCategoryClient<$Result.GetResult<Prisma.$SealedCategoryPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one SealedCategory that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {SealedCategoryFindUniqueOrThrowArgs} args - Arguments to find a SealedCategory
+     * @example
+     * // Get one SealedCategory
+     * const sealedCategory = await prisma.sealedCategory.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends SealedCategoryFindUniqueOrThrowArgs>(args: SelectSubset<T, SealedCategoryFindUniqueOrThrowArgs<ExtArgs>>): Prisma__SealedCategoryClient<$Result.GetResult<Prisma.$SealedCategoryPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first SealedCategory that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SealedCategoryFindFirstArgs} args - Arguments to find a SealedCategory
+     * @example
+     * // Get one SealedCategory
+     * const sealedCategory = await prisma.sealedCategory.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends SealedCategoryFindFirstArgs>(args?: SelectSubset<T, SealedCategoryFindFirstArgs<ExtArgs>>): Prisma__SealedCategoryClient<$Result.GetResult<Prisma.$SealedCategoryPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first SealedCategory that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SealedCategoryFindFirstOrThrowArgs} args - Arguments to find a SealedCategory
+     * @example
+     * // Get one SealedCategory
+     * const sealedCategory = await prisma.sealedCategory.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends SealedCategoryFindFirstOrThrowArgs>(args?: SelectSubset<T, SealedCategoryFindFirstOrThrowArgs<ExtArgs>>): Prisma__SealedCategoryClient<$Result.GetResult<Prisma.$SealedCategoryPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more SealedCategories that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SealedCategoryFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all SealedCategories
+     * const sealedCategories = await prisma.sealedCategory.findMany()
+     * 
+     * // Get first 10 SealedCategories
+     * const sealedCategories = await prisma.sealedCategory.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const sealedCategoryWithIdOnly = await prisma.sealedCategory.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends SealedCategoryFindManyArgs>(args?: SelectSubset<T, SealedCategoryFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SealedCategoryPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a SealedCategory.
+     * @param {SealedCategoryCreateArgs} args - Arguments to create a SealedCategory.
+     * @example
+     * // Create one SealedCategory
+     * const SealedCategory = await prisma.sealedCategory.create({
+     *   data: {
+     *     // ... data to create a SealedCategory
+     *   }
+     * })
+     * 
+     */
+    create<T extends SealedCategoryCreateArgs>(args: SelectSubset<T, SealedCategoryCreateArgs<ExtArgs>>): Prisma__SealedCategoryClient<$Result.GetResult<Prisma.$SealedCategoryPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many SealedCategories.
+     * @param {SealedCategoryCreateManyArgs} args - Arguments to create many SealedCategories.
+     * @example
+     * // Create many SealedCategories
+     * const sealedCategory = await prisma.sealedCategory.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends SealedCategoryCreateManyArgs>(args?: SelectSubset<T, SealedCategoryCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Delete a SealedCategory.
+     * @param {SealedCategoryDeleteArgs} args - Arguments to delete one SealedCategory.
+     * @example
+     * // Delete one SealedCategory
+     * const SealedCategory = await prisma.sealedCategory.delete({
+     *   where: {
+     *     // ... filter to delete one SealedCategory
+     *   }
+     * })
+     * 
+     */
+    delete<T extends SealedCategoryDeleteArgs>(args: SelectSubset<T, SealedCategoryDeleteArgs<ExtArgs>>): Prisma__SealedCategoryClient<$Result.GetResult<Prisma.$SealedCategoryPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one SealedCategory.
+     * @param {SealedCategoryUpdateArgs} args - Arguments to update one SealedCategory.
+     * @example
+     * // Update one SealedCategory
+     * const sealedCategory = await prisma.sealedCategory.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends SealedCategoryUpdateArgs>(args: SelectSubset<T, SealedCategoryUpdateArgs<ExtArgs>>): Prisma__SealedCategoryClient<$Result.GetResult<Prisma.$SealedCategoryPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more SealedCategories.
+     * @param {SealedCategoryDeleteManyArgs} args - Arguments to filter SealedCategories to delete.
+     * @example
+     * // Delete a few SealedCategories
+     * const { count } = await prisma.sealedCategory.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends SealedCategoryDeleteManyArgs>(args?: SelectSubset<T, SealedCategoryDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more SealedCategories.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SealedCategoryUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many SealedCategories
+     * const sealedCategory = await prisma.sealedCategory.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends SealedCategoryUpdateManyArgs>(args: SelectSubset<T, SealedCategoryUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one SealedCategory.
+     * @param {SealedCategoryUpsertArgs} args - Arguments to update or create a SealedCategory.
+     * @example
+     * // Update or create a SealedCategory
+     * const sealedCategory = await prisma.sealedCategory.upsert({
+     *   create: {
+     *     // ... data to create a SealedCategory
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the SealedCategory we want to update
+     *   }
+     * })
+     */
+    upsert<T extends SealedCategoryUpsertArgs>(args: SelectSubset<T, SealedCategoryUpsertArgs<ExtArgs>>): Prisma__SealedCategoryClient<$Result.GetResult<Prisma.$SealedCategoryPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of SealedCategories.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SealedCategoryCountArgs} args - Arguments to filter SealedCategories to count.
+     * @example
+     * // Count the number of SealedCategories
+     * const count = await prisma.sealedCategory.count({
+     *   where: {
+     *     // ... the filter for the SealedCategories we want to count
+     *   }
+     * })
+    **/
+    count<T extends SealedCategoryCountArgs>(
+      args?: Subset<T, SealedCategoryCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], SealedCategoryCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a SealedCategory.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SealedCategoryAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends SealedCategoryAggregateArgs>(args: Subset<T, SealedCategoryAggregateArgs>): Prisma.PrismaPromise<GetSealedCategoryAggregateType<T>>
+
+    /**
+     * Group by SealedCategory.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SealedCategoryGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends SealedCategoryGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: SealedCategoryGroupByArgs['orderBy'] }
+        : { orderBy?: SealedCategoryGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, SealedCategoryGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetSealedCategoryGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the SealedCategory model
+   */
+  readonly fields: SealedCategoryFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for SealedCategory.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__SealedCategoryClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the SealedCategory model
+   */ 
+  interface SealedCategoryFieldRefs {
+    readonly id: FieldRef<"SealedCategory", 'String'>
+    readonly name: FieldRef<"SealedCategory", 'String'>
+    readonly isActive: FieldRef<"SealedCategory", 'Boolean'>
+    readonly createdAt: FieldRef<"SealedCategory", 'DateTime'>
+    readonly updatedAt: FieldRef<"SealedCategory", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * SealedCategory findUnique
+   */
+  export type SealedCategoryFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SealedCategory
+     */
+    select?: SealedCategorySelect<ExtArgs> | null
+    /**
+     * Filter, which SealedCategory to fetch.
+     */
+    where: SealedCategoryWhereUniqueInput
+  }
+
+  /**
+   * SealedCategory findUniqueOrThrow
+   */
+  export type SealedCategoryFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SealedCategory
+     */
+    select?: SealedCategorySelect<ExtArgs> | null
+    /**
+     * Filter, which SealedCategory to fetch.
+     */
+    where: SealedCategoryWhereUniqueInput
+  }
+
+  /**
+   * SealedCategory findFirst
+   */
+  export type SealedCategoryFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SealedCategory
+     */
+    select?: SealedCategorySelect<ExtArgs> | null
+    /**
+     * Filter, which SealedCategory to fetch.
+     */
+    where?: SealedCategoryWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SealedCategories to fetch.
+     */
+    orderBy?: SealedCategoryOrderByWithRelationInput | SealedCategoryOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for SealedCategories.
+     */
+    cursor?: SealedCategoryWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SealedCategories from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SealedCategories.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of SealedCategories.
+     */
+    distinct?: SealedCategoryScalarFieldEnum | SealedCategoryScalarFieldEnum[]
+  }
+
+  /**
+   * SealedCategory findFirstOrThrow
+   */
+  export type SealedCategoryFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SealedCategory
+     */
+    select?: SealedCategorySelect<ExtArgs> | null
+    /**
+     * Filter, which SealedCategory to fetch.
+     */
+    where?: SealedCategoryWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SealedCategories to fetch.
+     */
+    orderBy?: SealedCategoryOrderByWithRelationInput | SealedCategoryOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for SealedCategories.
+     */
+    cursor?: SealedCategoryWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SealedCategories from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SealedCategories.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of SealedCategories.
+     */
+    distinct?: SealedCategoryScalarFieldEnum | SealedCategoryScalarFieldEnum[]
+  }
+
+  /**
+   * SealedCategory findMany
+   */
+  export type SealedCategoryFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SealedCategory
+     */
+    select?: SealedCategorySelect<ExtArgs> | null
+    /**
+     * Filter, which SealedCategories to fetch.
+     */
+    where?: SealedCategoryWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SealedCategories to fetch.
+     */
+    orderBy?: SealedCategoryOrderByWithRelationInput | SealedCategoryOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing SealedCategories.
+     */
+    cursor?: SealedCategoryWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SealedCategories from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SealedCategories.
+     */
+    skip?: number
+    distinct?: SealedCategoryScalarFieldEnum | SealedCategoryScalarFieldEnum[]
+  }
+
+  /**
+   * SealedCategory create
+   */
+  export type SealedCategoryCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SealedCategory
+     */
+    select?: SealedCategorySelect<ExtArgs> | null
+    /**
+     * The data needed to create a SealedCategory.
+     */
+    data: XOR<SealedCategoryCreateInput, SealedCategoryUncheckedCreateInput>
+  }
+
+  /**
+   * SealedCategory createMany
+   */
+  export type SealedCategoryCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many SealedCategories.
+     */
+    data: SealedCategoryCreateManyInput | SealedCategoryCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * SealedCategory update
+   */
+  export type SealedCategoryUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SealedCategory
+     */
+    select?: SealedCategorySelect<ExtArgs> | null
+    /**
+     * The data needed to update a SealedCategory.
+     */
+    data: XOR<SealedCategoryUpdateInput, SealedCategoryUncheckedUpdateInput>
+    /**
+     * Choose, which SealedCategory to update.
+     */
+    where: SealedCategoryWhereUniqueInput
+  }
+
+  /**
+   * SealedCategory updateMany
+   */
+  export type SealedCategoryUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update SealedCategories.
+     */
+    data: XOR<SealedCategoryUpdateManyMutationInput, SealedCategoryUncheckedUpdateManyInput>
+    /**
+     * Filter which SealedCategories to update
+     */
+    where?: SealedCategoryWhereInput
+  }
+
+  /**
+   * SealedCategory upsert
+   */
+  export type SealedCategoryUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SealedCategory
+     */
+    select?: SealedCategorySelect<ExtArgs> | null
+    /**
+     * The filter to search for the SealedCategory to update in case it exists.
+     */
+    where: SealedCategoryWhereUniqueInput
+    /**
+     * In case the SealedCategory found by the `where` argument doesn't exist, create a new SealedCategory with this data.
+     */
+    create: XOR<SealedCategoryCreateInput, SealedCategoryUncheckedCreateInput>
+    /**
+     * In case the SealedCategory was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<SealedCategoryUpdateInput, SealedCategoryUncheckedUpdateInput>
+  }
+
+  /**
+   * SealedCategory delete
+   */
+  export type SealedCategoryDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SealedCategory
+     */
+    select?: SealedCategorySelect<ExtArgs> | null
+    /**
+     * Filter which SealedCategory to delete.
+     */
+    where: SealedCategoryWhereUniqueInput
+  }
+
+  /**
+   * SealedCategory deleteMany
+   */
+  export type SealedCategoryDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which SealedCategories to delete
+     */
+    where?: SealedCategoryWhereInput
+  }
+
+  /**
+   * SealedCategory without action
+   */
+  export type SealedCategoryDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SealedCategory
+     */
+    select?: SealedCategorySelect<ExtArgs> | null
+  }
+
+
+  /**
+   * Model CardConditionOption
+   */
+
+  export type AggregateCardConditionOption = {
+    _count: CardConditionOptionCountAggregateOutputType | null
+    _min: CardConditionOptionMinAggregateOutputType | null
+    _max: CardConditionOptionMaxAggregateOutputType | null
+  }
+
+  export type CardConditionOptionMinAggregateOutputType = {
+    id: string | null
+    name: string | null
+    isActive: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type CardConditionOptionMaxAggregateOutputType = {
+    id: string | null
+    name: string | null
+    isActive: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type CardConditionOptionCountAggregateOutputType = {
+    id: number
+    name: number
+    isActive: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type CardConditionOptionMinAggregateInputType = {
+    id?: true
+    name?: true
+    isActive?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type CardConditionOptionMaxAggregateInputType = {
+    id?: true
+    name?: true
+    isActive?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type CardConditionOptionCountAggregateInputType = {
+    id?: true
+    name?: true
+    isActive?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type CardConditionOptionAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which CardConditionOption to aggregate.
+     */
+    where?: CardConditionOptionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CardConditionOptions to fetch.
+     */
+    orderBy?: CardConditionOptionOrderByWithRelationInput | CardConditionOptionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: CardConditionOptionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CardConditionOptions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CardConditionOptions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned CardConditionOptions
+    **/
+    _count?: true | CardConditionOptionCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: CardConditionOptionMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: CardConditionOptionMaxAggregateInputType
+  }
+
+  export type GetCardConditionOptionAggregateType<T extends CardConditionOptionAggregateArgs> = {
+        [P in keyof T & keyof AggregateCardConditionOption]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateCardConditionOption[P]>
+      : GetScalarType<T[P], AggregateCardConditionOption[P]>
+  }
+
+
+
+
+  export type CardConditionOptionGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: CardConditionOptionWhereInput
+    orderBy?: CardConditionOptionOrderByWithAggregationInput | CardConditionOptionOrderByWithAggregationInput[]
+    by: CardConditionOptionScalarFieldEnum[] | CardConditionOptionScalarFieldEnum
+    having?: CardConditionOptionScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: CardConditionOptionCountAggregateInputType | true
+    _min?: CardConditionOptionMinAggregateInputType
+    _max?: CardConditionOptionMaxAggregateInputType
+  }
+
+  export type CardConditionOptionGroupByOutputType = {
+    id: string
+    name: string
+    isActive: boolean
+    createdAt: Date
+    updatedAt: Date
+    _count: CardConditionOptionCountAggregateOutputType | null
+    _min: CardConditionOptionMinAggregateOutputType | null
+    _max: CardConditionOptionMaxAggregateOutputType | null
+  }
+
+  type GetCardConditionOptionGroupByPayload<T extends CardConditionOptionGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<CardConditionOptionGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof CardConditionOptionGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], CardConditionOptionGroupByOutputType[P]>
+            : GetScalarType<T[P], CardConditionOptionGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type CardConditionOptionSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    isActive?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["cardConditionOption"]>
+
+
+  export type CardConditionOptionSelectScalar = {
+    id?: boolean
+    name?: boolean
+    isActive?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+
+  export type $CardConditionOptionPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "CardConditionOption"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      name: string
+      isActive: boolean
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["cardConditionOption"]>
+    composites: {}
+  }
+
+  type CardConditionOptionGetPayload<S extends boolean | null | undefined | CardConditionOptionDefaultArgs> = $Result.GetResult<Prisma.$CardConditionOptionPayload, S>
+
+  type CardConditionOptionCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<CardConditionOptionFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: CardConditionOptionCountAggregateInputType | true
+    }
+
+  export interface CardConditionOptionDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['CardConditionOption'], meta: { name: 'CardConditionOption' } }
+    /**
+     * Find zero or one CardConditionOption that matches the filter.
+     * @param {CardConditionOptionFindUniqueArgs} args - Arguments to find a CardConditionOption
+     * @example
+     * // Get one CardConditionOption
+     * const cardConditionOption = await prisma.cardConditionOption.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends CardConditionOptionFindUniqueArgs>(args: SelectSubset<T, CardConditionOptionFindUniqueArgs<ExtArgs>>): Prisma__CardConditionOptionClient<$Result.GetResult<Prisma.$CardConditionOptionPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one CardConditionOption that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {CardConditionOptionFindUniqueOrThrowArgs} args - Arguments to find a CardConditionOption
+     * @example
+     * // Get one CardConditionOption
+     * const cardConditionOption = await prisma.cardConditionOption.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends CardConditionOptionFindUniqueOrThrowArgs>(args: SelectSubset<T, CardConditionOptionFindUniqueOrThrowArgs<ExtArgs>>): Prisma__CardConditionOptionClient<$Result.GetResult<Prisma.$CardConditionOptionPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first CardConditionOption that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CardConditionOptionFindFirstArgs} args - Arguments to find a CardConditionOption
+     * @example
+     * // Get one CardConditionOption
+     * const cardConditionOption = await prisma.cardConditionOption.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends CardConditionOptionFindFirstArgs>(args?: SelectSubset<T, CardConditionOptionFindFirstArgs<ExtArgs>>): Prisma__CardConditionOptionClient<$Result.GetResult<Prisma.$CardConditionOptionPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first CardConditionOption that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CardConditionOptionFindFirstOrThrowArgs} args - Arguments to find a CardConditionOption
+     * @example
+     * // Get one CardConditionOption
+     * const cardConditionOption = await prisma.cardConditionOption.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends CardConditionOptionFindFirstOrThrowArgs>(args?: SelectSubset<T, CardConditionOptionFindFirstOrThrowArgs<ExtArgs>>): Prisma__CardConditionOptionClient<$Result.GetResult<Prisma.$CardConditionOptionPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more CardConditionOptions that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CardConditionOptionFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all CardConditionOptions
+     * const cardConditionOptions = await prisma.cardConditionOption.findMany()
+     * 
+     * // Get first 10 CardConditionOptions
+     * const cardConditionOptions = await prisma.cardConditionOption.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const cardConditionOptionWithIdOnly = await prisma.cardConditionOption.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends CardConditionOptionFindManyArgs>(args?: SelectSubset<T, CardConditionOptionFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CardConditionOptionPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a CardConditionOption.
+     * @param {CardConditionOptionCreateArgs} args - Arguments to create a CardConditionOption.
+     * @example
+     * // Create one CardConditionOption
+     * const CardConditionOption = await prisma.cardConditionOption.create({
+     *   data: {
+     *     // ... data to create a CardConditionOption
+     *   }
+     * })
+     * 
+     */
+    create<T extends CardConditionOptionCreateArgs>(args: SelectSubset<T, CardConditionOptionCreateArgs<ExtArgs>>): Prisma__CardConditionOptionClient<$Result.GetResult<Prisma.$CardConditionOptionPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many CardConditionOptions.
+     * @param {CardConditionOptionCreateManyArgs} args - Arguments to create many CardConditionOptions.
+     * @example
+     * // Create many CardConditionOptions
+     * const cardConditionOption = await prisma.cardConditionOption.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends CardConditionOptionCreateManyArgs>(args?: SelectSubset<T, CardConditionOptionCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Delete a CardConditionOption.
+     * @param {CardConditionOptionDeleteArgs} args - Arguments to delete one CardConditionOption.
+     * @example
+     * // Delete one CardConditionOption
+     * const CardConditionOption = await prisma.cardConditionOption.delete({
+     *   where: {
+     *     // ... filter to delete one CardConditionOption
+     *   }
+     * })
+     * 
+     */
+    delete<T extends CardConditionOptionDeleteArgs>(args: SelectSubset<T, CardConditionOptionDeleteArgs<ExtArgs>>): Prisma__CardConditionOptionClient<$Result.GetResult<Prisma.$CardConditionOptionPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one CardConditionOption.
+     * @param {CardConditionOptionUpdateArgs} args - Arguments to update one CardConditionOption.
+     * @example
+     * // Update one CardConditionOption
+     * const cardConditionOption = await prisma.cardConditionOption.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends CardConditionOptionUpdateArgs>(args: SelectSubset<T, CardConditionOptionUpdateArgs<ExtArgs>>): Prisma__CardConditionOptionClient<$Result.GetResult<Prisma.$CardConditionOptionPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more CardConditionOptions.
+     * @param {CardConditionOptionDeleteManyArgs} args - Arguments to filter CardConditionOptions to delete.
+     * @example
+     * // Delete a few CardConditionOptions
+     * const { count } = await prisma.cardConditionOption.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends CardConditionOptionDeleteManyArgs>(args?: SelectSubset<T, CardConditionOptionDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CardConditionOptions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CardConditionOptionUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many CardConditionOptions
+     * const cardConditionOption = await prisma.cardConditionOption.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends CardConditionOptionUpdateManyArgs>(args: SelectSubset<T, CardConditionOptionUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one CardConditionOption.
+     * @param {CardConditionOptionUpsertArgs} args - Arguments to update or create a CardConditionOption.
+     * @example
+     * // Update or create a CardConditionOption
+     * const cardConditionOption = await prisma.cardConditionOption.upsert({
+     *   create: {
+     *     // ... data to create a CardConditionOption
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the CardConditionOption we want to update
+     *   }
+     * })
+     */
+    upsert<T extends CardConditionOptionUpsertArgs>(args: SelectSubset<T, CardConditionOptionUpsertArgs<ExtArgs>>): Prisma__CardConditionOptionClient<$Result.GetResult<Prisma.$CardConditionOptionPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of CardConditionOptions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CardConditionOptionCountArgs} args - Arguments to filter CardConditionOptions to count.
+     * @example
+     * // Count the number of CardConditionOptions
+     * const count = await prisma.cardConditionOption.count({
+     *   where: {
+     *     // ... the filter for the CardConditionOptions we want to count
+     *   }
+     * })
+    **/
+    count<T extends CardConditionOptionCountArgs>(
+      args?: Subset<T, CardConditionOptionCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], CardConditionOptionCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a CardConditionOption.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CardConditionOptionAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends CardConditionOptionAggregateArgs>(args: Subset<T, CardConditionOptionAggregateArgs>): Prisma.PrismaPromise<GetCardConditionOptionAggregateType<T>>
+
+    /**
+     * Group by CardConditionOption.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CardConditionOptionGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends CardConditionOptionGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: CardConditionOptionGroupByArgs['orderBy'] }
+        : { orderBy?: CardConditionOptionGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, CardConditionOptionGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetCardConditionOptionGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the CardConditionOption model
+   */
+  readonly fields: CardConditionOptionFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for CardConditionOption.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__CardConditionOptionClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the CardConditionOption model
+   */ 
+  interface CardConditionOptionFieldRefs {
+    readonly id: FieldRef<"CardConditionOption", 'String'>
+    readonly name: FieldRef<"CardConditionOption", 'String'>
+    readonly isActive: FieldRef<"CardConditionOption", 'Boolean'>
+    readonly createdAt: FieldRef<"CardConditionOption", 'DateTime'>
+    readonly updatedAt: FieldRef<"CardConditionOption", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * CardConditionOption findUnique
+   */
+  export type CardConditionOptionFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CardConditionOption
+     */
+    select?: CardConditionOptionSelect<ExtArgs> | null
+    /**
+     * Filter, which CardConditionOption to fetch.
+     */
+    where: CardConditionOptionWhereUniqueInput
+  }
+
+  /**
+   * CardConditionOption findUniqueOrThrow
+   */
+  export type CardConditionOptionFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CardConditionOption
+     */
+    select?: CardConditionOptionSelect<ExtArgs> | null
+    /**
+     * Filter, which CardConditionOption to fetch.
+     */
+    where: CardConditionOptionWhereUniqueInput
+  }
+
+  /**
+   * CardConditionOption findFirst
+   */
+  export type CardConditionOptionFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CardConditionOption
+     */
+    select?: CardConditionOptionSelect<ExtArgs> | null
+    /**
+     * Filter, which CardConditionOption to fetch.
+     */
+    where?: CardConditionOptionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CardConditionOptions to fetch.
+     */
+    orderBy?: CardConditionOptionOrderByWithRelationInput | CardConditionOptionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CardConditionOptions.
+     */
+    cursor?: CardConditionOptionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CardConditionOptions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CardConditionOptions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CardConditionOptions.
+     */
+    distinct?: CardConditionOptionScalarFieldEnum | CardConditionOptionScalarFieldEnum[]
+  }
+
+  /**
+   * CardConditionOption findFirstOrThrow
+   */
+  export type CardConditionOptionFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CardConditionOption
+     */
+    select?: CardConditionOptionSelect<ExtArgs> | null
+    /**
+     * Filter, which CardConditionOption to fetch.
+     */
+    where?: CardConditionOptionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CardConditionOptions to fetch.
+     */
+    orderBy?: CardConditionOptionOrderByWithRelationInput | CardConditionOptionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CardConditionOptions.
+     */
+    cursor?: CardConditionOptionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CardConditionOptions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CardConditionOptions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CardConditionOptions.
+     */
+    distinct?: CardConditionOptionScalarFieldEnum | CardConditionOptionScalarFieldEnum[]
+  }
+
+  /**
+   * CardConditionOption findMany
+   */
+  export type CardConditionOptionFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CardConditionOption
+     */
+    select?: CardConditionOptionSelect<ExtArgs> | null
+    /**
+     * Filter, which CardConditionOptions to fetch.
+     */
+    where?: CardConditionOptionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CardConditionOptions to fetch.
+     */
+    orderBy?: CardConditionOptionOrderByWithRelationInput | CardConditionOptionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing CardConditionOptions.
+     */
+    cursor?: CardConditionOptionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CardConditionOptions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CardConditionOptions.
+     */
+    skip?: number
+    distinct?: CardConditionOptionScalarFieldEnum | CardConditionOptionScalarFieldEnum[]
+  }
+
+  /**
+   * CardConditionOption create
+   */
+  export type CardConditionOptionCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CardConditionOption
+     */
+    select?: CardConditionOptionSelect<ExtArgs> | null
+    /**
+     * The data needed to create a CardConditionOption.
+     */
+    data: XOR<CardConditionOptionCreateInput, CardConditionOptionUncheckedCreateInput>
+  }
+
+  /**
+   * CardConditionOption createMany
+   */
+  export type CardConditionOptionCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many CardConditionOptions.
+     */
+    data: CardConditionOptionCreateManyInput | CardConditionOptionCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * CardConditionOption update
+   */
+  export type CardConditionOptionUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CardConditionOption
+     */
+    select?: CardConditionOptionSelect<ExtArgs> | null
+    /**
+     * The data needed to update a CardConditionOption.
+     */
+    data: XOR<CardConditionOptionUpdateInput, CardConditionOptionUncheckedUpdateInput>
+    /**
+     * Choose, which CardConditionOption to update.
+     */
+    where: CardConditionOptionWhereUniqueInput
+  }
+
+  /**
+   * CardConditionOption updateMany
+   */
+  export type CardConditionOptionUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update CardConditionOptions.
+     */
+    data: XOR<CardConditionOptionUpdateManyMutationInput, CardConditionOptionUncheckedUpdateManyInput>
+    /**
+     * Filter which CardConditionOptions to update
+     */
+    where?: CardConditionOptionWhereInput
+  }
+
+  /**
+   * CardConditionOption upsert
+   */
+  export type CardConditionOptionUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CardConditionOption
+     */
+    select?: CardConditionOptionSelect<ExtArgs> | null
+    /**
+     * The filter to search for the CardConditionOption to update in case it exists.
+     */
+    where: CardConditionOptionWhereUniqueInput
+    /**
+     * In case the CardConditionOption found by the `where` argument doesn't exist, create a new CardConditionOption with this data.
+     */
+    create: XOR<CardConditionOptionCreateInput, CardConditionOptionUncheckedCreateInput>
+    /**
+     * In case the CardConditionOption was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<CardConditionOptionUpdateInput, CardConditionOptionUncheckedUpdateInput>
+  }
+
+  /**
+   * CardConditionOption delete
+   */
+  export type CardConditionOptionDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CardConditionOption
+     */
+    select?: CardConditionOptionSelect<ExtArgs> | null
+    /**
+     * Filter which CardConditionOption to delete.
+     */
+    where: CardConditionOptionWhereUniqueInput
+  }
+
+  /**
+   * CardConditionOption deleteMany
+   */
+  export type CardConditionOptionDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which CardConditionOptions to delete
+     */
+    where?: CardConditionOptionWhereInput
+  }
+
+  /**
+   * CardConditionOption without action
+   */
+  export type CardConditionOptionDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CardConditionOption
+     */
+    select?: CardConditionOptionSelect<ExtArgs> | null
+  }
+
+
+  /**
+   * Model CardLanguage
+   */
+
+  export type AggregateCardLanguage = {
+    _count: CardLanguageCountAggregateOutputType | null
+    _min: CardLanguageMinAggregateOutputType | null
+    _max: CardLanguageMaxAggregateOutputType | null
+  }
+
+  export type CardLanguageMinAggregateOutputType = {
+    id: string | null
+    name: string | null
+    isActive: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type CardLanguageMaxAggregateOutputType = {
+    id: string | null
+    name: string | null
+    isActive: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type CardLanguageCountAggregateOutputType = {
+    id: number
+    name: number
+    isActive: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type CardLanguageMinAggregateInputType = {
+    id?: true
+    name?: true
+    isActive?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type CardLanguageMaxAggregateInputType = {
+    id?: true
+    name?: true
+    isActive?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type CardLanguageCountAggregateInputType = {
+    id?: true
+    name?: true
+    isActive?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type CardLanguageAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which CardLanguage to aggregate.
+     */
+    where?: CardLanguageWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CardLanguages to fetch.
+     */
+    orderBy?: CardLanguageOrderByWithRelationInput | CardLanguageOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: CardLanguageWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CardLanguages from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CardLanguages.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned CardLanguages
+    **/
+    _count?: true | CardLanguageCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: CardLanguageMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: CardLanguageMaxAggregateInputType
+  }
+
+  export type GetCardLanguageAggregateType<T extends CardLanguageAggregateArgs> = {
+        [P in keyof T & keyof AggregateCardLanguage]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateCardLanguage[P]>
+      : GetScalarType<T[P], AggregateCardLanguage[P]>
+  }
+
+
+
+
+  export type CardLanguageGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: CardLanguageWhereInput
+    orderBy?: CardLanguageOrderByWithAggregationInput | CardLanguageOrderByWithAggregationInput[]
+    by: CardLanguageScalarFieldEnum[] | CardLanguageScalarFieldEnum
+    having?: CardLanguageScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: CardLanguageCountAggregateInputType | true
+    _min?: CardLanguageMinAggregateInputType
+    _max?: CardLanguageMaxAggregateInputType
+  }
+
+  export type CardLanguageGroupByOutputType = {
+    id: string
+    name: string
+    isActive: boolean
+    createdAt: Date
+    updatedAt: Date
+    _count: CardLanguageCountAggregateOutputType | null
+    _min: CardLanguageMinAggregateOutputType | null
+    _max: CardLanguageMaxAggregateOutputType | null
+  }
+
+  type GetCardLanguageGroupByPayload<T extends CardLanguageGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<CardLanguageGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof CardLanguageGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], CardLanguageGroupByOutputType[P]>
+            : GetScalarType<T[P], CardLanguageGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type CardLanguageSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    isActive?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["cardLanguage"]>
+
+
+  export type CardLanguageSelectScalar = {
+    id?: boolean
+    name?: boolean
+    isActive?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+
+  export type $CardLanguagePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "CardLanguage"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      name: string
+      isActive: boolean
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["cardLanguage"]>
+    composites: {}
+  }
+
+  type CardLanguageGetPayload<S extends boolean | null | undefined | CardLanguageDefaultArgs> = $Result.GetResult<Prisma.$CardLanguagePayload, S>
+
+  type CardLanguageCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<CardLanguageFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: CardLanguageCountAggregateInputType | true
+    }
+
+  export interface CardLanguageDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['CardLanguage'], meta: { name: 'CardLanguage' } }
+    /**
+     * Find zero or one CardLanguage that matches the filter.
+     * @param {CardLanguageFindUniqueArgs} args - Arguments to find a CardLanguage
+     * @example
+     * // Get one CardLanguage
+     * const cardLanguage = await prisma.cardLanguage.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends CardLanguageFindUniqueArgs>(args: SelectSubset<T, CardLanguageFindUniqueArgs<ExtArgs>>): Prisma__CardLanguageClient<$Result.GetResult<Prisma.$CardLanguagePayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one CardLanguage that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {CardLanguageFindUniqueOrThrowArgs} args - Arguments to find a CardLanguage
+     * @example
+     * // Get one CardLanguage
+     * const cardLanguage = await prisma.cardLanguage.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends CardLanguageFindUniqueOrThrowArgs>(args: SelectSubset<T, CardLanguageFindUniqueOrThrowArgs<ExtArgs>>): Prisma__CardLanguageClient<$Result.GetResult<Prisma.$CardLanguagePayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first CardLanguage that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CardLanguageFindFirstArgs} args - Arguments to find a CardLanguage
+     * @example
+     * // Get one CardLanguage
+     * const cardLanguage = await prisma.cardLanguage.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends CardLanguageFindFirstArgs>(args?: SelectSubset<T, CardLanguageFindFirstArgs<ExtArgs>>): Prisma__CardLanguageClient<$Result.GetResult<Prisma.$CardLanguagePayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first CardLanguage that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CardLanguageFindFirstOrThrowArgs} args - Arguments to find a CardLanguage
+     * @example
+     * // Get one CardLanguage
+     * const cardLanguage = await prisma.cardLanguage.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends CardLanguageFindFirstOrThrowArgs>(args?: SelectSubset<T, CardLanguageFindFirstOrThrowArgs<ExtArgs>>): Prisma__CardLanguageClient<$Result.GetResult<Prisma.$CardLanguagePayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more CardLanguages that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CardLanguageFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all CardLanguages
+     * const cardLanguages = await prisma.cardLanguage.findMany()
+     * 
+     * // Get first 10 CardLanguages
+     * const cardLanguages = await prisma.cardLanguage.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const cardLanguageWithIdOnly = await prisma.cardLanguage.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends CardLanguageFindManyArgs>(args?: SelectSubset<T, CardLanguageFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CardLanguagePayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a CardLanguage.
+     * @param {CardLanguageCreateArgs} args - Arguments to create a CardLanguage.
+     * @example
+     * // Create one CardLanguage
+     * const CardLanguage = await prisma.cardLanguage.create({
+     *   data: {
+     *     // ... data to create a CardLanguage
+     *   }
+     * })
+     * 
+     */
+    create<T extends CardLanguageCreateArgs>(args: SelectSubset<T, CardLanguageCreateArgs<ExtArgs>>): Prisma__CardLanguageClient<$Result.GetResult<Prisma.$CardLanguagePayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many CardLanguages.
+     * @param {CardLanguageCreateManyArgs} args - Arguments to create many CardLanguages.
+     * @example
+     * // Create many CardLanguages
+     * const cardLanguage = await prisma.cardLanguage.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends CardLanguageCreateManyArgs>(args?: SelectSubset<T, CardLanguageCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Delete a CardLanguage.
+     * @param {CardLanguageDeleteArgs} args - Arguments to delete one CardLanguage.
+     * @example
+     * // Delete one CardLanguage
+     * const CardLanguage = await prisma.cardLanguage.delete({
+     *   where: {
+     *     // ... filter to delete one CardLanguage
+     *   }
+     * })
+     * 
+     */
+    delete<T extends CardLanguageDeleteArgs>(args: SelectSubset<T, CardLanguageDeleteArgs<ExtArgs>>): Prisma__CardLanguageClient<$Result.GetResult<Prisma.$CardLanguagePayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one CardLanguage.
+     * @param {CardLanguageUpdateArgs} args - Arguments to update one CardLanguage.
+     * @example
+     * // Update one CardLanguage
+     * const cardLanguage = await prisma.cardLanguage.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends CardLanguageUpdateArgs>(args: SelectSubset<T, CardLanguageUpdateArgs<ExtArgs>>): Prisma__CardLanguageClient<$Result.GetResult<Prisma.$CardLanguagePayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more CardLanguages.
+     * @param {CardLanguageDeleteManyArgs} args - Arguments to filter CardLanguages to delete.
+     * @example
+     * // Delete a few CardLanguages
+     * const { count } = await prisma.cardLanguage.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends CardLanguageDeleteManyArgs>(args?: SelectSubset<T, CardLanguageDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CardLanguages.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CardLanguageUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many CardLanguages
+     * const cardLanguage = await prisma.cardLanguage.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends CardLanguageUpdateManyArgs>(args: SelectSubset<T, CardLanguageUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one CardLanguage.
+     * @param {CardLanguageUpsertArgs} args - Arguments to update or create a CardLanguage.
+     * @example
+     * // Update or create a CardLanguage
+     * const cardLanguage = await prisma.cardLanguage.upsert({
+     *   create: {
+     *     // ... data to create a CardLanguage
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the CardLanguage we want to update
+     *   }
+     * })
+     */
+    upsert<T extends CardLanguageUpsertArgs>(args: SelectSubset<T, CardLanguageUpsertArgs<ExtArgs>>): Prisma__CardLanguageClient<$Result.GetResult<Prisma.$CardLanguagePayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of CardLanguages.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CardLanguageCountArgs} args - Arguments to filter CardLanguages to count.
+     * @example
+     * // Count the number of CardLanguages
+     * const count = await prisma.cardLanguage.count({
+     *   where: {
+     *     // ... the filter for the CardLanguages we want to count
+     *   }
+     * })
+    **/
+    count<T extends CardLanguageCountArgs>(
+      args?: Subset<T, CardLanguageCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], CardLanguageCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a CardLanguage.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CardLanguageAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends CardLanguageAggregateArgs>(args: Subset<T, CardLanguageAggregateArgs>): Prisma.PrismaPromise<GetCardLanguageAggregateType<T>>
+
+    /**
+     * Group by CardLanguage.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CardLanguageGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends CardLanguageGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: CardLanguageGroupByArgs['orderBy'] }
+        : { orderBy?: CardLanguageGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, CardLanguageGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetCardLanguageGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the CardLanguage model
+   */
+  readonly fields: CardLanguageFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for CardLanguage.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__CardLanguageClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the CardLanguage model
+   */ 
+  interface CardLanguageFieldRefs {
+    readonly id: FieldRef<"CardLanguage", 'String'>
+    readonly name: FieldRef<"CardLanguage", 'String'>
+    readonly isActive: FieldRef<"CardLanguage", 'Boolean'>
+    readonly createdAt: FieldRef<"CardLanguage", 'DateTime'>
+    readonly updatedAt: FieldRef<"CardLanguage", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * CardLanguage findUnique
+   */
+  export type CardLanguageFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CardLanguage
+     */
+    select?: CardLanguageSelect<ExtArgs> | null
+    /**
+     * Filter, which CardLanguage to fetch.
+     */
+    where: CardLanguageWhereUniqueInput
+  }
+
+  /**
+   * CardLanguage findUniqueOrThrow
+   */
+  export type CardLanguageFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CardLanguage
+     */
+    select?: CardLanguageSelect<ExtArgs> | null
+    /**
+     * Filter, which CardLanguage to fetch.
+     */
+    where: CardLanguageWhereUniqueInput
+  }
+
+  /**
+   * CardLanguage findFirst
+   */
+  export type CardLanguageFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CardLanguage
+     */
+    select?: CardLanguageSelect<ExtArgs> | null
+    /**
+     * Filter, which CardLanguage to fetch.
+     */
+    where?: CardLanguageWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CardLanguages to fetch.
+     */
+    orderBy?: CardLanguageOrderByWithRelationInput | CardLanguageOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CardLanguages.
+     */
+    cursor?: CardLanguageWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CardLanguages from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CardLanguages.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CardLanguages.
+     */
+    distinct?: CardLanguageScalarFieldEnum | CardLanguageScalarFieldEnum[]
+  }
+
+  /**
+   * CardLanguage findFirstOrThrow
+   */
+  export type CardLanguageFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CardLanguage
+     */
+    select?: CardLanguageSelect<ExtArgs> | null
+    /**
+     * Filter, which CardLanguage to fetch.
+     */
+    where?: CardLanguageWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CardLanguages to fetch.
+     */
+    orderBy?: CardLanguageOrderByWithRelationInput | CardLanguageOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CardLanguages.
+     */
+    cursor?: CardLanguageWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CardLanguages from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CardLanguages.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CardLanguages.
+     */
+    distinct?: CardLanguageScalarFieldEnum | CardLanguageScalarFieldEnum[]
+  }
+
+  /**
+   * CardLanguage findMany
+   */
+  export type CardLanguageFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CardLanguage
+     */
+    select?: CardLanguageSelect<ExtArgs> | null
+    /**
+     * Filter, which CardLanguages to fetch.
+     */
+    where?: CardLanguageWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CardLanguages to fetch.
+     */
+    orderBy?: CardLanguageOrderByWithRelationInput | CardLanguageOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing CardLanguages.
+     */
+    cursor?: CardLanguageWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CardLanguages from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CardLanguages.
+     */
+    skip?: number
+    distinct?: CardLanguageScalarFieldEnum | CardLanguageScalarFieldEnum[]
+  }
+
+  /**
+   * CardLanguage create
+   */
+  export type CardLanguageCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CardLanguage
+     */
+    select?: CardLanguageSelect<ExtArgs> | null
+    /**
+     * The data needed to create a CardLanguage.
+     */
+    data: XOR<CardLanguageCreateInput, CardLanguageUncheckedCreateInput>
+  }
+
+  /**
+   * CardLanguage createMany
+   */
+  export type CardLanguageCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many CardLanguages.
+     */
+    data: CardLanguageCreateManyInput | CardLanguageCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * CardLanguage update
+   */
+  export type CardLanguageUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CardLanguage
+     */
+    select?: CardLanguageSelect<ExtArgs> | null
+    /**
+     * The data needed to update a CardLanguage.
+     */
+    data: XOR<CardLanguageUpdateInput, CardLanguageUncheckedUpdateInput>
+    /**
+     * Choose, which CardLanguage to update.
+     */
+    where: CardLanguageWhereUniqueInput
+  }
+
+  /**
+   * CardLanguage updateMany
+   */
+  export type CardLanguageUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update CardLanguages.
+     */
+    data: XOR<CardLanguageUpdateManyMutationInput, CardLanguageUncheckedUpdateManyInput>
+    /**
+     * Filter which CardLanguages to update
+     */
+    where?: CardLanguageWhereInput
+  }
+
+  /**
+   * CardLanguage upsert
+   */
+  export type CardLanguageUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CardLanguage
+     */
+    select?: CardLanguageSelect<ExtArgs> | null
+    /**
+     * The filter to search for the CardLanguage to update in case it exists.
+     */
+    where: CardLanguageWhereUniqueInput
+    /**
+     * In case the CardLanguage found by the `where` argument doesn't exist, create a new CardLanguage with this data.
+     */
+    create: XOR<CardLanguageCreateInput, CardLanguageUncheckedCreateInput>
+    /**
+     * In case the CardLanguage was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<CardLanguageUpdateInput, CardLanguageUncheckedUpdateInput>
+  }
+
+  /**
+   * CardLanguage delete
+   */
+  export type CardLanguageDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CardLanguage
+     */
+    select?: CardLanguageSelect<ExtArgs> | null
+    /**
+     * Filter which CardLanguage to delete.
+     */
+    where: CardLanguageWhereUniqueInput
+  }
+
+  /**
+   * CardLanguage deleteMany
+   */
+  export type CardLanguageDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which CardLanguages to delete
+     */
+    where?: CardLanguageWhereInput
+  }
+
+  /**
+   * CardLanguage without action
+   */
+  export type CardLanguageDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CardLanguage
+     */
+    select?: CardLanguageSelect<ExtArgs> | null
+  }
+
+
+  /**
    * Model Product
    */
 
@@ -10157,10 +12877,12 @@ export namespace Prisma {
 
   export type ProductAvgAggregateOutputType = {
     version: number | null
+    viewCount: number | null
   }
 
   export type ProductSumAggregateOutputType = {
     version: number | null
+    viewCount: number | null
   }
 
   export type ProductMinAggregateOutputType = {
@@ -10179,6 +12901,7 @@ export namespace Prisma {
     backImage: string | null
     status: $Enums.ProductStatus | null
     version: number | null
+    viewCount: number | null
     createdAt: Date | null
     updatedAt: Date | null
     deletedAt: Date | null
@@ -10200,6 +12923,7 @@ export namespace Prisma {
     backImage: string | null
     status: $Enums.ProductStatus | null
     version: number | null
+    viewCount: number | null
     createdAt: Date | null
     updatedAt: Date | null
     deletedAt: Date | null
@@ -10223,6 +12947,7 @@ export namespace Prisma {
     attributes: number
     status: number
     version: number
+    viewCount: number
     createdAt: number
     updatedAt: number
     deletedAt: number
@@ -10232,10 +12957,12 @@ export namespace Prisma {
 
   export type ProductAvgAggregateInputType = {
     version?: true
+    viewCount?: true
   }
 
   export type ProductSumAggregateInputType = {
     version?: true
+    viewCount?: true
   }
 
   export type ProductMinAggregateInputType = {
@@ -10254,6 +12981,7 @@ export namespace Prisma {
     backImage?: true
     status?: true
     version?: true
+    viewCount?: true
     createdAt?: true
     updatedAt?: true
     deletedAt?: true
@@ -10275,6 +13003,7 @@ export namespace Prisma {
     backImage?: true
     status?: true
     version?: true
+    viewCount?: true
     createdAt?: true
     updatedAt?: true
     deletedAt?: true
@@ -10298,6 +13027,7 @@ export namespace Prisma {
     attributes?: true
     status?: true
     version?: true
+    viewCount?: true
     createdAt?: true
     updatedAt?: true
     deletedAt?: true
@@ -10408,6 +13138,7 @@ export namespace Prisma {
     attributes: JsonValue | null
     status: $Enums.ProductStatus
     version: number
+    viewCount: number
     createdAt: Date
     updatedAt: Date
     deletedAt: Date | null
@@ -10450,6 +13181,7 @@ export namespace Prisma {
     attributes?: boolean
     status?: boolean
     version?: boolean
+    viewCount?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     deletedAt?: boolean
@@ -10480,6 +13212,7 @@ export namespace Prisma {
     attributes?: boolean
     status?: boolean
     version?: boolean
+    viewCount?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     deletedAt?: boolean
@@ -10521,6 +13254,7 @@ export namespace Prisma {
       attributes: Prisma.JsonValue | null
       status: $Enums.ProductStatus
       version: number
+      viewCount: number
       createdAt: Date
       updatedAt: Date
       deletedAt: Date | null
@@ -10915,6 +13649,7 @@ export namespace Prisma {
     readonly attributes: FieldRef<"Product", 'Json'>
     readonly status: FieldRef<"Product", 'ProductStatus'>
     readonly version: FieldRef<"Product", 'Int'>
+    readonly viewCount: FieldRef<"Product", 'Int'>
     readonly createdAt: FieldRef<"Product", 'DateTime'>
     readonly updatedAt: FieldRef<"Product", 'DateTime'>
     readonly deletedAt: FieldRef<"Product", 'DateTime'>
@@ -11351,7 +14086,7 @@ export namespace Prisma {
   export type ProductVariantMinAggregateOutputType = {
     id: string | null
     productId: string | null
-    condition: $Enums.CardCondition | null
+    condition: string | null
     variant: string | null
     price: Decimal | null
     stockQuantity: number | null
@@ -11363,7 +14098,7 @@ export namespace Prisma {
   export type ProductVariantMaxAggregateOutputType = {
     id: string | null
     productId: string | null
-    condition: $Enums.CardCondition | null
+    condition: string | null
     variant: string | null
     price: Decimal | null
     stockQuantity: number | null
@@ -11522,7 +14257,7 @@ export namespace Prisma {
   export type ProductVariantGroupByOutputType = {
     id: string
     productId: string
-    condition: $Enums.CardCondition
+    condition: string
     variant: string
     price: Decimal
     stockQuantity: number
@@ -11593,7 +14328,7 @@ export namespace Prisma {
     scalars: $Extensions.GetPayloadResult<{
       id: string
       productId: string
-      condition: $Enums.CardCondition
+      condition: string
       variant: string
       price: Prisma.Decimal
       stockQuantity: number
@@ -11973,7 +14708,7 @@ export namespace Prisma {
   interface ProductVariantFieldRefs {
     readonly id: FieldRef<"ProductVariant", 'String'>
     readonly productId: FieldRef<"ProductVariant", 'String'>
-    readonly condition: FieldRef<"ProductVariant", 'CardCondition'>
+    readonly condition: FieldRef<"ProductVariant", 'String'>
     readonly variant: FieldRef<"ProductVariant", 'String'>
     readonly price: FieldRef<"ProductVariant", 'Decimal'>
     readonly stockQuantity: FieldRef<"ProductVariant", 'Int'>
@@ -22313,10 +25048,12 @@ export namespace Prisma {
 
   export type VirtualBoxAvgAggregateOutputType = {
     price: Decimal | null
+    viewCount: number | null
   }
 
   export type VirtualBoxSumAggregateOutputType = {
     price: Decimal | null
+    viewCount: number | null
   }
 
   export type VirtualBoxMinAggregateOutputType = {
@@ -22328,6 +25065,7 @@ export namespace Prisma {
     gradient: string | null
     price: Decimal | null
     status: $Enums.VirtualBoxStatus | null
+    viewCount: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -22341,6 +25079,7 @@ export namespace Prisma {
     gradient: string | null
     price: Decimal | null
     status: $Enums.VirtualBoxStatus | null
+    viewCount: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -22354,6 +25093,7 @@ export namespace Prisma {
     gradient: number
     price: number
     status: number
+    viewCount: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -22362,10 +25102,12 @@ export namespace Prisma {
 
   export type VirtualBoxAvgAggregateInputType = {
     price?: true
+    viewCount?: true
   }
 
   export type VirtualBoxSumAggregateInputType = {
     price?: true
+    viewCount?: true
   }
 
   export type VirtualBoxMinAggregateInputType = {
@@ -22377,6 +25119,7 @@ export namespace Prisma {
     gradient?: true
     price?: true
     status?: true
+    viewCount?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -22390,6 +25133,7 @@ export namespace Prisma {
     gradient?: true
     price?: true
     status?: true
+    viewCount?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -22403,6 +25147,7 @@ export namespace Prisma {
     gradient?: true
     price?: true
     status?: true
+    viewCount?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -22503,6 +25248,7 @@ export namespace Prisma {
     gradient: string | null
     price: Decimal
     status: $Enums.VirtualBoxStatus
+    viewCount: number
     createdAt: Date
     updatedAt: Date
     _count: VirtualBoxCountAggregateOutputType | null
@@ -22535,6 +25281,7 @@ export namespace Prisma {
     gradient?: boolean
     price?: boolean
     status?: boolean
+    viewCount?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     dropRates?: boolean | VirtualBox$dropRatesArgs<ExtArgs>
@@ -22553,6 +25300,7 @@ export namespace Prisma {
     gradient?: boolean
     price?: boolean
     status?: boolean
+    viewCount?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
@@ -22580,6 +25328,7 @@ export namespace Prisma {
       gradient: string | null
       price: Prisma.Decimal
       status: $Enums.VirtualBoxStatus
+      viewCount: number
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["virtualBox"]>
@@ -22962,6 +25711,7 @@ export namespace Prisma {
     readonly gradient: FieldRef<"VirtualBox", 'String'>
     readonly price: FieldRef<"VirtualBox", 'Decimal'>
     readonly status: FieldRef<"VirtualBox", 'VirtualBoxStatus'>
+    readonly viewCount: FieldRef<"VirtualBox", 'Int'>
     readonly createdAt: FieldRef<"VirtualBox", 'DateTime'>
     readonly updatedAt: FieldRef<"VirtualBox", 'DateTime'>
   }
@@ -27099,14 +29849,45 @@ export namespace Prisma {
   export const RarityScalarFieldEnum: {
     id: 'id',
     name: 'name',
-    code: 'code',
-    description: 'description',
     isActive: 'isActive',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
 
   export type RarityScalarFieldEnum = (typeof RarityScalarFieldEnum)[keyof typeof RarityScalarFieldEnum]
+
+
+  export const SealedCategoryScalarFieldEnum: {
+    id: 'id',
+    name: 'name',
+    isActive: 'isActive',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type SealedCategoryScalarFieldEnum = (typeof SealedCategoryScalarFieldEnum)[keyof typeof SealedCategoryScalarFieldEnum]
+
+
+  export const CardConditionOptionScalarFieldEnum: {
+    id: 'id',
+    name: 'name',
+    isActive: 'isActive',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type CardConditionOptionScalarFieldEnum = (typeof CardConditionOptionScalarFieldEnum)[keyof typeof CardConditionOptionScalarFieldEnum]
+
+
+  export const CardLanguageScalarFieldEnum: {
+    id: 'id',
+    name: 'name',
+    isActive: 'isActive',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type CardLanguageScalarFieldEnum = (typeof CardLanguageScalarFieldEnum)[keyof typeof CardLanguageScalarFieldEnum]
 
 
   export const ProductScalarFieldEnum: {
@@ -27127,6 +29908,7 @@ export namespace Prisma {
     attributes: 'attributes',
     status: 'status',
     version: 'version',
+    viewCount: 'viewCount',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt',
     deletedAt: 'deletedAt'
@@ -27322,6 +30104,7 @@ export namespace Prisma {
     gradient: 'gradient',
     price: 'price',
     status: 'status',
+    viewCount: 'viewCount',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -28075,8 +30858,6 @@ export namespace Prisma {
     NOT?: RarityWhereInput | RarityWhereInput[]
     id?: StringFilter<"Rarity"> | string
     name?: StringFilter<"Rarity"> | string
-    code?: StringFilter<"Rarity"> | string
-    description?: StringNullableFilter<"Rarity"> | string | null
     isActive?: BoolFilter<"Rarity"> | boolean
     createdAt?: DateTimeFilter<"Rarity"> | Date | string
     updatedAt?: DateTimeFilter<"Rarity"> | Date | string
@@ -28085,8 +30866,6 @@ export namespace Prisma {
   export type RarityOrderByWithRelationInput = {
     id?: SortOrder
     name?: SortOrder
-    code?: SortOrder
-    description?: SortOrderInput | SortOrder
     isActive?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -28095,21 +30874,17 @@ export namespace Prisma {
   export type RarityWhereUniqueInput = Prisma.AtLeast<{
     id?: string
     name?: string
-    code?: string
     AND?: RarityWhereInput | RarityWhereInput[]
     OR?: RarityWhereInput[]
     NOT?: RarityWhereInput | RarityWhereInput[]
-    description?: StringNullableFilter<"Rarity"> | string | null
     isActive?: BoolFilter<"Rarity"> | boolean
     createdAt?: DateTimeFilter<"Rarity"> | Date | string
     updatedAt?: DateTimeFilter<"Rarity"> | Date | string
-  }, "id" | "name" | "code">
+  }, "id" | "name">
 
   export type RarityOrderByWithAggregationInput = {
     id?: SortOrder
     name?: SortOrder
-    code?: SortOrder
-    description?: SortOrderInput | SortOrder
     isActive?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -28124,11 +30899,165 @@ export namespace Prisma {
     NOT?: RarityScalarWhereWithAggregatesInput | RarityScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"Rarity"> | string
     name?: StringWithAggregatesFilter<"Rarity"> | string
-    code?: StringWithAggregatesFilter<"Rarity"> | string
-    description?: StringNullableWithAggregatesFilter<"Rarity"> | string | null
     isActive?: BoolWithAggregatesFilter<"Rarity"> | boolean
     createdAt?: DateTimeWithAggregatesFilter<"Rarity"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Rarity"> | Date | string
+  }
+
+  export type SealedCategoryWhereInput = {
+    AND?: SealedCategoryWhereInput | SealedCategoryWhereInput[]
+    OR?: SealedCategoryWhereInput[]
+    NOT?: SealedCategoryWhereInput | SealedCategoryWhereInput[]
+    id?: StringFilter<"SealedCategory"> | string
+    name?: StringFilter<"SealedCategory"> | string
+    isActive?: BoolFilter<"SealedCategory"> | boolean
+    createdAt?: DateTimeFilter<"SealedCategory"> | Date | string
+    updatedAt?: DateTimeFilter<"SealedCategory"> | Date | string
+  }
+
+  export type SealedCategoryOrderByWithRelationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SealedCategoryWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    name?: string
+    AND?: SealedCategoryWhereInput | SealedCategoryWhereInput[]
+    OR?: SealedCategoryWhereInput[]
+    NOT?: SealedCategoryWhereInput | SealedCategoryWhereInput[]
+    isActive?: BoolFilter<"SealedCategory"> | boolean
+    createdAt?: DateTimeFilter<"SealedCategory"> | Date | string
+    updatedAt?: DateTimeFilter<"SealedCategory"> | Date | string
+  }, "id" | "name">
+
+  export type SealedCategoryOrderByWithAggregationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: SealedCategoryCountOrderByAggregateInput
+    _max?: SealedCategoryMaxOrderByAggregateInput
+    _min?: SealedCategoryMinOrderByAggregateInput
+  }
+
+  export type SealedCategoryScalarWhereWithAggregatesInput = {
+    AND?: SealedCategoryScalarWhereWithAggregatesInput | SealedCategoryScalarWhereWithAggregatesInput[]
+    OR?: SealedCategoryScalarWhereWithAggregatesInput[]
+    NOT?: SealedCategoryScalarWhereWithAggregatesInput | SealedCategoryScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"SealedCategory"> | string
+    name?: StringWithAggregatesFilter<"SealedCategory"> | string
+    isActive?: BoolWithAggregatesFilter<"SealedCategory"> | boolean
+    createdAt?: DateTimeWithAggregatesFilter<"SealedCategory"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"SealedCategory"> | Date | string
+  }
+
+  export type CardConditionOptionWhereInput = {
+    AND?: CardConditionOptionWhereInput | CardConditionOptionWhereInput[]
+    OR?: CardConditionOptionWhereInput[]
+    NOT?: CardConditionOptionWhereInput | CardConditionOptionWhereInput[]
+    id?: StringFilter<"CardConditionOption"> | string
+    name?: StringFilter<"CardConditionOption"> | string
+    isActive?: BoolFilter<"CardConditionOption"> | boolean
+    createdAt?: DateTimeFilter<"CardConditionOption"> | Date | string
+    updatedAt?: DateTimeFilter<"CardConditionOption"> | Date | string
+  }
+
+  export type CardConditionOptionOrderByWithRelationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CardConditionOptionWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    name?: string
+    AND?: CardConditionOptionWhereInput | CardConditionOptionWhereInput[]
+    OR?: CardConditionOptionWhereInput[]
+    NOT?: CardConditionOptionWhereInput | CardConditionOptionWhereInput[]
+    isActive?: BoolFilter<"CardConditionOption"> | boolean
+    createdAt?: DateTimeFilter<"CardConditionOption"> | Date | string
+    updatedAt?: DateTimeFilter<"CardConditionOption"> | Date | string
+  }, "id" | "name">
+
+  export type CardConditionOptionOrderByWithAggregationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: CardConditionOptionCountOrderByAggregateInput
+    _max?: CardConditionOptionMaxOrderByAggregateInput
+    _min?: CardConditionOptionMinOrderByAggregateInput
+  }
+
+  export type CardConditionOptionScalarWhereWithAggregatesInput = {
+    AND?: CardConditionOptionScalarWhereWithAggregatesInput | CardConditionOptionScalarWhereWithAggregatesInput[]
+    OR?: CardConditionOptionScalarWhereWithAggregatesInput[]
+    NOT?: CardConditionOptionScalarWhereWithAggregatesInput | CardConditionOptionScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"CardConditionOption"> | string
+    name?: StringWithAggregatesFilter<"CardConditionOption"> | string
+    isActive?: BoolWithAggregatesFilter<"CardConditionOption"> | boolean
+    createdAt?: DateTimeWithAggregatesFilter<"CardConditionOption"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"CardConditionOption"> | Date | string
+  }
+
+  export type CardLanguageWhereInput = {
+    AND?: CardLanguageWhereInput | CardLanguageWhereInput[]
+    OR?: CardLanguageWhereInput[]
+    NOT?: CardLanguageWhereInput | CardLanguageWhereInput[]
+    id?: StringFilter<"CardLanguage"> | string
+    name?: StringFilter<"CardLanguage"> | string
+    isActive?: BoolFilter<"CardLanguage"> | boolean
+    createdAt?: DateTimeFilter<"CardLanguage"> | Date | string
+    updatedAt?: DateTimeFilter<"CardLanguage"> | Date | string
+  }
+
+  export type CardLanguageOrderByWithRelationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CardLanguageWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    name?: string
+    AND?: CardLanguageWhereInput | CardLanguageWhereInput[]
+    OR?: CardLanguageWhereInput[]
+    NOT?: CardLanguageWhereInput | CardLanguageWhereInput[]
+    isActive?: BoolFilter<"CardLanguage"> | boolean
+    createdAt?: DateTimeFilter<"CardLanguage"> | Date | string
+    updatedAt?: DateTimeFilter<"CardLanguage"> | Date | string
+  }, "id" | "name">
+
+  export type CardLanguageOrderByWithAggregationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: CardLanguageCountOrderByAggregateInput
+    _max?: CardLanguageMaxOrderByAggregateInput
+    _min?: CardLanguageMinOrderByAggregateInput
+  }
+
+  export type CardLanguageScalarWhereWithAggregatesInput = {
+    AND?: CardLanguageScalarWhereWithAggregatesInput | CardLanguageScalarWhereWithAggregatesInput[]
+    OR?: CardLanguageScalarWhereWithAggregatesInput[]
+    NOT?: CardLanguageScalarWhereWithAggregatesInput | CardLanguageScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"CardLanguage"> | string
+    name?: StringWithAggregatesFilter<"CardLanguage"> | string
+    isActive?: BoolWithAggregatesFilter<"CardLanguage"> | boolean
+    createdAt?: DateTimeWithAggregatesFilter<"CardLanguage"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"CardLanguage"> | Date | string
   }
 
   export type ProductWhereInput = {
@@ -28152,6 +31081,7 @@ export namespace Prisma {
     attributes?: JsonNullableFilter<"Product">
     status?: EnumProductStatusFilter<"Product"> | $Enums.ProductStatus
     version?: IntFilter<"Product"> | number
+    viewCount?: IntFilter<"Product"> | number
     createdAt?: DateTimeFilter<"Product"> | Date | string
     updatedAt?: DateTimeFilter<"Product"> | Date | string
     deletedAt?: DateTimeNullableFilter<"Product"> | Date | string | null
@@ -28180,6 +31110,7 @@ export namespace Prisma {
     attributes?: SortOrderInput | SortOrder
     status?: SortOrder
     version?: SortOrder
+    viewCount?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     deletedAt?: SortOrderInput | SortOrder
@@ -28211,6 +31142,7 @@ export namespace Prisma {
     attributes?: JsonNullableFilter<"Product">
     status?: EnumProductStatusFilter<"Product"> | $Enums.ProductStatus
     version?: IntFilter<"Product"> | number
+    viewCount?: IntFilter<"Product"> | number
     createdAt?: DateTimeFilter<"Product"> | Date | string
     updatedAt?: DateTimeFilter<"Product"> | Date | string
     deletedAt?: DateTimeNullableFilter<"Product"> | Date | string | null
@@ -28239,6 +31171,7 @@ export namespace Prisma {
     attributes?: SortOrderInput | SortOrder
     status?: SortOrder
     version?: SortOrder
+    viewCount?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     deletedAt?: SortOrderInput | SortOrder
@@ -28270,6 +31203,7 @@ export namespace Prisma {
     attributes?: JsonNullableWithAggregatesFilter<"Product">
     status?: EnumProductStatusWithAggregatesFilter<"Product"> | $Enums.ProductStatus
     version?: IntWithAggregatesFilter<"Product"> | number
+    viewCount?: IntWithAggregatesFilter<"Product"> | number
     createdAt?: DateTimeWithAggregatesFilter<"Product"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Product"> | Date | string
     deletedAt?: DateTimeNullableWithAggregatesFilter<"Product"> | Date | string | null
@@ -28281,7 +31215,7 @@ export namespace Prisma {
     NOT?: ProductVariantWhereInput | ProductVariantWhereInput[]
     id?: StringFilter<"ProductVariant"> | string
     productId?: StringFilter<"ProductVariant"> | string
-    condition?: EnumCardConditionFilter<"ProductVariant"> | $Enums.CardCondition
+    condition?: StringFilter<"ProductVariant"> | string
     variant?: StringFilter<"ProductVariant"> | string
     price?: DecimalFilter<"ProductVariant"> | Decimal | DecimalJsLike | number | string
     stockQuantity?: IntFilter<"ProductVariant"> | number
@@ -28312,7 +31246,7 @@ export namespace Prisma {
     OR?: ProductVariantWhereInput[]
     NOT?: ProductVariantWhereInput | ProductVariantWhereInput[]
     productId?: StringFilter<"ProductVariant"> | string
-    condition?: EnumCardConditionFilter<"ProductVariant"> | $Enums.CardCondition
+    condition?: StringFilter<"ProductVariant"> | string
     variant?: StringFilter<"ProductVariant"> | string
     price?: DecimalFilter<"ProductVariant"> | Decimal | DecimalJsLike | number | string
     stockQuantity?: IntFilter<"ProductVariant"> | number
@@ -28346,7 +31280,7 @@ export namespace Prisma {
     NOT?: ProductVariantScalarWhereWithAggregatesInput | ProductVariantScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"ProductVariant"> | string
     productId?: StringWithAggregatesFilter<"ProductVariant"> | string
-    condition?: EnumCardConditionWithAggregatesFilter<"ProductVariant"> | $Enums.CardCondition
+    condition?: StringWithAggregatesFilter<"ProductVariant"> | string
     variant?: StringWithAggregatesFilter<"ProductVariant"> | string
     price?: DecimalWithAggregatesFilter<"ProductVariant"> | Decimal | DecimalJsLike | number | string
     stockQuantity?: IntWithAggregatesFilter<"ProductVariant"> | number
@@ -29238,6 +32172,7 @@ export namespace Prisma {
     gradient?: StringNullableFilter<"VirtualBox"> | string | null
     price?: DecimalFilter<"VirtualBox"> | Decimal | DecimalJsLike | number | string
     status?: EnumVirtualBoxStatusFilter<"VirtualBox"> | $Enums.VirtualBoxStatus
+    viewCount?: IntFilter<"VirtualBox"> | number
     createdAt?: DateTimeFilter<"VirtualBox"> | Date | string
     updatedAt?: DateTimeFilter<"VirtualBox"> | Date | string
     dropRates?: VirtualBoxDropRateListRelationFilter
@@ -29254,6 +32189,7 @@ export namespace Prisma {
     gradient?: SortOrderInput | SortOrder
     price?: SortOrder
     status?: SortOrder
+    viewCount?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     dropRates?: VirtualBoxDropRateOrderByRelationAggregateInput
@@ -29273,6 +32209,7 @@ export namespace Prisma {
     gradient?: StringNullableFilter<"VirtualBox"> | string | null
     price?: DecimalFilter<"VirtualBox"> | Decimal | DecimalJsLike | number | string
     status?: EnumVirtualBoxStatusFilter<"VirtualBox"> | $Enums.VirtualBoxStatus
+    viewCount?: IntFilter<"VirtualBox"> | number
     createdAt?: DateTimeFilter<"VirtualBox"> | Date | string
     updatedAt?: DateTimeFilter<"VirtualBox"> | Date | string
     dropRates?: VirtualBoxDropRateListRelationFilter
@@ -29289,6 +32226,7 @@ export namespace Prisma {
     gradient?: SortOrderInput | SortOrder
     price?: SortOrder
     status?: SortOrder
+    viewCount?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: VirtualBoxCountOrderByAggregateInput
@@ -29310,6 +32248,7 @@ export namespace Prisma {
     gradient?: StringNullableWithAggregatesFilter<"VirtualBox"> | string | null
     price?: DecimalWithAggregatesFilter<"VirtualBox"> | Decimal | DecimalJsLike | number | string
     status?: EnumVirtualBoxStatusWithAggregatesFilter<"VirtualBox"> | $Enums.VirtualBoxStatus
+    viewCount?: IntWithAggregatesFilter<"VirtualBox"> | number
     createdAt?: DateTimeWithAggregatesFilter<"VirtualBox"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"VirtualBox"> | Date | string
   }
@@ -30145,8 +33084,6 @@ export namespace Prisma {
   export type RarityCreateInput = {
     id?: string
     name: string
-    code: string
-    description?: string | null
     isActive?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -30155,8 +33092,6 @@ export namespace Prisma {
   export type RarityUncheckedCreateInput = {
     id?: string
     name: string
-    code: string
-    description?: string | null
     isActive?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -30165,8 +33100,6 @@ export namespace Prisma {
   export type RarityUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
-    code?: StringFieldUpdateOperationsInput | string
-    description?: NullableStringFieldUpdateOperationsInput | string | null
     isActive?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30175,8 +33108,6 @@ export namespace Prisma {
   export type RarityUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
-    code?: StringFieldUpdateOperationsInput | string
-    description?: NullableStringFieldUpdateOperationsInput | string | null
     isActive?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30185,8 +33116,6 @@ export namespace Prisma {
   export type RarityCreateManyInput = {
     id?: string
     name: string
-    code: string
-    description?: string | null
     isActive?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -30195,8 +33124,6 @@ export namespace Prisma {
   export type RarityUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
-    code?: StringFieldUpdateOperationsInput | string
-    description?: NullableStringFieldUpdateOperationsInput | string | null
     isActive?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30205,8 +33132,174 @@ export namespace Prisma {
   export type RarityUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
-    code?: StringFieldUpdateOperationsInput | string
-    description?: NullableStringFieldUpdateOperationsInput | string | null
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SealedCategoryCreateInput = {
+    id?: string
+    name: string
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SealedCategoryUncheckedCreateInput = {
+    id?: string
+    name: string
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SealedCategoryUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SealedCategoryUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SealedCategoryCreateManyInput = {
+    id?: string
+    name: string
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SealedCategoryUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SealedCategoryUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CardConditionOptionCreateInput = {
+    id?: string
+    name: string
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CardConditionOptionUncheckedCreateInput = {
+    id?: string
+    name: string
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CardConditionOptionUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CardConditionOptionUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CardConditionOptionCreateManyInput = {
+    id?: string
+    name: string
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CardConditionOptionUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CardConditionOptionUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CardLanguageCreateInput = {
+    id?: string
+    name: string
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CardLanguageUncheckedCreateInput = {
+    id?: string
+    name: string
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CardLanguageUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CardLanguageUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CardLanguageCreateManyInput = {
+    id?: string
+    name: string
+    isActive?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CardLanguageUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CardLanguageUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
     isActive?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -30229,6 +33322,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: $Enums.ProductStatus
     version?: number
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     deletedAt?: Date | string | null
@@ -30257,6 +33351,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: $Enums.ProductStatus
     version?: number
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     deletedAt?: Date | string | null
@@ -30283,6 +33378,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: EnumProductStatusFieldUpdateOperationsInput | $Enums.ProductStatus
     version?: IntFieldUpdateOperationsInput | number
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -30311,6 +33407,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: EnumProductStatusFieldUpdateOperationsInput | $Enums.ProductStatus
     version?: IntFieldUpdateOperationsInput | number
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -30338,6 +33435,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: $Enums.ProductStatus
     version?: number
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     deletedAt?: Date | string | null
@@ -30360,6 +33458,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: EnumProductStatusFieldUpdateOperationsInput | $Enums.ProductStatus
     version?: IntFieldUpdateOperationsInput | number
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -30383,6 +33482,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: EnumProductStatusFieldUpdateOperationsInput | $Enums.ProductStatus
     version?: IntFieldUpdateOperationsInput | number
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -30390,7 +33490,7 @@ export namespace Prisma {
 
   export type ProductVariantCreateInput = {
     id?: string
-    condition?: $Enums.CardCondition
+    condition?: string
     variant?: string
     price: Decimal | DecimalJsLike | number | string
     stockQuantity?: number
@@ -30404,7 +33504,7 @@ export namespace Prisma {
   export type ProductVariantUncheckedCreateInput = {
     id?: string
     productId: string
-    condition?: $Enums.CardCondition
+    condition?: string
     variant?: string
     price: Decimal | DecimalJsLike | number | string
     stockQuantity?: number
@@ -30416,7 +33516,7 @@ export namespace Prisma {
 
   export type ProductVariantUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    condition?: EnumCardConditionFieldUpdateOperationsInput | $Enums.CardCondition
+    condition?: StringFieldUpdateOperationsInput | string
     variant?: StringFieldUpdateOperationsInput | string
     price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     stockQuantity?: IntFieldUpdateOperationsInput | number
@@ -30430,7 +33530,7 @@ export namespace Prisma {
   export type ProductVariantUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     productId?: StringFieldUpdateOperationsInput | string
-    condition?: EnumCardConditionFieldUpdateOperationsInput | $Enums.CardCondition
+    condition?: StringFieldUpdateOperationsInput | string
     variant?: StringFieldUpdateOperationsInput | string
     price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     stockQuantity?: IntFieldUpdateOperationsInput | number
@@ -30443,7 +33543,7 @@ export namespace Prisma {
   export type ProductVariantCreateManyInput = {
     id?: string
     productId: string
-    condition?: $Enums.CardCondition
+    condition?: string
     variant?: string
     price: Decimal | DecimalJsLike | number | string
     stockQuantity?: number
@@ -30454,7 +33554,7 @@ export namespace Prisma {
 
   export type ProductVariantUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
-    condition?: EnumCardConditionFieldUpdateOperationsInput | $Enums.CardCondition
+    condition?: StringFieldUpdateOperationsInput | string
     variant?: StringFieldUpdateOperationsInput | string
     price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     stockQuantity?: IntFieldUpdateOperationsInput | number
@@ -30466,7 +33566,7 @@ export namespace Prisma {
   export type ProductVariantUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     productId?: StringFieldUpdateOperationsInput | string
-    condition?: EnumCardConditionFieldUpdateOperationsInput | $Enums.CardCondition
+    condition?: StringFieldUpdateOperationsInput | string
     variant?: StringFieldUpdateOperationsInput | string
     price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     stockQuantity?: IntFieldUpdateOperationsInput | number
@@ -31442,6 +34542,7 @@ export namespace Prisma {
     gradient?: string | null
     price: Decimal | DecimalJsLike | number | string
     status?: $Enums.VirtualBoxStatus
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     dropRates?: VirtualBoxDropRateCreateNestedManyWithoutBoxInput
@@ -31458,6 +34559,7 @@ export namespace Prisma {
     gradient?: string | null
     price: Decimal | DecimalJsLike | number | string
     status?: $Enums.VirtualBoxStatus
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     dropRates?: VirtualBoxDropRateUncheckedCreateNestedManyWithoutBoxInput
@@ -31474,6 +34576,7 @@ export namespace Prisma {
     gradient?: NullableStringFieldUpdateOperationsInput | string | null
     price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     status?: EnumVirtualBoxStatusFieldUpdateOperationsInput | $Enums.VirtualBoxStatus
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     dropRates?: VirtualBoxDropRateUpdateManyWithoutBoxNestedInput
@@ -31490,6 +34593,7 @@ export namespace Prisma {
     gradient?: NullableStringFieldUpdateOperationsInput | string | null
     price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     status?: EnumVirtualBoxStatusFieldUpdateOperationsInput | $Enums.VirtualBoxStatus
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     dropRates?: VirtualBoxDropRateUncheckedUpdateManyWithoutBoxNestedInput
@@ -31506,6 +34610,7 @@ export namespace Prisma {
     gradient?: string | null
     price: Decimal | DecimalJsLike | number | string
     status?: $Enums.VirtualBoxStatus
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -31519,6 +34624,7 @@ export namespace Prisma {
     gradient?: NullableStringFieldUpdateOperationsInput | string | null
     price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     status?: EnumVirtualBoxStatusFieldUpdateOperationsInput | $Enums.VirtualBoxStatus
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -31532,6 +34638,7 @@ export namespace Prisma {
     gradient?: NullableStringFieldUpdateOperationsInput | string | null
     price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     status?: EnumVirtualBoxStatusFieldUpdateOperationsInput | $Enums.VirtualBoxStatus
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -32318,8 +35425,6 @@ export namespace Prisma {
   export type RarityCountOrderByAggregateInput = {
     id?: SortOrder
     name?: SortOrder
-    code?: SortOrder
-    description?: SortOrder
     isActive?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -32328,8 +35433,6 @@ export namespace Prisma {
   export type RarityMaxOrderByAggregateInput = {
     id?: SortOrder
     name?: SortOrder
-    code?: SortOrder
-    description?: SortOrder
     isActive?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -32338,8 +35441,78 @@ export namespace Prisma {
   export type RarityMinOrderByAggregateInput = {
     id?: SortOrder
     name?: SortOrder
-    code?: SortOrder
-    description?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SealedCategoryCountOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SealedCategoryMaxOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SealedCategoryMinOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CardConditionOptionCountOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CardConditionOptionMaxOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CardConditionOptionMinOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CardLanguageCountOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CardLanguageMaxOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    isActive?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CardLanguageMinOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
     isActive?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -32465,6 +35638,7 @@ export namespace Prisma {
     attributes?: SortOrder
     status?: SortOrder
     version?: SortOrder
+    viewCount?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     deletedAt?: SortOrder
@@ -32472,6 +35646,7 @@ export namespace Prisma {
 
   export type ProductAvgOrderByAggregateInput = {
     version?: SortOrder
+    viewCount?: SortOrder
   }
 
   export type ProductMaxOrderByAggregateInput = {
@@ -32490,6 +35665,7 @@ export namespace Prisma {
     backImage?: SortOrder
     status?: SortOrder
     version?: SortOrder
+    viewCount?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     deletedAt?: SortOrder
@@ -32511,6 +35687,7 @@ export namespace Prisma {
     backImage?: SortOrder
     status?: SortOrder
     version?: SortOrder
+    viewCount?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     deletedAt?: SortOrder
@@ -32518,6 +35695,7 @@ export namespace Prisma {
 
   export type ProductSumOrderByAggregateInput = {
     version?: SortOrder
+    viewCount?: SortOrder
   }
   export type JsonWithAggregatesFilter<$PrismaModel = never> = 
     | PatchUndefined<
@@ -32596,13 +35774,6 @@ export namespace Prisma {
     _max?: NestedIntFilter<$PrismaModel>
   }
 
-  export type EnumCardConditionFilter<$PrismaModel = never> = {
-    equals?: $Enums.CardCondition | EnumCardConditionFieldRefInput<$PrismaModel>
-    in?: $Enums.CardCondition[]
-    notIn?: $Enums.CardCondition[]
-    not?: NestedEnumCardConditionFilter<$PrismaModel> | $Enums.CardCondition
-  }
-
   export type ProductRelationFilter = {
     is?: ProductWhereInput
     isNot?: ProductWhereInput
@@ -32654,14 +35825,11 @@ export namespace Prisma {
     stockQuantity?: SortOrder
   }
 
-  export type EnumCardConditionWithAggregatesFilter<$PrismaModel = never> = {
+  export type EnumCardConditionFilter<$PrismaModel = never> = {
     equals?: $Enums.CardCondition | EnumCardConditionFieldRefInput<$PrismaModel>
     in?: $Enums.CardCondition[]
     notIn?: $Enums.CardCondition[]
-    not?: NestedEnumCardConditionWithAggregatesFilter<$PrismaModel> | $Enums.CardCondition
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedEnumCardConditionFilter<$PrismaModel>
-    _max?: NestedEnumCardConditionFilter<$PrismaModel>
+    not?: NestedEnumCardConditionFilter<$PrismaModel> | $Enums.CardCondition
   }
 
   export type EnumCardStatusFilter<$PrismaModel = never> = {
@@ -32724,6 +35892,16 @@ export namespace Prisma {
 
   export type CardSumOrderByAggregateInput = {
     purchasePrice?: SortOrder
+  }
+
+  export type EnumCardConditionWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.CardCondition | EnumCardConditionFieldRefInput<$PrismaModel>
+    in?: $Enums.CardCondition[]
+    notIn?: $Enums.CardCondition[]
+    not?: NestedEnumCardConditionWithAggregatesFilter<$PrismaModel> | $Enums.CardCondition
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumCardConditionFilter<$PrismaModel>
+    _max?: NestedEnumCardConditionFilter<$PrismaModel>
   }
 
   export type EnumCardStatusWithAggregatesFilter<$PrismaModel = never> = {
@@ -33488,12 +36666,14 @@ export namespace Prisma {
     gradient?: SortOrder
     price?: SortOrder
     status?: SortOrder
+    viewCount?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
 
   export type VirtualBoxAvgOrderByAggregateInput = {
     price?: SortOrder
+    viewCount?: SortOrder
   }
 
   export type VirtualBoxMaxOrderByAggregateInput = {
@@ -33505,6 +36685,7 @@ export namespace Prisma {
     gradient?: SortOrder
     price?: SortOrder
     status?: SortOrder
+    viewCount?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -33518,12 +36699,14 @@ export namespace Prisma {
     gradient?: SortOrder
     price?: SortOrder
     status?: SortOrder
+    viewCount?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
 
   export type VirtualBoxSumOrderByAggregateInput = {
     price?: SortOrder
+    viewCount?: SortOrder
   }
 
   export type EnumVirtualBoxStatusWithAggregatesFilter<$PrismaModel = never> = {
@@ -34422,10 +37605,6 @@ export namespace Prisma {
     connect?: OrderItemWhereUniqueInput | OrderItemWhereUniqueInput[]
   }
 
-  export type EnumCardConditionFieldUpdateOperationsInput = {
-    set?: $Enums.CardCondition
-  }
-
   export type ProductUpdateOneRequiredWithoutVariantsNestedInput = {
     create?: XOR<ProductCreateWithoutVariantsInput, ProductUncheckedCreateWithoutVariantsInput>
     connectOrCreate?: ProductCreateOrConnectWithoutVariantsInput
@@ -34480,6 +37659,10 @@ export namespace Prisma {
     connectOrCreate?: OrderItemCreateOrConnectWithoutCardInput | OrderItemCreateOrConnectWithoutCardInput[]
     createMany?: OrderItemCreateManyCardInputEnvelope
     connect?: OrderItemWhereUniqueInput | OrderItemWhereUniqueInput[]
+  }
+
+  export type EnumCardConditionFieldUpdateOperationsInput = {
+    set?: $Enums.CardCondition
   }
 
   export type EnumCardStatusFieldUpdateOperationsInput = {
@@ -35671,16 +38854,6 @@ export namespace Prisma {
     not?: NestedEnumCardConditionFilter<$PrismaModel> | $Enums.CardCondition
   }
 
-  export type NestedEnumCardConditionWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: $Enums.CardCondition | EnumCardConditionFieldRefInput<$PrismaModel>
-    in?: $Enums.CardCondition[]
-    notIn?: $Enums.CardCondition[]
-    not?: NestedEnumCardConditionWithAggregatesFilter<$PrismaModel> | $Enums.CardCondition
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedEnumCardConditionFilter<$PrismaModel>
-    _max?: NestedEnumCardConditionFilter<$PrismaModel>
-  }
-
   export type NestedEnumCardStatusFilter<$PrismaModel = never> = {
     equals?: $Enums.CardStatus | EnumCardStatusFieldRefInput<$PrismaModel>
     in?: $Enums.CardStatus[]
@@ -35697,6 +38870,16 @@ export namespace Prisma {
     gt?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
     gte?: Decimal | DecimalJsLike | number | string | DecimalFieldRefInput<$PrismaModel>
     not?: NestedDecimalNullableFilter<$PrismaModel> | Decimal | DecimalJsLike | number | string | null
+  }
+
+  export type NestedEnumCardConditionWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.CardCondition | EnumCardConditionFieldRefInput<$PrismaModel>
+    in?: $Enums.CardCondition[]
+    notIn?: $Enums.CardCondition[]
+    not?: NestedEnumCardConditionWithAggregatesFilter<$PrismaModel> | $Enums.CardCondition
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumCardConditionFilter<$PrismaModel>
+    _max?: NestedEnumCardConditionFilter<$PrismaModel>
   }
 
   export type NestedEnumCardStatusWithAggregatesFilter<$PrismaModel = never> = {
@@ -36837,6 +40020,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: $Enums.ProductStatus
     version?: number
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     deletedAt?: Date | string | null
@@ -36863,6 +40047,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: $Enums.ProductStatus
     version?: number
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     deletedAt?: Date | string | null
@@ -36987,6 +40172,7 @@ export namespace Prisma {
     attributes?: JsonNullableFilter<"Product">
     status?: EnumProductStatusFilter<"Product"> | $Enums.ProductStatus
     version?: IntFilter<"Product"> | number
+    viewCount?: IntFilter<"Product"> | number
     createdAt?: DateTimeFilter<"Product"> | Date | string
     updatedAt?: DateTimeFilter<"Product"> | Date | string
     deletedAt?: DateTimeNullableFilter<"Product"> | Date | string | null
@@ -37009,6 +40195,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: $Enums.ProductStatus
     version?: number
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     deletedAt?: Date | string | null
@@ -37036,6 +40223,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: $Enums.ProductStatus
     version?: number
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     deletedAt?: Date | string | null
@@ -37127,7 +40315,7 @@ export namespace Prisma {
 
   export type ProductVariantCreateWithoutProductInput = {
     id?: string
-    condition?: $Enums.CardCondition
+    condition?: string
     variant?: string
     price: Decimal | DecimalJsLike | number | string
     stockQuantity?: number
@@ -37139,7 +40327,7 @@ export namespace Prisma {
 
   export type ProductVariantUncheckedCreateWithoutProductInput = {
     id?: string
-    condition?: $Enums.CardCondition
+    condition?: string
     variant?: string
     price: Decimal | DecimalJsLike | number | string
     stockQuantity?: number
@@ -37315,7 +40503,7 @@ export namespace Prisma {
     NOT?: ProductVariantScalarWhereInput | ProductVariantScalarWhereInput[]
     id?: StringFilter<"ProductVariant"> | string
     productId?: StringFilter<"ProductVariant"> | string
-    condition?: EnumCardConditionFilter<"ProductVariant"> | $Enums.CardCondition
+    condition?: StringFilter<"ProductVariant"> | string
     variant?: StringFilter<"ProductVariant"> | string
     price?: DecimalFilter<"ProductVariant"> | Decimal | DecimalJsLike | number | string
     stockQuantity?: IntFilter<"ProductVariant"> | number
@@ -37403,6 +40591,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: $Enums.ProductStatus
     version?: number
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     deletedAt?: Date | string | null
@@ -37430,6 +40619,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: $Enums.ProductStatus
     version?: number
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     deletedAt?: Date | string | null
@@ -37503,6 +40693,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: EnumProductStatusFieldUpdateOperationsInput | $Enums.ProductStatus
     version?: IntFieldUpdateOperationsInput | number
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -37530,6 +40721,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: EnumProductStatusFieldUpdateOperationsInput | $Enums.ProductStatus
     version?: IntFieldUpdateOperationsInput | number
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -37571,6 +40763,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: $Enums.ProductStatus
     version?: number
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     deletedAt?: Date | string | null
@@ -37598,6 +40791,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: $Enums.ProductStatus
     version?: number
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     deletedAt?: Date | string | null
@@ -37671,6 +40865,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: EnumProductStatusFieldUpdateOperationsInput | $Enums.ProductStatus
     version?: IntFieldUpdateOperationsInput | number
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -37698,6 +40893,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: EnumProductStatusFieldUpdateOperationsInput | $Enums.ProductStatus
     version?: IntFieldUpdateOperationsInput | number
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -38271,6 +41467,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: $Enums.ProductStatus
     version?: number
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     deletedAt?: Date | string | null
@@ -38298,6 +41495,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: $Enums.ProductStatus
     version?: number
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     deletedAt?: Date | string | null
@@ -38313,7 +41511,7 @@ export namespace Prisma {
 
   export type ProductVariantCreateWithoutOrderItemsInput = {
     id?: string
-    condition?: $Enums.CardCondition
+    condition?: string
     variant?: string
     price: Decimal | DecimalJsLike | number | string
     stockQuantity?: number
@@ -38326,7 +41524,7 @@ export namespace Prisma {
   export type ProductVariantUncheckedCreateWithoutOrderItemsInput = {
     id?: string
     productId: string
-    condition?: $Enums.CardCondition
+    condition?: string
     variant?: string
     price: Decimal | DecimalJsLike | number | string
     stockQuantity?: number
@@ -38460,6 +41658,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: EnumProductStatusFieldUpdateOperationsInput | $Enums.ProductStatus
     version?: IntFieldUpdateOperationsInput | number
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -38487,6 +41686,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: EnumProductStatusFieldUpdateOperationsInput | $Enums.ProductStatus
     version?: IntFieldUpdateOperationsInput | number
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -38508,7 +41708,7 @@ export namespace Prisma {
 
   export type ProductVariantUpdateWithoutOrderItemsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    condition?: EnumCardConditionFieldUpdateOperationsInput | $Enums.CardCondition
+    condition?: StringFieldUpdateOperationsInput | string
     variant?: StringFieldUpdateOperationsInput | string
     price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     stockQuantity?: IntFieldUpdateOperationsInput | number
@@ -38521,7 +41721,7 @@ export namespace Prisma {
   export type ProductVariantUncheckedUpdateWithoutOrderItemsInput = {
     id?: StringFieldUpdateOperationsInput | string
     productId?: StringFieldUpdateOperationsInput | string
-    condition?: EnumCardConditionFieldUpdateOperationsInput | $Enums.CardCondition
+    condition?: StringFieldUpdateOperationsInput | string
     variant?: StringFieldUpdateOperationsInput | string
     price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     stockQuantity?: IntFieldUpdateOperationsInput | number
@@ -39639,6 +42839,7 @@ export namespace Prisma {
     gradient?: string | null
     price: Decimal | DecimalJsLike | number | string
     status?: $Enums.VirtualBoxStatus
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     poolItems?: VirtualBoxPoolItemCreateNestedManyWithoutBoxInput
@@ -39654,6 +42855,7 @@ export namespace Prisma {
     gradient?: string | null
     price: Decimal | DecimalJsLike | number | string
     status?: $Enums.VirtualBoxStatus
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     poolItems?: VirtualBoxPoolItemUncheckedCreateNestedManyWithoutBoxInput
@@ -39685,6 +42887,7 @@ export namespace Prisma {
     gradient?: NullableStringFieldUpdateOperationsInput | string | null
     price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     status?: EnumVirtualBoxStatusFieldUpdateOperationsInput | $Enums.VirtualBoxStatus
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     poolItems?: VirtualBoxPoolItemUpdateManyWithoutBoxNestedInput
@@ -39700,6 +42903,7 @@ export namespace Prisma {
     gradient?: NullableStringFieldUpdateOperationsInput | string | null
     price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     status?: EnumVirtualBoxStatusFieldUpdateOperationsInput | $Enums.VirtualBoxStatus
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     poolItems?: VirtualBoxPoolItemUncheckedUpdateManyWithoutBoxNestedInput
@@ -39715,6 +42919,7 @@ export namespace Prisma {
     gradient?: string | null
     price: Decimal | DecimalJsLike | number | string
     status?: $Enums.VirtualBoxStatus
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     dropRates?: VirtualBoxDropRateCreateNestedManyWithoutBoxInput
@@ -39730,6 +42935,7 @@ export namespace Prisma {
     gradient?: string | null
     price: Decimal | DecimalJsLike | number | string
     status?: $Enums.VirtualBoxStatus
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     dropRates?: VirtualBoxDropRateUncheckedCreateNestedManyWithoutBoxInput
@@ -39792,6 +42998,7 @@ export namespace Prisma {
     gradient?: NullableStringFieldUpdateOperationsInput | string | null
     price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     status?: EnumVirtualBoxStatusFieldUpdateOperationsInput | $Enums.VirtualBoxStatus
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     dropRates?: VirtualBoxDropRateUpdateManyWithoutBoxNestedInput
@@ -39807,6 +43014,7 @@ export namespace Prisma {
     gradient?: NullableStringFieldUpdateOperationsInput | string | null
     price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     status?: EnumVirtualBoxStatusFieldUpdateOperationsInput | $Enums.VirtualBoxStatus
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     dropRates?: VirtualBoxDropRateUncheckedUpdateManyWithoutBoxNestedInput
@@ -40110,6 +43318,7 @@ export namespace Prisma {
     gradient?: string | null
     price: Decimal | DecimalJsLike | number | string
     status?: $Enums.VirtualBoxStatus
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     dropRates?: VirtualBoxDropRateCreateNestedManyWithoutBoxInput
@@ -40125,6 +43334,7 @@ export namespace Prisma {
     gradient?: string | null
     price: Decimal | DecimalJsLike | number | string
     status?: $Enums.VirtualBoxStatus
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     dropRates?: VirtualBoxDropRateUncheckedCreateNestedManyWithoutBoxInput
@@ -40221,6 +43431,7 @@ export namespace Prisma {
     gradient?: NullableStringFieldUpdateOperationsInput | string | null
     price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     status?: EnumVirtualBoxStatusFieldUpdateOperationsInput | $Enums.VirtualBoxStatus
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     dropRates?: VirtualBoxDropRateUpdateManyWithoutBoxNestedInput
@@ -40236,6 +43447,7 @@ export namespace Prisma {
     gradient?: NullableStringFieldUpdateOperationsInput | string | null
     price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     status?: EnumVirtualBoxStatusFieldUpdateOperationsInput | $Enums.VirtualBoxStatus
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     dropRates?: VirtualBoxDropRateUncheckedUpdateManyWithoutBoxNestedInput
@@ -40578,6 +43790,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: $Enums.ProductStatus
     version?: number
+    viewCount?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     deletedAt?: Date | string | null
@@ -40637,6 +43850,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: EnumProductStatusFieldUpdateOperationsInput | $Enums.ProductStatus
     version?: IntFieldUpdateOperationsInput | number
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -40663,6 +43877,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: EnumProductStatusFieldUpdateOperationsInput | $Enums.ProductStatus
     version?: IntFieldUpdateOperationsInput | number
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -40689,6 +43904,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: EnumProductStatusFieldUpdateOperationsInput | $Enums.ProductStatus
     version?: IntFieldUpdateOperationsInput | number
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -40711,6 +43927,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: EnumProductStatusFieldUpdateOperationsInput | $Enums.ProductStatus
     version?: IntFieldUpdateOperationsInput | number
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -40738,6 +43955,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: EnumProductStatusFieldUpdateOperationsInput | $Enums.ProductStatus
     version?: IntFieldUpdateOperationsInput | number
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -40764,6 +43982,7 @@ export namespace Prisma {
     attributes?: NullableJsonNullValueInput | InputJsonValue
     status?: EnumProductStatusFieldUpdateOperationsInput | $Enums.ProductStatus
     version?: IntFieldUpdateOperationsInput | number
+    viewCount?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     deletedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -40771,7 +43990,7 @@ export namespace Prisma {
 
   export type ProductVariantCreateManyProductInput = {
     id?: string
-    condition?: $Enums.CardCondition
+    condition?: string
     variant?: string
     price: Decimal | DecimalJsLike | number | string
     stockQuantity?: number
@@ -40840,7 +44059,7 @@ export namespace Prisma {
 
   export type ProductVariantUpdateWithoutProductInput = {
     id?: StringFieldUpdateOperationsInput | string
-    condition?: EnumCardConditionFieldUpdateOperationsInput | $Enums.CardCondition
+    condition?: StringFieldUpdateOperationsInput | string
     variant?: StringFieldUpdateOperationsInput | string
     price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     stockQuantity?: IntFieldUpdateOperationsInput | number
@@ -40852,7 +44071,7 @@ export namespace Prisma {
 
   export type ProductVariantUncheckedUpdateWithoutProductInput = {
     id?: StringFieldUpdateOperationsInput | string
-    condition?: EnumCardConditionFieldUpdateOperationsInput | $Enums.CardCondition
+    condition?: StringFieldUpdateOperationsInput | string
     variant?: StringFieldUpdateOperationsInput | string
     price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     stockQuantity?: IntFieldUpdateOperationsInput | number
@@ -40864,7 +44083,7 @@ export namespace Prisma {
 
   export type ProductVariantUncheckedUpdateManyWithoutProductInput = {
     id?: StringFieldUpdateOperationsInput | string
-    condition?: EnumCardConditionFieldUpdateOperationsInput | $Enums.CardCondition
+    condition?: StringFieldUpdateOperationsInput | string
     variant?: StringFieldUpdateOperationsInput | string
     price?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
     stockQuantity?: IntFieldUpdateOperationsInput | number
@@ -41640,6 +44859,18 @@ export namespace Prisma {
      * @deprecated Use RarityDefaultArgs instead
      */
     export type RarityArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = RarityDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use SealedCategoryDefaultArgs instead
+     */
+    export type SealedCategoryArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = SealedCategoryDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use CardConditionOptionDefaultArgs instead
+     */
+    export type CardConditionOptionArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = CardConditionOptionDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use CardLanguageDefaultArgs instead
+     */
+    export type CardLanguageArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = CardLanguageDefaultArgs<ExtArgs>
     /**
      * @deprecated Use ProductDefaultArgs instead
      */

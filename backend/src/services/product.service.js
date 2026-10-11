@@ -142,8 +142,22 @@ const listProducts = async (query) => {
     getCategoryMainTypeResolver()
   ]);
 
+  const normalizeProductImages = (p) => {
+    let imgs = p.images;
+    if (typeof imgs === 'string') {
+      try { imgs = JSON.parse(imgs); } catch { imgs = []; }
+    }
+    if (!Array.isArray(imgs)) imgs = [];
+    return {
+      ...p,
+      images: imgs,
+      frontImage: imgs[0] || null,
+      backImage: imgs[1] || p.backImage || null
+    };
+  };
+
   return {
-    items: items.map((item) => ({ ...item, mainType: resolveMainType(item.categoryId) })),
+    items: items.map((item) => ({ ...normalizeProductImages(item), mainType: resolveMainType(item.categoryId) })),
     meta: {
       page: query.page,
       limit: query.limit,
@@ -178,7 +192,19 @@ const getProductById = async (id) => {
     // không xử lý ở đây, chỉ trả về
   }
 
-  return { ...product, mainType: resolveMainType(product.categoryId) };
+  let imgs = product.images;
+  if (typeof imgs === 'string') {
+    try { imgs = JSON.parse(imgs); } catch { imgs = []; }
+  }
+  if (!Array.isArray(imgs)) imgs = [];
+
+  return {
+    ...product,
+    images: imgs,
+    frontImage: imgs[0] || null,
+    backImage: imgs[1] || product.backImage || null,
+    mainType: resolveMainType(product.categoryId)
+  };
 };
 
 const listSets = async () => {
@@ -346,12 +372,31 @@ const getCardById = async (id) => {
   return card;
 };
 
-/* Active rarity options for the public/admin product modal. Ordered by code
+/* Active rarity options for the public/admin product modal. Ordered by name
  * so the dropdown reads consistently regardless of creation order. */
 const listRarities = async () => {
   return prisma.rarity.findMany({
     where: { isActive: true },
-    orderBy: { code: 'asc' }
+    orderBy: { name: 'asc' }
+  });
+};
+
+/* Active sealed-product categories ("Danh mục Sealed Product") for the
+ * public/admin product modal. Ordered by name for a stable dropdown. */
+const listSealedCategories = async () => {
+  return prisma.sealedCategory.findMany({
+    where: { isActive: true },
+    orderBy: { name: 'asc' }
+  });
+};
+
+/* Active product languages ("Ngôn ngữ") for the admin product modal's
+ * "Ngôn ngữ (Language)" dropdown and the inventory filter. Ordered by name
+ * for a stable dropdown. */
+const listLanguages = async () => {
+  return prisma.cardLanguage.findMany({
+    where: { isActive: true },
+    orderBy: { name: 'asc' }
   });
 };
 
@@ -360,6 +405,8 @@ module.exports = {
   getProductById,
   listSets,
   listRarities,
+  listSealedCategories,
+  listLanguages,
   getProductStock,
   listCategories,
   getProductFacets,

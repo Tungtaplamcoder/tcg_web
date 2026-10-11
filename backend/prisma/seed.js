@@ -29,11 +29,23 @@ const RARITY = {
   ACE_SPEC: 'ACE SPEC'
 };
 
+// The rarity catalogue is name-only; `Product.rarity` stores the same canonical
+// label as the seeded `Rarity.name` row. The parenthetical code (SAR, RR, …) is
+// part of the canonical name — it is what the seed verification gate in
+// pack-cpanel.sh matches against, so it must be preserved verbatim.
+const rarityName = (label) => String(label || '').trim();
+
+// Full canonical language names — the same values stored on Product.language
+// and seeded into the CardLanguage catalogue ("Ngôn ngữ"). Short codes
+// (JP/ENG/CN/KR) are deliberately never used again.
 const LANGUAGE = {
-  ENG: 'ENG', // English
-  JP: 'JP',   // Japanese
-  VIE: 'VIE'  // Vietnamese
+  ENG: 'English',
+  JP: 'Japanese',
+  VIE: 'Vietnamese'
 };
+
+// Canonical language catalogue seeded into CardLanguage.
+const LANGUAGES = ['English', 'Japanese', 'Chinese', 'Korean', 'Vietnamese'];
 
 // Expansion sets — each entry: name, slug, code, releaseDate, parent series.
 const SERIES = {
@@ -126,6 +138,9 @@ async function main() {
     await prisma.product.deleteMany({});
     await prisma.set.deleteMany({});
     await prisma.rarity.deleteMany({});
+    await prisma.sealedCategory.deleteMany({});
+    await prisma.cardConditionOption.deleteMany({});
+    await prisma.cardLanguage.deleteMany({});
     await prisma.category.deleteMany({});
     await prisma.refreshToken.deleteMany({});
     await prisma.passwordResetToken.deleteMany({});
@@ -297,14 +312,53 @@ async function main() {
   // RARITIES (dynamic "Độ hiếm" catalogue — same list the admin modal uses)
   // ─────────────────────────────────────────────────────────────────────────
   console.log('Creating rarity options...');
-  const rarityRows = Object.entries(RARITY).map(([code, label]) => ({
-    code,
-    // "Special Illustration Rare (SAR)" → "Special Illustration Rare"
-    name: label.replace(/\s*\([^)]*\)\s*$/, '').trim() || code,
-    description: label
-  }));
+  const rarityRows = Object.values(RARITY).map((label) => ({ name: rarityName(label) }));
   await prisma.rarity.createMany({ data: rarityRows, skipDuplicates: true });
   console.log(`Created ${rarityRows.length} rarity options.`);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // SEALED CATEGORIES (dynamic "Danh mục Sealed Product" catalogue — binds to
+  // the product modal's "Loại sản phẩm niêm phong" dropdown)
+  // ─────────────────────────────────────────────────────────────────────────
+  console.log('Creating sealed product categories...');
+  const sealedCategoryRows = [
+    { name: 'Booster Box' },
+    { name: 'Elite Trainer Box (ETB)' },
+    { name: 'Special Collection' },
+    { name: 'Blister Pack' },
+    { name: 'Mini Tin' },
+    { name: 'Display Case' }
+  ];
+  await prisma.sealedCategory.createMany({ data: sealedCategoryRows, skipDuplicates: true });
+  console.log(`Created ${sealedCategoryRows.length} sealed product categories.`);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CARD CONDITIONS (dynamic "Tình trạng thẻ" catalogue — binds to the
+  // product modal's "TÌNH TRẠNG" variant dropdown; Admin + Staff quick-add)
+  // ─────────────────────────────────────────────────────────────────────────
+  console.log('Creating card condition options...');
+  const cardConditionRows = [
+    { name: 'Mint' },
+    { name: 'Near Mint' },
+    { name: 'Lightly Played' },
+    { name: 'Moderately Played' },
+    { name: 'Heavily Played' },
+    { name: 'Damaged' },
+    { name: 'Excellent' },
+    { name: 'Good' },
+    { name: 'Poor' }
+  ];
+  await prisma.cardConditionOption.createMany({ data: cardConditionRows, skipDuplicates: true });
+  console.log(`Created ${cardConditionRows.length} card condition options.`);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // CARD LANGUAGES (dynamic "Ngôn ngữ" catalogue — binds to the product
+  // modal's "Ngôn ngữ (Language)" dropdown and the inventory filter)
+  // ─────────────────────────────────────────────────────────────────────────
+  console.log('Creating product language options...');
+  const cardLanguageRows = LANGUAGES.map((name) => ({ name }));
+  await prisma.cardLanguage.createMany({ data: cardLanguageRows, skipDuplicates: true });
+  console.log(`Created ${cardLanguageRows.length} product language options.`);
 
   // ─────────────────────────────────────────────────────────────────────────
   // PRODUCTS — authentic Pokémon TCG sample catalogue
@@ -451,7 +505,7 @@ async function main() {
     const product = await prisma.product.create({
       data: {
         ...rest,
-        rarity: type === 'card' ? productData.rarity : null,
+        rarity: type === 'card' && productData.rarity ? rarityName(productData.rarity) : null,
         category: { connect: { id: setCatBySlug[leafSlug]?.id || sealedTypeCatBySlug[leafSlug]?.id || cardCategory.id } },
         sets: setSlug ? { connect: { id: setBySlug[setSlug].id } } : undefined
       }

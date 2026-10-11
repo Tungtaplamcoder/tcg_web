@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Package, FileText, LogOut, Menu, X,
   ClipboardList, Boxes, TicketPercent, Headset, ArrowLeft
@@ -13,6 +13,7 @@ const StaffLayout = () => {
   const { t } = useLanguage();
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => { await logout(); navigate('/'); };
@@ -95,14 +96,15 @@ const StaffLayout = () => {
             ))}
           </nav>
 
-          {/* User + logout — anchored strictly at the bottom of the sidebar */}
-          <div data-testid="staff-sidebar-profile" className="p-3 border-t border-pink-100/60 dark:border-white/10">
-            <div className="flex items-center gap-3 px-2 py-2">
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#E11D48] to-[#F472B6] ring-1 ring-pink-100 dark:ring-white/15 flex items-center justify-center overflow-hidden shrink-0">
+          {/* Footer — identity + logout (the storefront back-link lives in
+              the top-right header only). */}
+          <div className="p-3 border-t border-pink-100/60 dark:border-white/10 space-y-2">
+            <div data-testid="staff-sidebar-profile" className="flex items-center gap-3 px-2 py-1.5">
+              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#E11D48] to-[#F472B6] ring-1 ring-pink-100 dark:ring-white/15 flex items-center justify-center overflow-hidden shrink-0">
                 {user?.avatarUrl ? (
-                  <img src={user.avatarUrl} alt={user?.fullName} className="h-10 w-10 object-cover" />
+                  <img src={user.avatarUrl} alt={user?.fullName} className="h-9 w-9 object-cover" />
                 ) : (
-                  <Headset className="h-5 w-5 text-white/85" />
+                  <Headset className="h-4 w-4 text-white/85" />
                 )}
               </div>
               <div className="flex-1 min-w-0">
@@ -110,9 +112,10 @@ const StaffLayout = () => {
                 <p className="text-xs text-ink-400 dark:text-ink-300 truncate">{user?.email}</p>
               </div>
             </div>
+
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 mt-1 text-sm font-medium text-ink-500 dark:text-ink-300 hover:text-rose-600 hover:bg-pink-50 dark:hover:bg-rose-500/10 rounded-xl transition-all duration-300"
+              className="w-full flex items-center gap-3 px-3.5 py-2 text-sm font-medium text-ink-500 dark:text-ink-300 hover:text-rose-600 hover:bg-pink-50 dark:hover:bg-rose-500/10 rounded-xl transition-all duration-300"
             >
               <LogOut className="h-[18px] w-[18px]" />
               {t('admin.logout')}
@@ -152,7 +155,14 @@ const StaffLayout = () => {
         </header>
 
         <main className="dash-scope flex-1 p-3 lg:p-4 overflow-y-auto">
-          <Outlet />
+          {/* Route-keyed so every navigation replays the GPU slide & fade. */}
+          <div
+            key={location.pathname}
+            data-testid="staff-route-transition"
+            className="dash-route-transition"
+          >
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

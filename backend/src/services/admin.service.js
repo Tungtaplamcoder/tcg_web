@@ -48,8 +48,15 @@ const createProductSchema = z.object({
   condition: z.enum(['MINT', 'NEAR_MINT', 'EXCELLENT', 'GOOD', 'POOR']).default('NEAR_MINT'),
   price: z.number().min(0),
   stockQuantity: z.number().int().min(0).default(0),
-  images: z.array(z.string().url()).max(10).optional(),
-  backImage: z.string().url().optional(),
+  images: z.preprocess((val) => {
+    if (typeof val === 'string') {
+      try { val = JSON.parse(val); } catch { return []; }
+    }
+    if (!Array.isArray(val)) return [];
+    return val.filter((item) => typeof item === 'string' && item.trim().length > 0);
+  }, z.array(z.union([z.string().url(), z.string().startsWith('/'), z.string()])).max(20)).optional().default([]),
+  frontImage: z.union([z.string().url(), z.string().startsWith('/'), z.literal('')]).optional().nullable(),
+  backImage: z.union([z.string().url(), z.string().startsWith('/'), z.literal('')]).optional().nullable(),
   attributes: z.record(z.any()).optional()
 });
 

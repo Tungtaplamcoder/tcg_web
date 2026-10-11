@@ -60,6 +60,7 @@ const ConfirmDialog = ({
 
   return (
     <div
+      data-testid="confirm-dialog"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink-950/50 dark:bg-black/70 backdrop-blur-sm animate-tcg-fade-in"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && !loading) onCancel();

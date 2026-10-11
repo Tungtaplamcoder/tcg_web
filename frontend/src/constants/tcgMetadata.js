@@ -5,11 +5,15 @@
 // based on the selected category. Rarities are NEVER hardcoded into
 // category dropdowns.
 
+// Full canonical language names — falling back short codes (JP/ENG/CN/KR) are
+// no longer used. The live product modal/filter read the CardLanguage catalogue
+// (GET /languages); this static list is only a conservative fallback/reference.
 export const TCG_LANGUAGES = [
-  { value: 'JP', label: 'JP', description: 'Japanese' },
-  { value: 'ENG', label: 'ENG', description: 'English' },
-  { value: 'CN', label: 'CN', description: 'Chinese' },
-  { value: 'KR', label: 'KR', description: 'Korean' }
+  { value: 'Japanese', label: 'Japanese' },
+  { value: 'English', label: 'English' },
+  { value: 'Chinese', label: 'Chinese' },
+  { value: 'Korean', label: 'Korean' },
+  { value: 'Vietnamese', label: 'Vietnamese' }
 ];
 
 export const TCG_LANGUAGE_MAP = TCG_LANGUAGES.reduce((acc, lang) => {
@@ -31,17 +35,18 @@ export const getProductLanguage = (product) => {
 
 // Languages available for Single Cards (TCG Information section and variants)
 export const SINGLE_CARD_LANGUAGES = [
-  { value: 'JP', label: 'JP' },
-  { value: 'ENG', label: 'ENG' },
-  { value: 'CN', label: 'CN' },
-  { value: 'KR', label: 'KR' }
+  { value: 'Japanese', label: 'Japanese' },
+  { value: 'English', label: 'English' },
+  { value: 'Chinese', label: 'Chinese' },
+  { value: 'Korean', label: 'Korean' },
+  { value: 'Vietnamese', label: 'Vietnamese' }
 ];
 
-// Languages available for Sealed Products (variants only - no CN)
+// Languages available for Sealed Products (variants only - no Chinese)
 export const SEALED_PRODUCT_LANGUAGES = [
-  { value: 'JP', label: 'JP' },
-  { value: 'ENG', label: 'ENG' },
-  { value: 'KR', label: 'KR' }
+  { value: 'Japanese', label: 'Japanese' },
+  { value: 'English', label: 'English' },
+  { value: 'Korean', label: 'Korean' }
 ];
 
 // Rarity is a free-form value on the product (API payload `rarity`), so this

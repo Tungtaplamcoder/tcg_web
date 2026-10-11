@@ -1,13 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import {
   Users, Search, Loader2, AlertCircle, Shield, UserCog, Trash2, CheckCircle2,
-  ChevronLeft, ChevronRight, KeyRound, AlertTriangle, Eye
+  ChevronLeft, ChevronRight, KeyRound, AlertTriangle, Eye, Check
 } from 'lucide-react';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useLanguage } from '../../i18n/LanguageContext';
-import UserDetailModal from '../../components/UserDetailModal';
 import { PERMISSION_MODULES, resolvePermissions } from '../../utils/permissions';
+
+/* Heavy read-only detail drawer is code-split and only mounted on demand
+   (see `detailUser &&` below) so it costs zero DOM/memory until opened. */
+const UserDetailModal = lazy(() => import('../../components/UserDetailModal'));
 
 const ROLE_KEYS = {
   CUSTOMER: 'admin.users.customer',
@@ -239,12 +242,12 @@ const UserManagement = () => {
     if (user.role === 'ADMIN') {
       return (
         <span
-          className="inline-flex h-5 w-10 items-center justify-center text-green-500 font-bold"
+          className="inline-flex h-5 w-10 items-center justify-center text-pink-500"
           data-permission={module.key}
           data-enabled="true"
           title={`${label}: ${t('admin.users.detail.yes')}`}
         >
-          ✓
+          <Check className="h-4 w-4" aria-hidden="true" />
         </span>
       );
     }
@@ -317,7 +320,7 @@ const UserManagement = () => {
       )}
 
       {toast && (
-        <div className="p-3 bg-green-50 text-green-700 rounded-lg flex items-center">
+        <div className="p-3 bg-pink-50 text-pink-700 dark:bg-pink-950/40 dark:text-pink-300 rounded-lg flex items-center">
           <CheckCircle2 className="h-5 w-5 mr-2" />
           {toast.message}
         </div>
@@ -397,7 +400,7 @@ const UserManagement = () => {
                          <option value="ADMIN">{t('admin.users.admin')}</option>
                        </select>
                       {user.status !== 'ACTIVE' && (
-                        <button onClick={() => handleStatusChange(user.id, 'ACTIVE')} disabled={processingId === user.id || user.id === currentUser?.id} className="p-1 text-green-500" title="Kích hoạt lại"><CheckCircle2 className="h-5 w-5" /></button>
+                        <button onClick={() => handleStatusChange(user.id, 'ACTIVE')} disabled={processingId === user.id || user.id === currentUser?.id} className="p-2 rounded-xl text-pink-600 hover:text-pink-700 hover:bg-pink-50 dark:text-pink-400 dark:hover:bg-pink-950/40 touch-manipulation" title="Kích hoạt lại"><CheckCircle2 className="h-5 w-5" /></button>
                       )}
                       <button
                         onClick={() => setDetailUser(user)}
@@ -407,7 +410,7 @@ const UserManagement = () => {
                       >
                         <Eye className="h-5 w-5" />
                       </button>
-                      <button onClick={() => openPasswordModal(user)} disabled={processingId === user.id} className="p-1 text-blue-600" title={t('admin.users.changePassword')}><KeyRound className="h-5 w-5" /></button>
+                      <button onClick={() => openPasswordModal(user)} disabled={processingId === user.id} className="p-2 rounded-xl text-pink-600 hover:text-pink-700 hover:bg-pink-50 dark:text-pink-400 dark:hover:bg-pink-950/40 touch-manipulation" title={t('admin.users.changePassword')}><KeyRound className="h-5 w-5" /></button>
                       <button
                         onClick={() => openDeleteModal(user)}
                         disabled={processingId === user.id || user.id === currentUser?.id}
@@ -438,7 +441,9 @@ const UserManagement = () => {
 
       {/* User Detail Drawer — read-only aggregated profile */}
       {detailUser && (
-        <UserDetailModal user={detailUser} onClose={() => setDetailUser(null)} />
+        <Suspense fallback={null}>
+          <UserDetailModal user={detailUser} onClose={() => setDetailUser(null)} />
+        </Suspense>
       )}
 
       {/* Password Modal */}
@@ -487,10 +492,10 @@ const UserManagement = () => {
             ) : (
               <div data-testid="delete-user-modal-step2">
                 <div className="flex items-center space-x-3 mb-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-950/40">
-                    <AlertTriangle className="h-5 w-5 text-amber-500" />
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-50 dark:bg-rose-950/40">
+                    <AlertTriangle className="h-5 w-5 text-rose-500" />
                   </span>
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">⚠️ Cảnh báo xác nhận lần 2</h3>
+                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Cảnh báo xác nhận lần 2</h3>
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
                   Đây là hành động <strong>KHÔNG THỂ KHÔI PHỤC</strong>. Vui lòng gõ chữ <strong>DELETE</strong> (hoặc <strong>XÓA</strong>) vào ô bên dưới để xác nhận:

@@ -570,12 +570,14 @@ const syncOrderPayment = async (orderId, userId) => {
 
 const cancelExpiredOrders = async () => {
   const now = new Date();
+  // Batch limit to 20 orders per run to prevent memory bloat and connection hogging
   const expiredOrders = await prisma.order.findMany({
     where: {
       status: 'PENDING',
       expiresAt: { lt: now }
     },
-    select: { id: true }
+    select: { id: true },
+    take: 20
   });
 
   let cancelledCount = 0;

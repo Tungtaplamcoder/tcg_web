@@ -23,6 +23,7 @@ import Vouchers from './pages/Vouchers.jsx';
 import NewsList from './pages/NewsList.jsx';
 import NewsDetail from './pages/NewsDetail.jsx';
 import VirtualBoxesPage from './pages/storefront/VirtualBoxesPage.jsx';
+import VirtualBoxDetailPage from './pages/storefront/VirtualBoxDetailPage.jsx';
 
 // Staff pages
 import StaffLayout from './pages/staff/StaffLayout.jsx';
@@ -81,6 +82,9 @@ function App() {
               </ErrorBoundary>
             }
           />
+          {/* `/catalog/:id` alias — the product detail view counter increments
+              on whichever product-detail path the visitor lands on. */}
+          <Route path="/catalog/:id" element={<ProductDetail />} />
           <Route path="/products/:id" element={<LegacyProductRedirect />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
@@ -93,6 +97,7 @@ function App() {
           <Route path="/news" element={<NewsList />} />
           <Route path="/news/:id" element={<NewsDetail />} />
           <Route path="/virtual-boxes" element={<VirtualBoxesPage />} />
+          <Route path="/virtual-boxes/:id" element={<VirtualBoxDetailPage />} />
 
           {/* Customer routes */}
           <Route element={<ProtectedRoute allowedRoles={['CUSTOMER', 'STAFF', 'ADMIN']} />}>
@@ -120,6 +125,8 @@ function App() {
         <Route element={<ProtectedRoute allowedRoles={['STAFF', 'ADMIN']} />}>
           <Route path="/staff" element={<StaffLayout />}>
             <Route index element={<StaffOverview />} />
+            {/* Explicit alias so the `/staff/dashboard` deep link resolves */}
+            <Route path="dashboard" element={<StaffOverview />} />
             <Route element={<PermissionRoute permission="orders" />}>
               <Route path="orders" element={<OrderManagement />} />
             </Route>
@@ -144,9 +151,13 @@ function App() {
         <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AnalyticsDashboard />} />
+            {/* Explicit alias so the `/admin/dashboard` deep link resolves */}
+            <Route path="dashboard" element={<AnalyticsDashboard />} />
             <Route path="orders" element={<OrderManagement />} />
             <Route path="inventory" element={<InventoryManager />} />
             <Route path="catalog" element={<CatalogConfig />} />
+            {/* Alias so the task's `/admin/catalog-settings` path resolves too */}
+            <Route path="catalog-settings" element={<CatalogConfig />} />
             <Route path="virtual-boxes" element={<VirtualBoxes />} />
             <Route path="categories" element={<CategoryManagement />} />
             <Route path="posts" element={<PostEditor />} />

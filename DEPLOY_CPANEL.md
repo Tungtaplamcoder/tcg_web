@@ -218,9 +218,15 @@ Open `.env.production` (File Manager > Edit) for reference and fill real values 
 | `DB_PASS` | your DB user password |
 | `DB_NAME` | `cpaneluser_tcgdb` |
 | `DATABASE_URL` | `mysql://cpaneluser_tcg:PASSWORD@localhost:3306/cpaneluser_tcgdb` — **URL-encode special chars** (`@`→`%40`, `#`→`%23`, `/`→`%2F`) |
-| `DB_POOL_LIMIT` | `5` (shared hosting — keep small) |
+| `DB_POOL_LIMIT` | `5` (shared hosting — keep small, max 5) |
 | `DB_POOL_TIMEOUT` | `10` |
 | `DATABASE_SSL_MODE` | `disable` (localhost needs no SSL) |
+| `UV_THREADPOOL_SIZE` | `2` (restricts libuv OS worker threads to conserve 100 NPROC limit) |
+| `TOKIO_WORKER_THREADS` | `1` (restricts Prisma Query Engine Tokio threads) |
+| `PRISMA_QUERY_ENGINE_MAX_THREADS` | `1` |
+| `ORDER_CRON_SCHEDULE` | `*/2 * * * *` (run every 2 minutes with concurrency guard) |
+| `CATALOG_RATE_LIMIT_MAX` | `1000` (relaxed limit per 15 min for catalog browsing) |
+| `CHECKOUT_RATE_LIMIT_MAX` | `20` (strict limit per 15 min on order checkouts) |
 | `JWT_ACCESS_SECRET` | long random string (32+ chars) |
 | `JWT_REFRESH_SECRET` | a DIFFERENT long random string |
 | `JWT_ACCESS_EXPIRES_IN` | `15m` |

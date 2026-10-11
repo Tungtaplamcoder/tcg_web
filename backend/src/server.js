@@ -1,3 +1,8 @@
+// Thread pool and concurrency limits to respect CloudLinux NPROC limit (100)
+process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || '2';
+process.env.TOKIO_WORKER_THREADS = process.env.TOKIO_WORKER_THREADS || '1';
+process.env.PRISMA_QUERY_ENGINE_MAX_THREADS = process.env.PRISMA_QUERY_ENGINE_MAX_THREADS || '1';
+
 const app = require('./app');
 const env = require('./config/env');
 const prisma = require('./config/prisma');

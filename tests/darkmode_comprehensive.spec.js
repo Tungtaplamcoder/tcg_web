@@ -60,6 +60,10 @@ test.describe('Dark mode: header glow + category cards', () => {
     await expect(themeToggle).toBeVisible();
     await themeToggle.click();
     await expect(page.locator('html')).toHaveClass(/dark/);
+    // Let the theme background-color transition (0.5s) + surface
+    // transition-all (300ms) settle before sampling computed surfaces,
+    // otherwise mid-transition alpha values read as false positives.
+    await page.waitForTimeout(700);
     console.log('[THEME] dark mode enabled');
 
     // ── 2. Outer header wrapper must be transparent + overflow visible.

@@ -118,8 +118,11 @@ test.describe('Staff panel — editorial unification with Admin', () => {
       try { window.localStorage.setItem(key, value); } catch (e) { /* no-op */ }
     }, [THEME_KEY, 'light']);
 
-    // ── 1. Log in as Staff User and land on /staff ─────────────────────
-    await loginAs(page, STAFF_EMAIL, STAFF_PASSWORD, /\/staff(\/.*)?$/);
+    // ── 1. Log in as Staff User, then open the Staff panel ─────────────
+    // Every role lands on the Homepage after login; route to /staff next.
+    await loginAs(page, STAFF_EMAIL, STAFF_PASSWORD, (url) => url.pathname !== '/login');
+    await page.goto('/staff', { waitUntil: 'domcontentloaded' });
+    await page.waitForLoadState('networkidle').catch(() => {});
     await expect(page).toHaveURL(/\/staff(\/.*)?$/);
     await expect(page.getByTestId('staff-shell')).toBeVisible();
     await expect(page.locator('html')).not.toHaveClass(/dark/);
@@ -221,7 +224,7 @@ test.describe('Staff panel — editorial unification with Admin', () => {
 
     await page.getByTestId('staff-sidebar').getByRole('button', { name: /đăng xuất|logout/i }).click();
     await page.waitForURL(/\/$/, { timeout: 30_000 }).catch(() => {});
-    await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD, /\/admin(\/.*)?$/);
+    await loginAs(page, ADMIN_EMAIL, ADMIN_PASSWORD, (url) => url.pathname !== '/login');
     await page.goto('/admin', { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('networkidle').catch(() => {});
     const adminSidebarMetrics = await metrics(page, 'admin-sidebar');

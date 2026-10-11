@@ -313,14 +313,30 @@ const VirtualBoxes = () => {
     }
   };
 
+  const openDeleteModal = (box) => {
+    setDeleteTarget(box);
+  };
+
+  const closeDeleteModal = () => {
+    if (deleting) return;
+    setDeleteTarget(null);
+  };
+
   const handleDeleteConfirmed = async () => {
     if (!deleteTarget) return;
+    const target = deleteTarget;
     setDeleting(true);
     setListError('');
     try {
-      await api.delete(`/admin/virtual-boxes/${deleteTarget.id}`);
-      showToast(deleteTarget.status === 'ARCHIVED' ? t('admin.virtualBoxes.deletedToast') : t('admin.virtualBoxes.archivedToast'));
+      await api.delete(`/admin/virtual-boxes/${target.id}`);
+      // Purge the row from local state immediately and keep the counters in sync.
+      setBoxes((prev) => prev.filter((box) => box.id !== target.id));
+      setMeta((prev) => ({
+        ...prev,
+        totalItems: Math.max(0, (prev.totalItems ?? boxes.length) - 1)
+      }));
       setDeleteTarget(null);
+      showToast(t('admin.virtualBoxes.deletedToast'));
       fetchBoxes();
     } catch (err) {
       console.error('Failed to delete virtual box:', err);
@@ -459,7 +475,7 @@ const VirtualBoxes = () => {
                         <Pencil className="h-5 w-5" />
                       </button>
                       {canDelete && (
-                        <button onClick={() => setDeleteTarget(box)} className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg" title={t('admin.virtualBoxes.delete')}>
+                        <button data-testid="delete-virtual-box-btn" onClick={() => openDeleteModal(box)} className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg" title={t('admin.virtualBoxes.delete')}>
                           <Trash2 className="h-5 w-5" />
                         </button>
                       )}
@@ -743,31 +759,37 @@ const VirtualBoxes = () => {
       )}
 
       {deleteTarget && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <div className="flex items-start gap-4">
-              <div className="h-12 w-12 rounded-full bg-red-50 flex items-center justify-center shrink-0">
-                <Trash2 className="h-6 w-6 text-red-600" />
-              </div>
-              <div className="flex-1">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" data-testid="delete-virtual-box-modal">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+            <div data-testid="delete-virtual-box-modal-confirm">
+              <div className="flex items-center space-x-3 mb-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-50">
+                  <Trash2 className="h-5 w-5 text-rose-500" />
+                </span>
                 <h3 className="text-lg font-semibold text-gray-800">{t('admin.virtualBoxes.deleteTitle')}</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  {deleteTarget.status === 'ARCHIVED' ? (
-                    <>{t('admin.virtualBoxes.deleteHard')} <span className="font-medium text-gray-700">"{deleteTarget.name}"</span>{t('admin.virtualBoxes.deleteIrreversible')}</>
-                  ) : (
-                    <>{t('admin.virtualBoxes.deleteArchive')} <span className="font-medium text-gray-700">"{deleteTarget.name}"</span>{t('admin.virtualBoxes.deleteArchiveNote')}</>
-                  )}
-                </p>
               </div>
-            </div>
-            <div className="mt-6 flex justify-end space-x-3">
-              <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
-                {t('admin.virtualBoxes.cancel')}
-              </button>
-              <button onClick={handleDeleteConfirmed} disabled={deleting} className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">
-                {deleting ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Trash2 className="h-5 w-5 mr-2" />}
-                {deleteTarget.status === 'ARCHIVED' ? t('admin.virtualBoxes.delete') : t('admin.virtualBoxes.archive')}
-              </button>
+              <p className="text-sm text-gray-600 mb-6">
+                Bạn có chắc chắn muốn xóa vĩnh viễn Hộp ảo <strong className="font-medium text-gray-800">{deleteTarget.name}</strong>? Hành động này sẽ xóa dữ liệu khỏi hệ thống.
+              </p>
+              <div className="flex justify-end space-x-3">
+                <button
+                  data-testid="delete-virtual-box-cancel-btn"
+                  onClick={closeDeleteModal}
+                  disabled={deleting}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {t('admin.virtualBoxes.cancel')}
+                </button>
+                <button
+                  data-testid="delete-virtual-box-confirm-btn"
+                  onClick={handleDeleteConfirmed}
+                  disabled={deleting}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition-colors disabled:opacity-50 inline-flex items-center space-x-2"
+                >
+                  {deleting && <Loader2 className="h-4 w-4 animate-spin" />}
+                  <span>Xóa vĩnh viễn</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

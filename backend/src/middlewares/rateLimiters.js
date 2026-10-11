@@ -52,6 +52,44 @@ const webhookLimiter = rateLimit({
   }
 });
 
+// Public read-only catalog browsing rate limit (relaxed to 1000 requests / 15 minutes)
+// Prevents 429 throttling when users browse collections or open multiple browser tabs.
+const catalogMax = Number(process.env.CATALOG_RATE_LIMIT_MAX) || 1000;
+
+const catalogLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: catalogMax,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS',
+  message: {
+    success: false,
+    error: {
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: 'Too many catalog requests, please slow down.'
+    },
+    timestamp: new Date().toISOString()
+  }
+});
+
+// Strict rate limit for checkout creation (protects MariaDB transactions and inventory locks)
+const checkoutMax = Number(process.env.CHECKOUT_RATE_LIMIT_MAX) || (isDev ? 500 : 20);
+
+const checkoutLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: checkoutMax,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: {
+      code: 'RATE_LIMIT_EXCEEDED',
+      message: 'Quá nhiều yêu cầu tạo đơn hàng, vui lòng thử lại sau.'
+    },
+    timestamp: new Date().toISOString()
+  }
+});
+
 const lookupLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 30,
@@ -70,6 +108,8 @@ const lookupLimiter = rateLimit({
 module.exports = {
   authLimiter,
   apiLimiter,
+  catalogLimiter,
+  checkoutLimiter,
   lookupLimiter,
   webhookLimiter
 };

@@ -453,41 +453,33 @@ test('PUT /virtual-boxes/:id returns 404 for unknown box', async () => {
   assert.equal(payload.error.code, 'NOT_FOUND');
 });
 
-test('DELETE /virtual-boxes/:id archives the box by default', async () => {
+test('DELETE /virtual-boxes/:id hard deletes the box and purges card pool mappings', async () => {
   const box = prismaStub.__state.boxes[0];
-  const { status, payload } = await request('DELETE', `/api/v1/admin/virtual-boxes/${box.id}`);
-  assert.equal(status, 200);
-  assert.match(payload.message, /archived/i);
-  assert.equal(box.status, 'ARCHIVED');
-});
-
-test('DELETE /virtual-boxes/:id conflicts when already archived', async () => {
-  const box = prismaStub.__state.boxes[0];
-  const { status, payload } = await request('DELETE', `/api/v1/admin/virtual-boxes/${box.id}`);
-  assert.equal(status, 409);
-  assert.equal(payload.error.code, 'CONFLICT');
-});
-
-test('DELETE /virtual-boxes/:id?permanent=true is blocked when openings exist', async () => {
-  const box = prismaStub.__state.boxes[0];
-  box.openings = [{ id: 'opening-1' }];
-  const { status, payload } = await request('DELETE', `/api/v1/admin/virtual-boxes/${box.id}`, {
-    query: { permanent: 'true' }
-  });
-  assert.equal(status, 409);
-  assert.match(payload.error.message, /opening history/i);
-});
-
-test('DELETE /virtual-boxes/:id?permanent=true hard deletes when no openings', async () => {
-  const box = prismaStub.__state.boxes[0];
-  box.openings = [];
+  box.poolItems = [{ id: 'pool-1' }, { id: 'pool-2' }];
   const before = prismaStub.__state.boxes.length;
-  const { status, payload } = await request('DELETE', `/api/v1/admin/virtual-boxes/${box.id}`, {
-    query: { permanent: 'true' }
-  });
+  const deleteBefore = prismaStub.__calls.length;
+
+  const { status, payload } = await request('DELETE', `/api/v1/admin/virtual-boxes/${box.id}`);
+
   assert.equal(status, 200);
+  assert.equal(payload.success, true);
   assert.match(payload.message, /deleted permanently/i);
   assert.equal(prismaStub.__state.boxes.length, before - 1);
+  assert.equal(box.poolItems.length, 0);
+
+  // Pool mappings must be deleted before the box record itself.
+  const calls = prismaStub.__calls.slice(deleteBefore).map((call) => call.name);
+  const poolIndex = calls.indexOf('virtualBoxPoolItem.deleteMany');
+  const boxIndex = calls.indexOf('virtualBox.delete');
+  assert.ok(poolIndex !== -1, 'pool mappings purged');
+  assert.ok(boxIndex !== -1, 'box record deleted');
+  assert.ok(poolIndex < boxIndex, 'pool deletions run before the box delete');
+});
+
+test('DELETE /virtual-boxes/:id returns 404 for an unknown box', async () => {
+  const { status, payload } = await request('DELETE', '/api/v1/admin/virtual-boxes/00000000-0000-0000-0000-000000000000');
+  assert.equal(status, 404);
+  assert.equal(payload.error.code, 'NOT_FOUND');
 });
 
 test('non-admin roles cannot manage virtual boxes', async () => {

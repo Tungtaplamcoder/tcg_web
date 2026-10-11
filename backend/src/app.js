@@ -20,6 +20,8 @@ const { router: postRoutes, adminRouter: adminPostRoutes } = require('./routes/p
 const tcgplayerRoutes = require('./routes/tcgplayer.routes');
 const gachaRoutes = require('./routes/gacha.routes');
 const productController = require('./controllers/product.controller');
+const { catalogLimiter } = require('./middlewares/rateLimiters');
+const { cacheMiddleware } = require('./utils/cache');
 
 const app = express();
 
@@ -135,7 +137,10 @@ app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 // Mount routes
 // Unversioned alias for the public rarity catalogue (`GET /api/rarities`)
 // in addition to the canonical versioned route (`GET /api/v1/rarities`).
-app.get('/api/rarities', productController.listRarities);
+app.get('/api/rarities', catalogLimiter, cacheMiddleware(60), productController.listRarities);
+// Unversioned alias for the public sealed-product category catalogue
+// (`GET /api/sealed-categories`) alongside `/api/v1/sealed-categories`.
+app.get('/api/sealed-categories', catalogLimiter, cacheMiddleware(60), productController.listSealedCategories);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1', productRoutes); // products, categories, sets, cards
 app.use('/api/v1/orders', orderRoutes);

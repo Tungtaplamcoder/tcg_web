@@ -7,7 +7,26 @@ const vndFormatter = new Intl.NumberFormat('vi-VN', {
 });
 
 // 21.574.990 ₫ — chuẩn Việt Nam (dấu chấm ngăn cách hàng nghìn, hậu tố ₫)
-export const formatVND = (amount) => vndFormatter.format(Number(amount) || 0);
+export const formatVND = (amount, options = {}) => {
+  const num = Number(amount);
+  if (options?.contactZero && (!num || num <= 0)) {
+    return 'Liên hệ';
+  }
+  return vndFormatter.format(num || 0);
+};
+
+/**
+ * Định dạng giá bán sản phẩm (zero-price display: "Liên hệ"):
+ * - Nếu price > 0: format bình thường theo chuẩn Việt Nam (ví dụ: 120.000 ₫).
+ * - Nếu !price hoặc price <= 0: trả về "Liên hệ" (sản phẩm cần liên hệ báo giá).
+ */
+export const formatPrice = (amount) => {
+  const num = Number(amount);
+  if (!num || num <= 0) {
+    return 'Liên hệ';
+  }
+  return vndFormatter.format(num);
+};
 
 // Bản không hậu tố: 21.574.990 (dùng cho bảng biểu, cột chật hẹp)
 const vndNumberFormatter = new Intl.NumberFormat('vi-VN', {

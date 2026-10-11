@@ -1,6 +1,12 @@
 const cron = require('node-cron');
+const orderService = require('../services/order.service');
 
 let cronTask = null;
+let isRunning = false;
+
+// Configurable interval: default every 2 minutes ('*/2 * * * *')
+// Prevents high CPU/disk I/O on cPanel 1 vCPU and 15MB/s disk I/O limits
+const CRON_SCHEDULE = process.env.ORDER_CRON_SCHEDULE || '*/2 * * * *';
 
 const startOrderCron = () => {
   if (cronTask) {
@@ -8,25 +14,27 @@ const startOrderCron = () => {
     return cronTask;
   }
 
-  // HIỆN TẠI: không tự động hủy đơn PENDING nữa.
-  // Nhân viên sẽ xử lý thủ công qua trang quản lý đơn hàng.
-  // Nếu cần chức năng tự động, có thể bật lại bằng cách uncomment logic cũ.
+  cronTask = cron.schedule(CRON_SCHEDULE, async () => {
+    // Overlapping guard: if previous cycle is still active, skip tick to prevent connection pile-up
+    if (isRunning) {
+      console.warn('[CRON] Previous order cancellation cycle still active; skipping tick');
+      return;
+    }
 
-  /*
-  cronTask = cron.schedule('*!/5 * * * *', async () => {
-    console.log(`[CRON] Running expired order cancellation at ${new Date().toISOString()}`);
+    isRunning = true;
     try {
       const cancelled = await orderService.cancelExpiredOrders();
       if (cancelled > 0) {
-        console.log(`[CRON] Cancelled ${cancelled} expired orders`);
+        console.log(`[CRON] Cleaned up ${cancelled} expired orders at ${new Date().toISOString()}`);
       }
     } catch (error) {
       console.error('[CRON] Error cancelling expired orders:', error.message);
+    } finally {
+      isRunning = false;
     }
   });
-  */
 
-  console.log('Order cron started (auto-cancel disabled). Waiting for manual processing.');
+  console.log(`⏰ Order cron job started with schedule: ${CRON_SCHEDULE}`);
   return cronTask;
 };
 
@@ -34,6 +42,7 @@ const stopOrderCron = () => {
   if (cronTask) {
     cronTask.stop();
     cronTask = null;
+    isRunning = false;
     console.log('Order cron stopped');
   }
 };

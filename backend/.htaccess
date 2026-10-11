@@ -1,0 +1,117 @@
+# ==============================================================================
+# Apache / LiteSpeed + Phusion Passenger Configuration — TCG E-Commerce
+# Optimized for cPanel CloudLinux Shared Hosting (LVE: 20 EP, 100 NPROC, 1.5GB RAM)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Phusion Passenger Process Footprint Optimization (Mitigate 100 NPROC limit)
+# ------------------------------------------------------------------------------
+<IfModule mod_passenger.c>
+  PassengerEnabled On
+  PassengerAppType node
+  PassengerStartupFile app.js
+  # Prevent Passenger from aggressively spawning processes and exhausting 100 NPROC
+  PassengerMinInstances 1
+  PassengerMaxInstancesPerApp 2
+  PassengerMaxPoolSize 2
+  PassengerPoolIdleTime 300
+  PassengerHighPerformance on
+</IfModule>
+
+# ------------------------------------------------------------------------------
+# 2. Security: Deny direct access to sensitive files and dotfiles
+# ------------------------------------------------------------------------------
+<FilesMatch "^\.(?!well-known)">
+  Require all denied
+</FilesMatch>
+
+<FilesMatch "(^#.*#|\.(bak|config|dist|fla|inc|ini|log|psd|sh|sql|sw[op]|env))$">
+  Require all denied
+</FilesMatch>
+
+<Files ".env*">
+  Require all denied
+</Files>
+
+# ------------------------------------------------------------------------------
+# 3. Compression (Gzip / Deflate)
+# ------------------------------------------------------------------------------
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/css application/javascript application/json image/svg+xml
+</IfModule>
+
+# ------------------------------------------------------------------------------
+# 4. Aggressive Browser Caching for Static Files & Immutable Assets
+# ------------------------------------------------------------------------------
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresDefault "access plus 1 month"
+  ExpiresByType text/html "access plus 0 seconds"
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/gif "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType image/x-icon "access plus 1 year"
+</IfModule>
+
+<IfModule mod_headers.c>
+  # 1-year immutable caching for static bundles, images, fonts, uploads
+  <FilesMatch "\.(css|js|woff2?|ttf|eot|svg|png|jpe?g|gif|webp|avif|ico)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+
+  # HTML files (SPA entry index.html) must always revalidate to receive new app versions
+  <FilesMatch "\.(html|htm)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+  </FilesMatch>
+</IfModule>
+
+# ------------------------------------------------------------------------------
+# 5. Static Asset Delegation & SPA Fallback via mod_rewrite
+#    Completely bypasses Passenger/Node.js to preserve 20 Entry Processes (EP)
+#    exclusively for dynamic API requests (/api/*, /health).
+# ------------------------------------------------------------------------------
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # 5a. If the requested file or directory physically exists, serve it directly!
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # 5b. Map static requests (/assets/*, /uploads/*, favicon.ico, etc.) to public/
+  RewriteCond %{DOCUMENT_ROOT}/public/$1 -f
+  RewriteRule ^(.*)$ public/$1 [L]
+
+  # 5c. Map static requests to backend/public/ if deployed under root/backend/public
+  RewriteCond %{DOCUMENT_ROOT}/backend/public/$1 -f
+  RewriteRule ^(.*)$ backend/public/$1 [L]
+
+  # 5d. Do NOT intercept API, uploads or health routes — pass directly to Express
+  RewriteCond %{REQUEST_URI} ^/(api|health|uploads|socket\.io)(/|$) [NC]
+  RewriteRule ^ - [L]
+
+  # 5e. SPA Client-Side Route Fallback:
+  # Any non-API route serves index.html directly via the web server (LiteSpeed/Apache),
+  # avoiding Node.js Passenger execution and saving 1 Entry Process per page visit!
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{DOCUMENT_ROOT}/public/index.html -f
+  RewriteRule ^.*$ public/index.html [L]
+
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{DOCUMENT_ROOT}/backend/public/index.html -f
+  RewriteRule ^.*$ backend/public/index.html [L]
+
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{DOCUMENT_ROOT}/index.html -f
+  RewriteRule ^.*$ index.html [L]
+</IfModule>

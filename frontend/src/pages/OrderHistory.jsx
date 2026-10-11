@@ -124,7 +124,7 @@ const OrderHistory = () => {
       const { checkoutUrl, formFields } = response.data.data || {};
 
       if (!checkoutUrl || !formFields) {
-        throw new Error('Backend không trả về phiên thanh toán SePay hợp lệ.');
+        throw new Error('Backend không trả về phiên thanh toán hợp lệ.');
       }
 
       const form = document.createElement('form');

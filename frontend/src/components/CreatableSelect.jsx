@@ -37,8 +37,10 @@ const CreatableSelect = ({
   placeholder = '',
   label,
   createLabel = (text) => `Tạo mới: "${text}"`,
+  emptyMessage,
   disabled = false,
-  required = false
+  required = false,
+  testId
 }) => {
   const normalizedValue = normalizeValue(value);
   const [query, setQuery] = useState('');
@@ -97,7 +99,7 @@ const CreatableSelect = ({
   }, [query, onChange, onNewOptionCreated]);
 
   return (
-    <div ref={wrapRef} className="relative" data-creatable-select={name}>
+    <div ref={wrapRef} className="relative" data-creatable-select={name} data-testid={testId || undefined}>
       {label && (
         <label className="block text-sm font-medium text-gray-700">{label}{required && ' *'}</label>
       )}
@@ -111,7 +113,7 @@ const CreatableSelect = ({
           autoComplete="off"
           disabled={disabled}
           value={displayText}
-          placeholder={placeholder}
+          placeholder={!normalizedValue && options.length === 0 && emptyMessage ? emptyMessage : placeholder}
           onFocus={() => { setOpen(true); setQuery(''); }}
           onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
           onKeyDown={(e) => {
@@ -156,7 +158,12 @@ const CreatableSelect = ({
               </li>
             ))}
             {filtered.length === 0 && !canCreate && (
-              <li className="px-3 py-2 text-sm text-gray-400 dark:text-gray-500">—</li>
+              <li
+                data-testid="creatable-empty"
+                className="px-3 py-2 text-sm text-gray-400 dark:text-gray-500"
+              >
+                {emptyMessage || '—'}
+              </li>
             )}
             {canCreate && (
               <li>
@@ -165,9 +172,9 @@ const CreatableSelect = ({
                   role="option"
                   aria-selected="false"
                   onClick={create}
-                  className="w-full text-left px-3 py-2 text-sm text-primary-700 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 flex items-center gap-2 font-medium"
+                  className="w-full text-left px-3 py-2 text-sm text-pink-600 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-pink-900/20 flex items-center gap-2 font-medium"
                 >
-                  <Plus className="h-4 w-4 shrink-0" />
+                  <Plus className="h-4 w-4 text-pink-500 shrink-0" />
                   <span className="truncate">{createLabel(query.trim())}</span>
                 </button>
               </li>

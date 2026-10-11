@@ -5,22 +5,27 @@ import {
   Shield,
   Truck,
   CreditCard,
-  Star,
+  BadgeCheck,
   Sparkles,
   Layers,
   Box,
   Flame,
-  Ghost,
   Zap,
   Brain,
   Swords,
   Circle,
-  Snowflake
+  Snowflake,
+  Skull,
+  PackageOpen,
+  ShoppingCart,
+  Eye
 } from 'lucide-react';
 import api from '../services/api';
-import ProductCard from '../components/ProductCard';
-import TiltCard from '../components/TiltCard';
 import ProductImage from '../components/ProductImage';
+import TiltCard from '../components/TiltCard';
+import { derivePriceAndStock, detectSealed } from '../components/ProductCard';
+import { useCartStore } from '../store/useCartStore';
+import { formatVND } from '../utils/format';
 import { useLanguage } from '../i18n/LanguageContext';
 
 const SOFT_ORB_MASK = 'radial-gradient(circle, rgba(0,0,0,1) 28%, rgba(0,0,0,0.5) 56%, transparent 78%)';
@@ -31,14 +36,17 @@ export const DEFAULT_HERO_CONTENT = {
   subtext: 'Premium authenticated singles and sealed booster boxes, curated weekly for collectors who chase the extraordinary.'
 };
 
+/* Energy elements bar — strictly pink / rose / fuchsia accents (no orange,
+   gold or amber). Order matches the storefront taxonomy:
+   Đấu sĩ · Lửa · Sét · Thường · Băng · Siêu · Độc */
 const POWER_TYPE_KEYS = [
-  { id: 'fighter', key: 'home.powerTypeFighter', Icon: Swords, iconCls: 'from-orange-300 to-primary-400 text-white' },
-  { id: 'fire', key: 'home.powerTypeFire', Icon: Flame, iconCls: 'from-primary-300 to-primary-500 text-white' },
-  { id: 'ghost', key: 'home.powerTypeGhost', Icon: Ghost, iconCls: 'from-blush-400 to-primary-400 text-white' },
-  { id: 'normal', key: 'home.powerTypeNormal', Icon: Circle, iconCls: 'from-ink-300 to-ink-500 text-white' },
-  { id: 'ice', key: 'home.powerTypeIce', Icon: Snowflake, iconCls: 'from-cyan-200 to-sky-400 text-white' },
-  { id: 'psychic', key: 'home.powerTypePsychic', Icon: Brain, iconCls: 'from-blush-500 to-primary-600 text-white' },
-  { id: 'electric', key: 'home.powerTypeElectric', Icon: Zap, iconCls: 'from-amber-200 to-amber-400 text-white' }
+  { id: 'fighter', key: 'home.powerTypeFighter', Icon: Swords, iconCls: 'from-pink-400 to-rose-500 text-white' },
+  { id: 'fire', key: 'home.powerTypeFire', Icon: Flame, iconCls: 'from-rose-400 to-pink-600 text-white' },
+  { id: 'electric', key: 'home.powerTypeElectric', Icon: Zap, iconCls: 'from-fuchsia-400 to-pink-500 text-white' },
+  { id: 'normal', key: 'home.powerTypeNormal', Icon: Circle, iconCls: 'from-pink-200 to-pink-400 text-white' },
+  { id: 'ice', key: 'home.powerTypeIce', Icon: Snowflake, iconCls: 'from-pink-300 to-fuchsia-400 text-white' },
+  { id: 'psychic', key: 'home.powerTypePsychic', Icon: Brain, iconCls: 'from-fuchsia-500 to-rose-600 text-white' },
+  { id: 'poison', key: 'home.powerTypePoison', Icon: Skull, iconCls: 'from-rose-500 to-fuchsia-600 text-white' }
 ];
 
 /*
@@ -90,21 +98,21 @@ const FAN_SLOTS = [
     z: 'z-10 hover:z-30',
     cls: 'rotate-[-26deg] scale-[0.85] sm:scale-[0.87] md:scale-[0.89] lg:scale-[0.9] xl:scale-[0.92] translate-x-[-96px] sm:translate-x-[-150px] md:translate-x-[-220px] lg:translate-x-[-300px] xl:translate-x-[-360px]',
     w: 'w-40 sm:w-48 md:w-56 lg:w-64 xl:w-72',
-    shadow: 'shadow-[0_18px_44px_-18px_rgba(225,29,72,0.28)] dark:shadow-[0_26px_64px_-22px_rgba(244,114,182,0.5)]'
+    shadow: 'shadow-[0_18px_44px_-18px_rgba(236,72,153,0.28)] dark:shadow-[0_26px_64px_-22px_rgba(244,114,182,0.5)]'
   },
   {
     key: 'mid-left',
     z: 'z-[15] hover:z-30',
     cls: 'rotate-[-13deg] scale-[0.93] sm:scale-[0.95] md:scale-[0.97] lg:scale-[0.98] xl:scale-100 translate-x-[-52px] sm:translate-x-[-84px] md:translate-x-[-124px] lg:translate-x-[-170px] xl:translate-x-[-205px]',
     w: 'w-40 sm:w-48 md:w-56 lg:w-64 xl:w-72',
-    shadow: 'shadow-[0_18px_44px_-18px_rgba(225,29,72,0.28)] dark:shadow-[0_26px_64px_-22px_rgba(244,114,182,0.5)]'
+    shadow: 'shadow-[0_18px_44px_-18px_rgba(236,72,153,0.28)] dark:shadow-[0_26px_64px_-22px_rgba(244,114,182,0.5)]'
   },
   {
     key: 'center',
     z: 'z-20 hover:z-30',
     cls: 'scale-[0.98] sm:scale-100 lg:scale-105',
     w: 'w-44 sm:w-52 md:w-60 lg:w-72 xl:w-80',
-    shadow: 'shadow-[0_32px_72px_-22px_rgba(225,29,72,0.35)] dark:shadow-[0_44px_100px_-26px_rgba(244,114,182,0.55)]',
+    shadow: 'shadow-[0_32px_72px_-22px_rgba(236,72,153,0.35)] dark:shadow-[0_44px_100px_-26px_rgba(244,114,182,0.55)]',
     center: true
   },
   {
@@ -112,14 +120,14 @@ const FAN_SLOTS = [
     z: 'z-[15] hover:z-30',
     cls: 'rotate-[13deg] scale-[0.93] sm:scale-[0.95] md:scale-[0.97] lg:scale-[0.98] xl:scale-100 translate-x-[52px] sm:translate-x-[84px] md:translate-x-[124px] lg:translate-x-[170px] xl:translate-x-[205px]',
     w: 'w-40 sm:w-48 md:w-56 lg:w-64 xl:w-72',
-    shadow: 'shadow-[0_18px_44px_-18px_rgba(225,29,72,0.28)] dark:shadow-[0_26px_64px_-22px_rgba(244,114,182,0.5)]'
+    shadow: 'shadow-[0_18px_44px_-18px_rgba(236,72,153,0.28)] dark:shadow-[0_26px_64px_-22px_rgba(244,114,182,0.5)]'
   },
   {
     key: 'far-right',
     z: 'z-10 hover:z-30',
     cls: 'rotate-[26deg] scale-[0.85] sm:scale-[0.87] md:scale-[0.89] lg:scale-[0.9] xl:scale-[0.92] translate-x-[96px] sm:translate-x-[150px] md:translate-x-[220px] lg:translate-x-[300px] xl:translate-x-[360px]',
     w: 'w-40 sm:w-48 md:w-56 lg:w-64 xl:w-72',
-    shadow: 'shadow-[0_18px_44px_-18px_rgba(225,29,72,0.28)] dark:shadow-[0_26px_64px_-22px_rgba(244,114,182,0.5)]'
+    shadow: 'shadow-[0_18px_44px_-18px_rgba(236,72,153,0.28)] dark:shadow-[0_26px_64px_-22px_rgba(244,114,182,0.5)]'
   }
 ];
 
@@ -136,7 +144,7 @@ const FanCard = ({ card, slot, delay = 0 }) => (
           glitch={Boolean(slot.center)}
           edge={Boolean(slot.center)}
           rarity={card.rarity}
-          className={`aspect-[5/7] rounded-[1.15rem] bg-white p-2 ring-1 ring-primary-100/70 dark:bg-white/90 dark:ring-white/10 ${slot.w} ${slot.shadow}`}
+          className={`aspect-[5/7] rounded-[1.15rem] bg-white p-2 ring-1 ring-pink-100/70 dark:bg-white/90 dark:ring-white/10 ${slot.w} ${slot.shadow}`}
         >
           {/* Art layer lifted at its own depth for parallax drift */}
           <div
@@ -160,24 +168,91 @@ const FanCard = ({ card, slot, delay = 0 }) => (
   </div>
 );
 
+/* Storefront showcase card — accurate price, soft pink condition/rarity tag
+   and quick-add + view actions. Business data is derived with the same
+   helpers the catalog ProductCard uses, so figures never drift. */
+const ShowcaseProductCard = ({ product, index = 0 }) => {
+  const { t } = useLanguage();
+  const addItem = useCartStore((s) => s.addItem);
+  if (!product) return null;
+
+  const { price, stock } = derivePriceAndStock(product);
+  const isSealed = detectSealed(product);
+  const inStock = Number(stock) > 0;
+  const rawRarity = typeof product.rarity === 'string' ? product.rarity : product.rarity?.name;
+  const rarityLabel =
+    (rawRarity && String(rawRarity)) ||
+    (isSealed ? t('home.showcaseTagSealed') : t('home.showcaseTagSingle'));
+
+  const handleQuickAdd = (e) => {
+    e.preventDefault();
+    addItem(
+      { id: product.id, name: product.name, price, images: product.images, stockQuantity: stock },
+      1,
+      null
+    );
+  };
+
+  return (
+    <article
+      data-testid="showcase-product-card"
+      className="group flex h-full animate-tcg-reveal flex-col overflow-hidden rounded-3xl border border-pink-100/60 bg-white/90 shadow-soft backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-soft-lg dark:border-neutral-800 dark:bg-neutral-900/60"
+      style={{ animationDelay: `${Math.min(index * 0.05, 0.4)}s` }}
+    >
+      <Link to={`/product/${product.id}`} className="relative block aspect-[3/4] overflow-hidden bg-gradient-to-br from-blush-50 to-pink-100/40 p-3.5 dark:from-white/5 dark:to-pink-500/5">
+        <span className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-pink-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-pink-600 ring-1 ring-pink-500/20 dark:bg-pink-500/15 dark:text-pink-300">
+          {rarityLabel}
+        </span>
+        <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-2xl">
+          <ProductImage
+            src={product.images?.[0] || product.image || product.front_image}
+            alt={product.name}
+            className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none"
+            sealed={isSealed}
+          />
+        </div>
+      </Link>
+
+      <div className="flex flex-1 flex-col p-4 pt-3">
+        <Link
+          to={`/product/${product.id}`}
+          className="font-display text-sm font-semibold leading-snug text-ink-900 line-clamp-2 transition-colors group-hover:text-pink-600 dark:text-white dark:group-hover:text-pink-300"
+        >
+          {product.name}
+        </Link>
+
+        <span className="mt-2 text-base font-semibold text-pink-500 dark:text-pink-400">
+          {formatVND(price)}
+        </span>
+
+        <div className="mt-auto flex items-center gap-2 pt-3">
+          <button
+            type="button"
+            onClick={handleQuickAdd}
+            disabled={!inStock}
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 px-3 py-2 text-[12px] font-semibold text-white shadow-soft ring-1 ring-inset ring-white/20 transition-all duration-300 hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <ShoppingCart className="h-3.5 w-3.5" aria-hidden="true" />
+            {t('home.showcaseAdd')}
+          </button>
+          <Link
+            to={`/product/${product.id}`}
+            aria-label={`${t('home.showcaseView')} ${product.name}`}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-pink-200 px-3 py-2 text-[12px] font-semibold text-pink-600 transition-all duration-300 hover:bg-pink-50 dark:border-neutral-700 dark:text-pink-300 dark:hover:bg-white/5"
+          >
+            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+            {t('home.showcaseView')}
+          </Link>
+        </div>
+      </div>
+    </article>
+  );
+};
+
 /* Binary storefront taxonomy — the only two categories we surface */
 const SHOP_CATEGORY_CONFIG = [
-  {
-    key: 'BOX',
-    slug: 'sealed-products',
-    nameKey: 'home.categoryBoxName',
-    taglineKey: 'home.categoryBoxTagline',
-    Icon: Box,
-    iconCls: 'from-amber-300 to-primary-400'
-  },
-  {
-    key: 'CARD',
-    slug: 'single-cards',
-    nameKey: 'home.categoryCardName',
-    taglineKey: 'home.categoryCardTagline',
-    Icon: Layers,
-    iconCls: 'from-blush-400 to-primary-500'
-  }
+  { key: 'BOX', slug: 'sealed-products', nameKey: 'home.categoryBoxName', taglineKey: 'home.categoryBoxTagline', Icon: Box },
+  { key: 'CARD', slug: 'single-cards', nameKey: 'home.categoryCardName', taglineKey: 'home.categoryCardTagline', Icon: Layers }
 ];
 
 const Home = ({ hero: heroProp }) => {
@@ -230,20 +305,34 @@ const Home = ({ hero: heroProp }) => {
     { icon: Shield, title: t('home.featureAuthenticTitle'), desc: t('home.featureAuthenticDesc') },
     { icon: Truck, title: t('home.featureShippingTitle'), desc: t('home.featureShippingDesc') },
     { icon: CreditCard, title: t('home.featurePaymentTitle'), desc: t('home.featurePaymentDesc') },
-    { icon: Star, title: t('home.featureRatedTitle'), desc: t('home.featureRatedDesc') }
+    { icon: BadgeCheck, title: t('home.featureGradingTitle'), desc: t('home.featureGradingDesc') }
   ];
+
+  const virtualBoxBullets = [
+    { icon: PackageOpen, title: t('home.virtualBoxBulletReal'), desc: t('home.virtualBoxBulletRealDesc') },
+    { icon: Sparkles, title: t('home.virtualBoxBulletOdds'), desc: t('home.virtualBoxBulletOddsDesc') },
+    { icon: BadgeCheck, title: t('home.virtualBoxBulletFree'), desc: t('home.virtualBoxBulletFreeDesc') }
+  ];
+
+  /* Adaptive featured grid: the standard responsive 4-column grid fills up as
+     the catalog grows, while 1–3 products are centered instead of being stuck
+     to the far-left edge. */
+  const featuredCount = featuredProducts.length;
+  const featuredGridClass =
+    featuredCount >= 4
+      ? 'grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4'
+      : featuredCount === 3
+        ? 'mx-auto grid w-full max-w-5xl grid-cols-1 justify-center gap-6 sm:grid-cols-2 lg:grid-cols-3'
+        : featuredCount === 2
+          ? 'mx-auto grid w-full max-w-3xl grid-cols-1 justify-center gap-6 sm:grid-cols-2'
+          : 'mx-auto grid w-full max-w-sm grid-cols-1 justify-center gap-6';
 
   return (
     <div className="min-h-screen bg-transparent">
-      {/* ===================== PASTEL EDITORIAL HERO ===================== */}
+      {/* ===================== 1. PASTEL EDITORIAL HERO + CARD FAN ===================== */}
       {/* Every section is transparent; the layout root owns the ONE global
           gradient (App.jsx) so no local band cuts the canvas. */}
-      <section className="relative overflow-x-clip bg-transparent">
-        {/* Soft drifting orbs.
-            overflow-x-clip (not overflow-hidden) keeps the orbs from creating a
-            horizontal scrollbar while letting their light bleed vertically past
-            the in-flow header boundary to the very top edge — otherwise the
-            clip at y=header-bottom renders a hard horizontal band. */}
+      <section data-testid="home-hero" className="relative overflow-x-clip bg-transparent">
         <div className="pointer-events-none absolute inset-0 opacity-60 dark:opacity-80">
           <div aria-hidden="true" className="absolute -left-24 -top-16 h-[24rem] w-[24rem]">
             <div
@@ -266,8 +355,8 @@ const Home = ({ hero: heroProp }) => {
               <span className="animate-tcg-reveal">
                 <span className="animate-tcg-bob motion-reduce:animate-none pill-badge">
                   <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary-400 opacity-75 motion-reduce:animate-none" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-primary-500" />
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-pink-400 opacity-75 motion-reduce:animate-none" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-pink-500" />
                   </span>
                   {t('home.heroBadge')}
                 </span>
@@ -275,9 +364,8 @@ const Home = ({ hero: heroProp }) => {
             </div>
           )}
 
-          {/* Headline + subheadline — clean sans display, editorial serif
-              accent on the focus phrase. Leading 1.2 keeps stacked
-              Vietnamese diacritics from clipping across lines. */}
+          {/* Headline + subheadline — editorial serif pink accent on the
+              focus phrase. */}
           <h1 className="mx-auto mt-7 max-w-3xl text-center font-display text-4xl font-extrabold leading-[1.2] tracking-tight text-ink-950 dark:text-white [text-wrap:balance] animate-tcg-reveal sm:text-5xl sm:leading-[1.2] lg:text-6xl lg:leading-[1.2]" style={{ animationDelay: '0.08s' }}>
             {t('home.heroHeadlinePre')}{' '}
             <span className="editorial-serif text-gradient-brand">
@@ -291,58 +379,61 @@ const Home = ({ hero: heroProp }) => {
             </p>
           )}
 
-          {/* 3D card fan showcase — layered rotation layout */}
+          {/* Interactive 3D card fan — layered rotation with rose backglow */}
           <div className="relative mx-auto mt-14 h-72 w-full max-w-6xl overflow-x-clip sm:mt-16 sm:h-[340px] md:h-[400px] lg:h-[460px]" role="group" aria-label="Featured card fan showcase">
-            {/* Pastel aura glows behind the fan */}
             <div
               aria-hidden="true"
               className="pointer-events-none absolute left-1/2 top-1/2 h-[360px] w-[680px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-blush-300/50 via-primary-200/40 to-blush-200/50 blur-3xl dark:from-primary-500/20 dark:via-primary-400/20 dark:to-primary-600/20"
             />
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute left-[4%] top-1/2 h-44 w-44 -translate-y-1/2 animate-aura-pulse rounded-full bg-primary-300/30 blur-3xl dark:bg-primary-500/20 sm:h-52 sm:w-52 lg:left-[2%] lg:h-64 lg:w-64"
+              className="pointer-events-none absolute left-[4%] top-1/2 h-44 w-44 -translate-y-1/2 animate-aura-pulse rounded-full bg-pink-300/30 blur-3xl dark:bg-pink-500/20 sm:h-52 sm:w-52 lg:left-[2%] lg:h-64 lg:w-64"
             />
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute right-[4%] top-1/2 h-44 w-44 -translate-y-1/2 animate-aura-pulse rounded-full bg-blush-400/30 blur-3xl dark:bg-primary-400/20 sm:h-52 sm:w-52 lg:right-[2%] lg:h-64 lg:w-64"
+              className="pointer-events-none absolute right-[4%] top-1/2 h-44 w-44 -translate-y-1/2 animate-aura-pulse rounded-full bg-rose-400/30 blur-3xl dark:bg-pink-400/20 sm:h-52 sm:w-52 lg:right-[2%] lg:h-64 lg:w-64"
               style={{ animationDelay: '1.4s' }}
             />
-            <div aria-hidden="true" className="pointer-events-none absolute bottom-2 left-1/2 h-12 w-[72%] -translate-x-1/2 rounded-[100%] bg-primary-400/25 blur-2xl dark:bg-primary-500/25" />
+            <div aria-hidden="true" className="pointer-events-none absolute bottom-2 left-1/2 h-12 w-[72%] -translate-x-1/2 rounded-[100%] bg-pink-400/25 blur-2xl dark:bg-pink-500/25" />
             {FAN_SLOTS.map((slot, i) => (
               <FanCard key={slot.key} slot={slot} card={FAN_CARDS[i]} delay={0.2 + i * 0.09} />
             ))}
           </div>
 
-          {/* Editorial text block — mixed typography, serif italic focus
-              words. 1.4 line box keeps Vietnamese diacritics from clipping. */}
-          <div className="mx-auto mt-16 max-w-3xl text-center sm:mt-20">
-            <p className="font-display text-2xl font-bold leading-[1.4] tracking-tight text-ink-950 dark:text-white animate-tcg-reveal sm:text-3xl sm:leading-[1.4] lg:text-[2.4rem] lg:leading-[1.4]" style={{ animationDelay: '0.28s' }}>
-              <span className="editorial-serif -rotate-2 inline-block bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text px-2 text-transparent">{t('home.scriptWeAre')}</span>{' '}
+          {/* Brand mission callout — open-canvas editorial typography */}
+          <div
+            data-testid="home-mission-card"
+            className="relative animate-tcg-reveal text-center my-12 sm:my-16 max-w-4xl mx-auto px-4"
+            style={{ animationDelay: '0.28s' }}
+          >
+            <h2 className="font-display text-3xl sm:text-4xl lg:text-[2.6rem] font-bold leading-[1.35] tracking-tight text-ink-950 dark:text-white">
+              <span className="editorial-serif italic font-normal text-pink-500 dark:text-pink-400 px-1">{t('home.scriptWeAre')}</span>{' '}
               {t('home.scriptHereTo')}{' '}
-              <Flame className="mx-0.5 inline-block h-[0.8em] w-[0.8em] -translate-y-[0.06em] text-primary-500" aria-hidden="true" />{' '}
-              <span className="editorial-serif -rotate-1 inline-block bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text px-2 text-transparent">{t('home.scriptTurn')}</span>{' '}
+              <Sparkles className="mx-1 inline-block h-[0.8em] w-[0.8em] -translate-y-[0.1em] text-pink-400" aria-hidden="true" />{' '}
+              <span className="editorial-serif italic font-normal text-pink-500 dark:text-pink-400 px-1">{t('home.scriptTurn')}</span>{' '}
               {t('home.scriptPassion')}{' '}
-              <span className="editorial-serif rotate-1 inline-block bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text px-2 text-transparent">{t('home.scriptReal')}</span>
-              <Sparkles className="mx-1 inline-block h-[0.85em] w-[0.85em] -translate-y-[0.08em] text-amber-400" aria-hidden="true" />
-              <span className="animate-tcg-bob motion-reduce:animate-none mx-2 mt-2 inline-block align-middle">
-                <Link
-                  to="/catalog"
-                  className="group inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-primary-600 to-primary-400 px-6 py-3 align-middle text-base font-bold text-white shadow-soft-lg ring-1 ring-inset ring-white/30 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:scale-[0.98]"
-                >
-                  {t('home.shopNow')} <ArrowRight className="h-4 w-4 -translate-y-px transition-transform duration-300 group-hover:translate-x-0.5" aria-hidden="true" />
-                </Link>
-              </span>
-            </p>
-            <p className="mx-auto mt-5 max-w-xl text-sm text-ink-500 dark:text-ink-300 animate-tcg-reveal sm:text-base" style={{ animationDelay: '0.36s' }}>
+              <span className="editorial-serif italic font-normal text-pink-500 dark:text-pink-400 px-1">{t('home.scriptReal')}</span>
+              <Sparkles className="mx-1 inline-block h-[0.8em] w-[0.8em] -translate-y-[0.1em] text-pink-400" aria-hidden="true" />
+            </h2>
+            <p className="mx-auto mt-6 max-w-2xl text-center text-base sm:text-lg text-ink-500 dark:text-ink-300 leading-relaxed font-normal">
               {t('home.heroFooterNote')}
             </p>
+            <div className="mt-8 flex justify-center">
+              <Link
+                to="/catalog"
+                className="group inline-flex items-center gap-2.5 rounded-full bg-pink-500 hover:bg-pink-600 px-8 py-3.5 text-base font-bold text-white shadow-[0_10px_25px_-5px_rgba(236,72,153,0.35)] ring-1 ring-inset ring-white/30 transition-all duration-300 ease-out hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]"
+              >
+                {t('home.shopNow')} <ArrowRight className="h-4 w-4 -translate-y-px transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true" />
+              </Link>
+            </div>
           </div>
 
-          {/* Power types dock */}
+          {/* Energy elements bar — pink hover highlights */}
           <div className="mt-14 pb-20 sm:mt-16 sm:pb-24">
             <h2 className="sr-only">{t('home.powerTypes')}</h2>
             <div
-              className="animate-tcg-reveal mx-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-primary-100/70 bg-white/70 px-4 py-3 shadow-soft backdrop-blur-md dark:border-white/10 dark:bg-white/5 sm:justify-center sm:px-6"
+              data-testid="energy-elements-bar"
+              className="animate-tcg-reveal mx-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-pink-100/70 bg-white/70 px-4 py-3 shadow-soft backdrop-blur-md dark:border-white/10 dark:bg-white/5 sm:justify-center sm:px-6"
               role="list"
               aria-label={t('home.powerTypes')}
               style={{ animationDelay: '0.42s' }}
@@ -352,7 +443,7 @@ const Home = ({ hero: heroProp }) => {
                   key={id}
                   role="listitem"
                   aria-label={t(key)}
-                  className="group inline-flex shrink-0 cursor-default select-none items-center gap-2 rounded-full px-3 py-1.5 transition-[transform,background-color] duration-300 ease-out hover:-translate-y-1.5 hover:bg-white/90 dark:hover:bg-white/10 motion-reduce:transition-none"
+                  className="group inline-flex shrink-0 cursor-default select-none items-center gap-2 rounded-full px-3 py-1.5 transition-[transform,background-color] duration-300 ease-out hover:-translate-y-1.5 hover:bg-pink-500/10 dark:hover:bg-pink-500/15 motion-reduce:transition-none"
                 >
                   <span className={`flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br shadow-soft transition-transform duration-300 group-hover:scale-110 ${iconCls}`}>
                     <Icon className="h-4 w-4" aria-hidden="true" />
@@ -365,18 +456,19 @@ const Home = ({ hero: heroProp }) => {
         </div>
       </section>
 
-      {/* ===================== FEATURES ===================== */}
-      <section className="relative -mt-6 z-10 bg-transparent">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* ===================== 2. TRUST FEATURE CARDS ===================== */}
+      <section data-testid="home-trust" className="relative -mt-6 z-10 bg-transparent">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {features.map((f, i) => (
               <div
                 key={f.title}
-                className="flex items-center gap-4 p-5 surface-editorial animate-tcg-reveal"
+                data-testid="trust-feature-card"
+                className="animate-tcg-reveal flex items-start gap-4 rounded-2xl border border-pink-100/10 bg-white/5 p-4 backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-pink-300/40 dark:border-neutral-800 dark:bg-neutral-900/60"
                 style={{ animationDelay: `${0.1 + i * 0.06}s` }}
               >
-                <div className="h-12 w-12 shrink-0 rounded-2xl bg-gradient-to-br from-blush-100 to-primary-100 dark:from-white/10 dark:to-primary-400/20 flex items-center justify-center">
-                  <f.icon className="h-6 w-6 text-primary-600 dark:text-primary-400" />
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-500/15 to-rose-500/15 ring-1 ring-pink-500/20">
+                  <f.icon className="h-6 w-6 text-pink-600 dark:text-pink-400" aria-hidden="true" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-ink-900 dark:text-white">{f.title}</h3>
@@ -388,37 +480,35 @@ const Home = ({ hero: heroProp }) => {
         </div>
       </section>
 
-      {/* ===================== CATEGORIES ===================== */}
-      {/* Transparent wrapper — the global pastel canvas shows through
-          uninterrupted; only the cards below carry the white surface. */}
-      <section className="pt-20 bg-transparent">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 bg-transparent">
-          <div className="flex items-end justify-between mb-8">
+      {/* ===================== 3. SHOP BY CATEGORY (editorial bridge) ===================== */}
+      <section data-testid="home-categories" className="pt-20 bg-transparent">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 bg-transparent">
+          <div className="mb-8 flex items-end justify-between">
             <div>
               <p className="section-eyebrow">{t('home.collectionsEyebrow')}</p>
               <h2 className="mt-2 heading-display text-3xl dark:text-white">{t('home.shopByCategory')}</h2>
             </div>
-            <Link to="/catalog" className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-white font-medium flex items-center shrink-0">
+            <Link to="/catalog" className="flex shrink-0 items-center font-medium text-pink-600 hover:text-pink-700 dark:text-pink-400 dark:hover:text-white">
               {t('home.viewAll')} <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-4 sm:gap-6 max-w-3xl mx-auto">
+          <div className="mx-auto grid max-w-3xl grid-cols-2 gap-4 sm:gap-6">
             {SHOP_CATEGORY_CONFIG.map(({ key, slug, nameKey, taglineKey, Icon }, i) => {
               const count = categoryCount(slug);
               return (
                 <Link
                   key={key}
                   to={`/catalog?category=${slug}`}
-                  className="group relative overflow-hidden h-36 sm:h-44 flex flex-col items-center justify-center text-center p-6 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md border border-pink-100/70 dark:border-neutral-800 rounded-3xl shadow-sm text-neutral-900 dark:text-neutral-100 hover:shadow-md hover:-translate-y-1 transition-all duration-300 animate-tcg-reveal"
+                  className="group relative h-36 sm:h-44 flex flex-col items-center justify-center text-center p-6 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-none md:backdrop-blur-md border border-pink-100/70 dark:border-neutral-800 rounded-3xl shadow-sm text-neutral-900 dark:text-neutral-100 hover:shadow-md hover:-translate-y-1 transition-all duration-300 animate-tcg-reveal overflow-hidden"
                   style={{ animationDelay: `${i * 0.06}s` }}
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary-500/0 to-blush-500/0 group-hover:from-primary-500/10 group-hover:to-blush-500/15 transition-colors duration-500" />
-                  <div aria-hidden="true" className="absolute -top-10 -right-10 h-28 w-28 rounded-full bg-primary-400/0 blur-2xl transition-colors duration-500 group-hover:bg-primary-400/20" />
-                  <span className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-pink-100/60 dark:bg-pink-950/50 text-pink-700 dark:text-pink-300 group-hover:scale-110 transition-transform duration-300">
+                  <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-pink-500/0 to-rose-500/0 transition-colors duration-500 group-hover:from-pink-500/10 group-hover:to-rose-500/15" />
+                  <div aria-hidden="true" className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-pink-400/0 blur-2xl transition-colors duration-500 group-hover:bg-pink-400/20" />
+                  <span className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-pink-100/60 dark:bg-pink-950/50 text-pink-700 dark:text-pink-300 transition-transform duration-300 group-hover:scale-110">
                     <Icon className="h-7 w-7 text-pink-700 dark:text-pink-300" aria-hidden="true" />
                   </span>
-                  <span className="relative mt-3 font-display text-lg font-bold text-neutral-900 dark:text-pink-50 group-hover:text-primary-700 dark:group-hover:text-primary-300 transition-colors">{t(nameKey)}</span>
-                  <span className="relative mt-1 text-xs text-ink-500 dark:text-ink-300 break-words line-clamp-2">{t(taglineKey)}</span>
+                  <span className="relative mt-3 font-display text-lg font-bold text-neutral-900 transition-colors group-hover:text-pink-700 dark:text-pink-50 dark:group-hover:text-pink-300">{t(nameKey)}</span>
+                  <span className="relative mt-1 line-clamp-2 break-words text-xs text-ink-500 dark:text-ink-300">{t(taglineKey)}</span>
                   {count !== null && (
                     <span className="relative mt-1.5 text-[11px] font-semibold text-ink-400 dark:text-ink-400">{t('home.productsCount', { count })}</span>
                   )}
@@ -429,49 +519,84 @@ const Home = ({ hero: heroProp }) => {
         </div>
       </section>
 
-      {/* ===================== FEATURED / PACKS ===================== */}
-      {/* Transparent — the single page-level gradient must run unbroken. */}
-      <section className="mt-10 pb-20 bg-transparent">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* ===================== 4. FEATURED PRODUCTS — 4-COLUMN SHOWCASE ===================== */}
+      <section data-testid="home-featured" className="mt-10 pb-12 bg-transparent">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
             <h2 className="heading-display text-3xl dark:text-white">{t('home.featuredTitle')}</h2>
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {[...Array(4)].map((_, idx) => (
-                <div key={idx} className="surface-editorial p-2 animate-pulse">
-                  <div className="h-64 bg-primary-50 dark:bg-white/5 rounded-2xl mb-3" />
-                  <div className="h-4 bg-primary-50 dark:bg-white/5 rounded w-3/4 mx-auto mb-2" />
-                  <div className="h-5 bg-primary-50 dark:bg-white/5 rounded w-1/3 mx-auto" />
+                <div key={idx} className="surface-editorial animate-pulse p-2">
+                  <div className="mb-3 h-64 rounded-2xl bg-pink-50 dark:bg-white/5" />
+                  <div className="mx-auto mb-2 h-4 w-3/4 rounded bg-pink-50 dark:bg-white/5" />
+                  <div className="mx-auto h-5 w-1/3 rounded bg-pink-50 dark:bg-white/5" />
                 </div>
               ))}
             </div>
           ) : error ? (
-            <div className="text-center text-rose-500 dark:text-rose-400 py-12">{error}</div>
+            <div className="py-12 text-center text-rose-500 dark:text-rose-400">{error}</div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {featuredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
+            <div data-testid="featured-grid" className={featuredGridClass}>
+              {featuredProducts.map((product, idx) => (
+                <ShowcaseProductCard key={product.id} product={product} index={idx} />
               ))}
             </div>
           )}
         </div>
       </section>
 
-      {/* ===================== PROMO / CTA ===================== */}
-      <section className="relative overflow-hidden bg-transparent">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
-          <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-primary-500 via-primary-400 to-blush-400 text-white p-8 sm:p-14 text-center shadow-soft-lg dark:from-[#2a1520] dark:via-[#241220] dark:to-[#1a0f18] dark:ring-1 dark:ring-white/10">
-            <div className="absolute -top-20 -right-10 h-72 w-72 rounded-full bg-white/20 blur-[100px] animate-tcg-float dark:bg-primary-500/25" />
-            <div className="absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-blush-200/25 blur-[100px] animate-tcg-float-slow dark:bg-primary-400/20" />
+      {/* ===================== 5. FREE VIRTUAL BOX ("MỞ HỘP ÁO MIỄN PHÍ") =====================
+          Business rule: the Virtual Box is a FREE / promotional experience.
+          This module must never show prices, fees or currency amounts — it
+          only links to the existing free open flow at /virtual-boxes. */}
+      <section data-testid="home-virtual-box" className="py-12 bg-transparent">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+          <div
+            data-testid="virtual-box-card"
+            className="relative overflow-hidden rounded-[2rem] border border-pink-100 bg-white/90 p-8 text-center text-neutral-900 shadow-xl shadow-pink-500/5 sm:p-12 dark:border-neutral-800 dark:bg-neutral-900/90 dark:text-neutral-100"
+          >
+            <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-pink-500/15 blur-[90px] dark:bg-pink-500/25" />
+            <div aria-hidden="true" className="pointer-events-none absolute -bottom-24 -left-16 h-64 w-64 rounded-full bg-rose-500/10 blur-[90px] dark:bg-rose-500/20" />
+
             <div className="relative">
-              <Sparkles className="h-10 w-10 mx-auto text-white/90" />
-              <h2 className="mt-4 font-display text-3xl sm:text-4xl font-extrabold">{t('home.ctaTitle')}</h2>
-              <p className="mt-3 text-white/85 max-w-xl mx-auto">{t('home.ctaBody')}</p>
-              <Link to="/catalog" className="mt-8 inline-flex items-center justify-center gap-2 rounded-full bg-white px-8 py-3.5 font-semibold text-primary-700 shadow-soft-lg transition-all duration-300 hover:-translate-y-0.5 hover:brightness-105 active:scale-[0.98]">
-                {t('home.ctaBtn')} <ArrowRight className="ml-1 h-5 w-5" />
-              </Link>
+              <span className="inline-flex items-center gap-2 rounded-full border border-pink-200 bg-pink-50 px-4 py-1.5 text-xs font-semibold text-pink-600 dark:border-pink-500/30 dark:bg-pink-500/10 dark:text-pink-300">
+                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                {t('home.virtualBoxEyebrow')}
+              </span>
+              <h2 className="mt-5 font-display text-3xl font-extrabold text-neutral-900 sm:text-4xl dark:text-white">
+                {t('home.virtualBoxTitle')}
+              </h2>
+              <p className="mx-auto mt-3 max-w-xl text-[15px] leading-relaxed text-neutral-600 dark:text-neutral-300">
+                {t('home.virtualBoxSubtext')}
+              </p>
+
+              <div className="mx-auto mt-8 grid max-w-3xl grid-cols-1 gap-4 text-left sm:grid-cols-3">
+                {virtualBoxBullets.map((b) => (
+                  <div key={b.title} className="rounded-2xl border border-pink-100 bg-pink-50/60 p-4 backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-pink-100 text-pink-600 ring-1 ring-pink-200 dark:bg-pink-500/15 dark:text-pink-300 dark:ring-pink-500/25">
+                      <b.icon className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    <h3 className="mt-3 text-sm font-semibold text-neutral-900 dark:text-white">{b.title}</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-neutral-500 dark:text-neutral-400">{b.desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-9">
+                <Link
+                  to="/virtual-boxes"
+                  data-testid="virtual-box-free-cta"
+                  className="group inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 px-8 py-3.5 text-base font-bold text-white shadow-[0_10px_40px_-10px_rgba(236,72,153,0.8)] ring-1 ring-inset ring-white/25 transition-all duration-300 hover:-translate-y-0.5 hover:brightness-110 active:scale-[0.98]"
+                >
+                  <PackageOpen className="h-5 w-5" aria-hidden="true" />
+                  {t('home.virtualBoxCta')}
+                  <Sparkles className="h-4 w-4 transition-transform duration-300 group-hover:rotate-12" aria-hidden="true" />
+                </Link>
+                <p className="mt-4 text-xs font-medium text-pink-600/80 dark:text-pink-200/80">{t('home.virtualBoxNote')}</p>
+              </div>
             </div>
           </div>
         </div>

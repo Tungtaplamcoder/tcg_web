@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Users, Settings, LogOut, Menu, X, Shield, Store, Truck,
   BarChart3, ScrollText, Package, ClipboardList, FileText, Boxes, TicketPercent,
@@ -29,15 +29,16 @@ const AdminLayout = () => {
   const { user, logout } = useAuthStore();
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => { await logout(); navigate('/'); };
 
   const navItems = [
-    { to: '/admin', labelKey: PAGE_TITLE_KEYS['/admin'], icon: BarChart3, end: true },
+    { to: '/admin/dashboard', labelKey: PAGE_TITLE_KEYS['/admin'], icon: BarChart3, end: true },
     { to: '/admin/orders', labelKey: PAGE_TITLE_KEYS['/admin/orders'], icon: ClipboardList },
     { to: '/admin/inventory', labelKey: PAGE_TITLE_KEYS['/admin/inventory'], icon: Package },
-    { to: '/admin/catalog', labelKey: PAGE_TITLE_KEYS['/admin/catalog'], icon: Layers },
+    { to: '/admin/catalog-settings', labelKey: PAGE_TITLE_KEYS['/admin/catalog'], icon: Layers },
     { to: '/admin/virtual-boxes', labelKey: PAGE_TITLE_KEYS['/admin/virtual-boxes'], icon: Boxes },
     { to: '/admin/posts', labelKey: PAGE_TITLE_KEYS['/admin/posts'], icon: FileText },
     { to: '/admin/users', labelKey: PAGE_TITLE_KEYS['/admin/users'], icon: Users },
@@ -109,14 +110,15 @@ const AdminLayout = () => {
             ))}
           </nav>
 
-          {/* User + logout */}
-          <div className="p-3 border-t border-pink-100/60 dark:border-white/10">
-            <div className="flex items-center gap-3 px-2 py-2">
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#E11D48] to-[#F472B6] ring-1 ring-pink-100 dark:ring-white/15 flex items-center justify-center overflow-hidden shrink-0">
+          {/* Footer — identity + logout (the storefront back-link lives in
+              the top-right header only). */}
+          <div className="p-3 border-t border-pink-100/60 dark:border-white/10 space-y-2">
+            <div data-testid="admin-sidebar-profile" className="flex items-center gap-3 px-2 py-1.5">
+              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#E11D48] to-[#F472B6] ring-1 ring-pink-100 dark:ring-white/15 flex items-center justify-center overflow-hidden shrink-0">
                 {user?.avatarUrl ? (
-                  <img src={user.avatarUrl} alt={user?.fullName} className="h-10 w-10 object-cover" />
+                  <img src={user.avatarUrl} alt={user?.fullName} className="h-9 w-9 object-cover" />
                 ) : (
-                  <Shield className="h-5 w-5 text-white/85" />
+                  <Shield className="h-4 w-4 text-white/85" />
                 )}
               </div>
               <div className="flex-1 min-w-0">
@@ -124,9 +126,10 @@ const AdminLayout = () => {
                 <p className="text-xs text-ink-400 dark:text-ink-300 truncate">{user?.email}</p>
               </div>
             </div>
+
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 mt-1 text-sm font-medium text-ink-500 dark:text-ink-300 hover:text-rose-600 hover:bg-pink-50 dark:hover:bg-rose-500/10 rounded-xl transition-all duration-300"
+              className="w-full flex items-center gap-3 px-3.5 py-2 text-sm font-medium text-ink-500 dark:text-ink-300 hover:text-rose-600 hover:bg-pink-50 dark:hover:bg-rose-500/10 rounded-xl transition-all duration-300"
             >
               <LogOut className="h-[18px] w-[18px]" />
               {t('admin.logout')}
@@ -166,7 +169,14 @@ const AdminLayout = () => {
         </header>
 
         <main className="dash-scope flex-1 p-3 lg:p-4 overflow-y-auto">
-          <Outlet />
+          {/* Route-keyed so every navigation replays the GPU slide & fade. */}
+          <div
+            key={location.pathname}
+            data-testid="admin-route-transition"
+            className="dash-route-transition"
+          >
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

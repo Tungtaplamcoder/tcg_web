@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import ProductImage from './ProductImage';
-import { formatVND } from '../utils/format';
+import { formatVND, formatPrice } from '../utils/format';
 import { useLanguage } from '../i18n/LanguageContext';
 import { resolveProductMainType, MAIN_TYPES } from '../constants/productCategories';
 
@@ -10,7 +10,7 @@ import { resolveProductMainType, MAIN_TYPES } from '../constants/productCategori
  * category whose name/slug lives under "sealed". `resolveProductMainType`
  * covers the explicit + category cases; the isSealed flag is checked
  * directly here. A `sealed` prop from the caller stays authoritative. */
-const detectSealed = (product, sealed) => (
+export const detectSealed = (product, sealed) => (
   sealed === true
   || product?.isSealed === true
   || resolveProductMainType(product) === MAIN_TYPES.SEALED_PRODUCT
@@ -20,7 +20,7 @@ const detectSealed = (product, sealed) => (
  * `price` + `stockQuantity`) and no pre-aggregated price/stock. Derive the
  * card figures from the variant set, while still honoring explicit
  * aggregate fields in either casing when a payload provides them. */
-const derivePriceAndStock = (product) => {
+export const derivePriceAndStock = (product) => {
   const variants = Array.isArray(product.variants) ? product.variants.filter(Boolean) : [];
 
   const prices = variants
@@ -74,7 +74,7 @@ const ProductCard = ({ product, sealed = false }) => {
 
         <div className="w-full h-full rounded-2xl overflow-hidden flex items-center justify-center">
           <ProductImage
-            src={product.images?.[0] || product.image || product.front_image}
+            src={product.images?.[0] || product.frontImage || product.front_image || product.image}
             alt={product.name}
             className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-105 group-hover:will-change-transform motion-reduce:transition-none"
             sealed={isSealedProduct}
@@ -92,8 +92,11 @@ const ProductCard = ({ product, sealed = false }) => {
         {/* Khối Giá tiền & Badge tồn kho (layout dồn hàng dọc) */}
         <div className="mt-2.5 flex flex-col items-start gap-2 w-full min-w-0">
           {/* Dòng Giá tiền */}
-          <span className="font-display font-bold text-primary-600 dark:text-primary-400 text-base truncate w-full">
-            {formatVND(displayPrice)}
+          <span
+            data-testid="product-card-price"
+            className="font-semibold text-pink-500 dark:text-pink-400 text-base truncate w-full"
+          >
+            {formatPrice(displayPrice)}
           </span>
 
           {/* Badge Tồn Kho xuống hàng riêng — giới hạn trong bề rộng thẻ */}

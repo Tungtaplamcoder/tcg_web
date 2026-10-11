@@ -9,9 +9,9 @@ import { playTear, playReveal, playTick, playPop, vibrate } from '../../utils/sf
 import { useLanguage } from '../../i18n/LanguageContext';
 
 /* ── Gacha rarity treatments (backend enum: COMMON/RARE/EPIC/LEGENDARY) ──
-    Each tier carries a radial-aura color story matched to its rarity:
-    Common silver · Rare blue · Epic purple · Legendary gold/holographic.
-    label/headline are i18n keys resolved via t() at render time. */
+    Strict pastel-pink / neutral family — NO warm tones (amber/gold/orange).
+    Each tier climbs the pink → fuchsia ramp with a cool cyan holo accent on
+    the top tier only. label/headline are i18n keys resolved at render. */
 const GACHA_RARITY = {
   COMMON: {
     labelKey: 'gacha.rarity.COMMON',
@@ -29,33 +29,33 @@ const GACHA_RARITY = {
     headlineKey: 'gacha.headline.RARE',
     tier: 2,
     icon: Sparkle,
-    badge: 'from-sky-400 via-blue-500 to-indigo-500',
-    frame: 'linear-gradient(160deg, #38bdf8, #3b82f6 45%, #818cf8 80%, #38bdf8)',
-    aura: 'radial-gradient(closest-side, rgba(56,189,248,0.75), rgba(59,130,246,0.38) 55%, transparent 78%)',
-    particles: ['#38bdf8', '#3b82f6', '#818cf8', '#ffffff'],
-    shadow: 'drop-shadow(0 20px 30px rgba(56, 189, 248, 0.45))'
+    badge: 'from-pink-300 via-pink-400 to-pink-500',
+    frame: 'linear-gradient(160deg, #f9a8d4, #f472b6 45%, #ec4899 80%, #f9a8d4)',
+    aura: 'radial-gradient(closest-side, rgba(244,114,182,0.75), rgba(236,72,153,0.38) 55%, transparent 78%)',
+    particles: ['#f9a8d4', '#f472b6', '#ec4899', '#ffffff'],
+    shadow: 'drop-shadow(0 20px 30px rgba(236, 72, 153, 0.42))'
   },
   EPIC: {
     labelKey: 'gacha.rarity.EPIC',
     headlineKey: 'gacha.headline.EPIC',
     tier: 3,
     icon: Gem,
-    badge: 'from-violet-400 via-purple-500 to-fuchsia-500',
-    frame: 'linear-gradient(120deg, #a78bfa, #8b5cf6 35%, #d946ef 65%, #a78bfa)',
-    aura: 'radial-gradient(closest-side, rgba(139,92,246,0.8), rgba(168,85,247,0.42) 55%, transparent 78%)',
-    particles: ['#a78bfa', '#8b5cf6', '#d946ef', '#ffffff'],
-    shadow: 'drop-shadow(0 24px 34px rgba(139, 92, 246, 0.5))'
+    badge: 'from-pink-500 via-fuchsia-500 to-fuchsia-600',
+    frame: 'linear-gradient(120deg, #f472b6, #ec4899 35%, #d946ef 65%, #f472b6)',
+    aura: 'radial-gradient(closest-side, rgba(217,70,239,0.8), rgba(236,72,153,0.42) 55%, transparent 78%)',
+    particles: ['#f472b6', '#d946ef', '#ec4899', '#ffffff'],
+    shadow: 'drop-shadow(0 24px 34px rgba(217, 70, 239, 0.5))'
   },
   LEGENDARY: {
     labelKey: 'gacha.rarity.LEGENDARY',
     headlineKey: 'gacha.headline.LEGENDARY',
     tier: 4,
     icon: Crown,
-    badge: 'from-amber-300 via-fuchsia-400 to-cyan-300',
-    frame: 'conic-gradient(from 210deg, #fff7e6, #e9c46a 18%, #d946ef 38%, #22d3ee 58%, #8b5cf6 78%, #fff7e6)',
-    aura: 'radial-gradient(closest-side, rgba(233,196,106,0.85), rgba(249,115,22,0.4) 55%, transparent 78%)',
-    particles: ['#e9c46a', '#ffd88a', '#d946ef', '#ffffff'],
-    shadow: 'drop-shadow(0 26px 40px rgba(233, 196, 106, 0.55))'
+    badge: 'from-pink-500 via-fuchsia-500 to-cyan-400',
+    frame: 'conic-gradient(from 210deg, #fdf2f8, #f472b6 18%, #d946ef 38%, #22d3ee 58%, #ec4899 78%, #fdf2f8)',
+    aura: 'radial-gradient(closest-side, rgba(219,39,119,0.85), rgba(217,70,239,0.42) 55%, transparent 78%)',
+    particles: ['#f472b6', '#d946ef', '#22d3ee', '#ffffff'],
+    shadow: 'drop-shadow(0 26px 40px rgba(219, 39, 119, 0.55))'
   }
 };
 
@@ -393,7 +393,7 @@ const GachaOpeningModal = ({
       : t('gacha.tapHintTwo');
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={t('gacha.openNamed', { name: boxName })}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={t('gacha.openNamed', { name: boxName })} data-testid="gacha-modal">
       {/* Depth-of-field backdrop */}
       <div
         className={`absolute inset-0 animate-tcg-fade-in ${backdropBlur}`}
@@ -417,7 +417,7 @@ const GachaOpeningModal = ({
         <div
           aria-hidden="true"
           className="gacha-light-burst"
-          style={{ '--flash-c': 'rgba(255, 244, 214, 0.95)', '--burst-ms': '420ms' }}
+          style={{ '--flash-c': 'rgba(253, 242, 248, 0.95)', '--burst-ms': '420ms' }}
         />
       )}
 
@@ -453,8 +453,8 @@ const GachaOpeningModal = ({
         <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center">
         {phase === 'error' ? (
           <div className="glass-panel mx-auto max-w-sm rounded-2xl p-7 text-center animate-tcg-scale-in">
-            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-400/15 ring-1 ring-amber-300/30">
-              <AlertTriangle className="h-7 w-7 text-amber-300" />
+            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-pink-400/15 ring-1 ring-pink-300/30">
+              <AlertTriangle className="h-7 w-7 text-pink-300" />
             </span>
             <h3 className="mt-4 font-display text-lg font-bold text-white">{t('gacha.openingFailed')}</h3>
             <p className="mt-1.5 text-sm text-white/70">{error}</p>
@@ -477,7 +477,7 @@ const GachaOpeningModal = ({
               {/* Charge aura — brightens with every tap */}
               <div
                 aria-hidden="true"
-                className={`pointer-events-none absolute left-1/2 top-1/2 h-[26rem] w-[26rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-violet-500/70 via-fuchsia-500/60 to-cyan-400/60 blur-[70px] ${
+                className={`pointer-events-none absolute left-1/2 top-1/2 h-[26rem] w-[26rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-br from-primary-600/70 via-fuchsia-500/60 to-pink-400/60 blur-[70px] ${
                   phase === 'charging' && !reducedMotion ? 'gacha-glow-pulse' : ''
                 }`}
                 style={phase === 'ready' ? { opacity: 0.35 + taps * 0.16, transition: 'opacity 0.35s ease' } : undefined}
@@ -499,6 +499,7 @@ const GachaOpeningModal = ({
               <button
                 onClick={handleTap}
                 disabled={phase !== 'ready'}
+                data-testid="gacha-pack"
                 aria-label={t('gacha.tapAria', { name: boxName, count: REQUIRED_TAPS })}
                 className={`relative z-10 block cursor-pointer rounded-3xl p-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-aura-cyan/70 ${
                   phase === 'ready' ? '' : 'cursor-wait'
@@ -559,7 +560,7 @@ const GachaOpeningModal = ({
                   ))}
                 </div>
                 <span className="glass-pill inline-flex items-center gap-2 px-4 py-2 text-[13px] font-semibold animate-tcg-pulse-ring">
-                  <MousePointerClick className="h-3.5 w-3.5 text-aura-gold" />
+                  <MousePointerClick className="h-3.5 w-3.5 text-pink-200" />
                   {tapHint}
                 </span>
                 <button
@@ -572,7 +573,7 @@ const GachaOpeningModal = ({
               </div>
             ) : (
               <span className="relative z-10 mt-9 inline-flex items-center gap-2 text-sm font-semibold text-white/80" aria-live="polite">
-                <RefreshCw className="h-4 w-4 animate-spin text-aura-gold" />
+                <RefreshCw className="h-4 w-4 animate-spin text-pink-200" />
                 {t('gacha.rolling')}
               </span>
             )}
@@ -580,7 +581,7 @@ const GachaOpeningModal = ({
         ) : (
           /* ── Revealed pull — the pack has unmounted; the card zooms in
               with a clean keyframe reveal (no 3D flip DOM states). ── */
-          <div className="relative flex flex-col items-center">
+          <div className="relative flex flex-col items-center" data-testid="gacha-reveal">
             <div className="relative z-10 gacha-zoom-in">
               {/* Dynamic rarity glow behind the card */}
               <div
@@ -658,11 +659,12 @@ const GachaOpeningModal = ({
               <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
                 <button
                   onClick={() => { playTick(); onClose(); }}
+                  data-testid="gacha-done"
                   className="gacha-cta-ghost inline-flex items-center justify-center rounded-full px-6 py-2.5 text-sm font-semibold"
                 >
                   {t('gacha.done')}
                 </button>
-                <button onClick={openAnother} className="btn-primary !px-6 !py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-aura-cyan/70">
+                <button onClick={openAnother} data-testid="gacha-open-another" className="btn-primary !px-6 !py-2.5 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-aura-cyan/70">
                   <RefreshCw className="mr-2 h-4 w-4" />
                   {t('gacha.openAnother')}
                 </button>

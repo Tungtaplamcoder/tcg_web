@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Package, Search, Pencil, Save, X, Loader2, Plus, Trash2, Eye, ImagePlus, Link2, CheckCircle2, AlertCircle
+  Package, Search, Pencil, Save, X, Loader2, Plus, Trash2, Eye, ImagePlus, Link2, CheckCircle2, AlertCircle, PlusCircle, Tag
 } from 'lucide-react';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -9,7 +9,6 @@ import ConfirmDialog from '../../components/ConfirmDialog';
 import CreatableSelect from '../../components/CreatableSelect';
 import { formatVND } from '../../utils/format';
 import { PRODUCT_CATEGORIES, resolveCategoryKey, getProductCategory } from '../../constants/productCategories';
-import { TCG_LANGUAGES, CARD_CONDITIONS, SINGLE_CARD_LANGUAGES } from '../../constants/tcgMetadata';
 import { useLanguage } from '../../i18n/LanguageContext';
 
 const InventoryManager = () => {
@@ -36,6 +35,23 @@ const InventoryManager = () => {
   // Dynamic rarity options ("Độ hiếm") — database-backed, managed like
   // Series/Era and Expansion Sets (CreatableSelect with quick-add).
   const [rarityOptions, setRarityOptions] = useState([]);
+  // Dynamic sealed-product categories ("Danh mục Sealed Product") — fetched
+  // from GET /sealed-categories and bound to the BOX sub-type dropdown.
+  const [sealedCategoryOptions, setSealedCategoryOptions] = useState([]);
+  // Dynamic card conditions ("Tình trạng thẻ") — fetched from
+  // GET /admin/card-conditions and bound to the single-card variant dropdown.
+  // Admin AND Staff may quick-add a brand-new condition inline.
+  const [conditionOptions, setConditionOptions] = useState([]);
+  // Dynamic product languages ("Ngôn ngữ") — fetched from GET /languages and
+  // bound to the "Ngôn ngữ (Language)" modal dropdown AND the "Tất cả ngôn ngữ"
+  // filter. Full canonical names (e.g. "English", "Japanese") only — never the
+  // legacy short codes (JP/ENG/CN/KR).
+  const [languageOptions, setLanguageOptions] = useState([]);
+  // Inline "+ Thêm tình trạng mới" quick-add popup state.
+  const [showConditionQuickAdd, setShowConditionQuickAdd] = useState(false);
+  const [conditionQuickAddValue, setConditionQuickAddValue] = useState('');
+  const [conditionQuickAddSaving, setConditionQuickAddSaving] = useState(false);
+  const [conditionQuickAddError, setConditionQuickAddError] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     shortName: '',
@@ -59,10 +75,8 @@ const InventoryManager = () => {
     backImage: '',
     variants: []
   });
-  const fileInputRef = useRef(null);
-  const backFileInputRef = useRef(null);
-  const [frontImageUrl, setFrontImageUrl] = useState('');
-  const [backImageUrl, setBackImageUrl] = useState('');
+  const imageFileInputRef = useRef(null);
+  const [inputImageUrl, setInputImageUrl] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [toast, setToast] = useState(null);
@@ -102,9 +116,54 @@ const InventoryManager = () => {
     } catch (err) { console.error('Failed to load category/set metadata', err); }
   }, []);
 
+  // The "Loại sản phẩm niêm phong" dropdown is ALWAYS fed by the live
+  // SealedCategory catalogue (GET /sealed-categories) — never a hardcoded
+  // list. Re-fetching on every modal open and whenever "Sealed Products" is
+  // selected guarantees create/update/delete in Catalog Settings is reflected
+  // immediately (no stale options).
+  const loadSealedCategories = useCallback(async () => {
+    try {
+      const res = await api.get('/sealed-categories');
+      setSealedCategoryOptions(
+        (res.data.data || []).map((c) => ({
+          value: c.name,
+          label: c.name
+        }))
+      );
+    } catch (err) { console.error('Failed to load sealed categories', err); }
+  }, []);
+
+  // The "TÌNH TRẠNG" variant dropdown is ALWAYS fed by the live dynamic
+  // card-condition catalogue (GET /admin/card-conditions) — never a hardcoded
+  // array. `name` is the sole field, used as both the option value and label.
+  const loadCardConditions = useCallback(async () => {
+    try {
+      const res = await api.get('/admin/card-conditions');
+      setConditionOptions(
+        (res.data.data || []).map((c) => ({ value: c.name, label: c.name }))
+      );
+    } catch (err) { console.error('Failed to load card conditions', err); }
+  }, []);
+
+  // The "Ngôn ngữ (Language)" dropdown and the "Tất cả ngôn ngữ" filter are
+  // ALWAYS fed by the live CardLanguage catalogue (GET /languages) — never the
+  // hardcoded JP/ENG/CN/KR list. `name` is the sole field, used as both the
+  // option value and label.
+  const loadLanguages = useCallback(async () => {
+    try {
+      const res = await api.get('/languages');
+      setLanguageOptions(
+        (res.data.data || []).map((l) => ({ value: l.name, label: l.name }))
+      );
+    } catch (err) { console.error('Failed to load languages', err); }
+  }, []);
+
   useEffect(() => {
     loadMeta();
-  }, [loadMeta]);
+    loadSealedCategories();
+    loadCardConditions();
+    loadLanguages();
+  }, [loadMeta, loadSealedCategories, loadCardConditions, loadLanguages]);
 
   // Fetch fresh options when the Edit/Create modal opens to ensure
   // all active Series, Expansion Sets, and Sealed Product Types are available
@@ -112,8 +171,19 @@ const InventoryManager = () => {
   useEffect(() => {
     if (editingProduct !== null) {
       loadMeta();
+      loadSealedCategories();
+      loadCardConditions();
+      loadLanguages();
     }
-  }, [editingProduct, loadMeta]);
+  }, [editingProduct, loadMeta, loadSealedCategories, loadCardConditions, loadLanguages]);
+
+  // Bind the sealed sub-type dropdown to the dynamic endpoint the moment
+  // "Sealed Products (Sản phẩm niêm phong)" is chosen as the main category.
+  useEffect(() => {
+    if (formData.mainCategory === 'BOX') {
+      loadSealedCategories();
+    }
+  }, [formData.mainCategory, loadSealedCategories]);
 
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
@@ -145,7 +215,13 @@ const InventoryManager = () => {
       ? categories.filter((c) => c.parentId === parent.id).map((c) => ({ value: c.slug || c.name, label: c.name }))
       : [];
 
-  const getSealedTypes = () => childTreeOptions(findTreeCategory('sealed-products'));
+  // The "Loại sản phẩm niêm phong" dropdown is bound EXCLUSIVELY to the
+  // dynamic `SealedCategory` catalogue (GET /sealed-categories). We
+  // deliberately do NOT merge category-tree children here: legacy
+  // product-derived category nodes (e.g. "E2E Booster Box 1790017813744") are
+  // NOT sealed categories and must never leak into this picker. When the
+  // catalogue is empty the select renders an explicit empty-state message.
+  const getSealedTypes = () => sealedCategoryOptions;
 
   const getSeriesEras = () => childTreeOptions(findTreeCategory('single-cards'));
 
@@ -176,14 +252,10 @@ const InventoryManager = () => {
   };
 
   // ---- Dynamic Rarity helpers ----
-  // Map the API rows into CreatableSelect options. `code` is the canonical
-  // value stored on the product; the label reads "CODE - Name".
+  // Map the API rows into CreatableSelect options. `name` is the sole field,
+  // used as both the option value and label.
   const toRarityOptions = (rows) =>
-    (rows || []).map((r) => {
-      const code = r.code || r.name;
-      const label = r.name && r.name !== code ? `${code} - ${r.name}` : code;
-      return { value: code, label, hint: r.description || undefined };
-    });
+    (rows || []).map((r) => ({ value: r.name, label: r.name }));
 
   const findRarityOption = (value) => {
     if (!value) return null;
@@ -207,43 +279,184 @@ const InventoryManager = () => {
     return [...options, findRarityOption(currentValue)];
   };
 
-  // "HR - Hyper Rare" → { code: 'HR', name: 'Hyper Rare' }. A bare "HR"
-  // keeps code = name so the two never drift.
-  const parseRarityInput = (text) => {
-    const raw = String(text || '').trim();
-    const parts = raw.split(/\s*[-–—]\s*/);
-    if (parts.length >= 2 && parts[0]) {
-      const code = parts[0].trim();
-      const name = parts.slice(1).join(' - ').trim() || code;
-      return { code, name };
-    }
-    return { code: raw, name: raw };
-  };
+  // The rarity catalogue is name-only — the typed text IS the stored name.
+  const parseRarityInput = (text) => ({ name: String(text || '').trim() });
 
   // Quick-add: persist the typed rarity through the admin API and inject it
   // into the options list so it stays selectable without closing the modal.
   const handleCreateRarityOption = async (opt) => {
-    const { code, name } = parseRarityInput(opt?.value || opt?.label);
-    if (!code) return;
+    const { name } = parseRarityInput(opt?.value || opt?.label);
+    if (!name) return;
     setRarityOptions((prev) => {
-      if (prev.some((o) => String(o.value).toLowerCase() === code.toLowerCase())) return prev;
-      return [...prev, { value: code, label: code === name ? code : `${code} - ${name}` }];
+      if (prev.some((o) => String(o.value).toLowerCase() === name.toLowerCase())) return prev;
+      return [...prev, { value: name, label: name }];
     });
     try {
-      const res = await api.post('/admin/rarities', { code, name, description: name });
-      const created = res.data?.data;
-      if (created) {
-        const codeVal = created.code || code;
-        setRarityOptions((prev) => {
-          const filtered = prev.filter((o) => String(o.value).toLowerCase() !== String(codeVal).toLowerCase());
-          const label = created.name && created.name !== codeVal ? `${codeVal} - ${created.name}` : codeVal;
-          return [...filtered, { value: codeVal, label, hint: created.description || undefined }];
-        });
-      }
-      showToast(`Đã thêm độ hiếm "${code}".`);
+      await api.post('/admin/rarities', { name });
+      showToast(`Đã thêm độ hiếm "${name}".`);
     } catch (err) {
       // Conflict (already exists) is harmless — the option remains selectable.
       console.error('Failed to create rarity', err);
+    }
+  };
+
+  // ---- Dynamic Card Condition helpers (Tình trạng thẻ) ----
+  // Default value for a fresh single-card variant (first dynamic option).
+  const defaultConditionValue = () => conditionOptions[0]?.value || 'NEAR_MINT';
+
+  // Keep a saved/legacy variant value visible even if the catalogue hasn't
+  // loaded yet or the condition was since renamed/removed.
+  const ensureConditionOption = (options, currentValue) => {
+    if (!currentValue) return options;
+    const v = String(currentValue).trim().toLowerCase();
+    if (options.some((o) => String(o.value).toLowerCase() === v || String(o.label).toLowerCase() === v)) {
+      return options;
+    }
+    return [...options, { value: String(currentValue), label: String(currentValue) }];
+  };
+
+  // The card-condition catalogue is name-only — the typed text IS the name.
+  const parseConditionInput = (text) => ({ name: String(text || '').trim() });
+
+  // Persist a condition by name (allowed for Admin AND Staff) and inject it
+  // into the live options. Returns the stored name (or throws on hard error).
+  // A 409 (already exists) is treated as success — the option stays selectable.
+  const persistCondition = async (rawName) => {
+    const { name } = parseConditionInput(rawName);
+    if (!name) return null;
+    let finalName = name;
+    try {
+      const res = await api.post('/admin/card-conditions', { name });
+      const created = res.data?.data;
+      if (created?.name) finalName = created.name;
+    } catch (err) {
+      if (err.response?.status !== 409) throw err;
+    }
+    setConditionOptions((prev) => {
+      const exists = prev.some((o) => String(o.value).toLowerCase() === finalName.toLowerCase());
+      if (exists) return prev;
+      return [...prev, { value: finalName, label: finalName }];
+    });
+    return finalName;
+  };
+
+  // Inline CreatableSelect create — persist the typed name and auto-select it
+  // on the variant row that triggered it (no page reload).
+  const handleCreateConditionOption = async (rawName, index) => {
+    try {
+      const finalName = await persistCondition(rawName);
+      if (!finalName) return;
+      setFormData((prev) => {
+        const variants = prev.variants.length
+          ? [...prev.variants]
+          : [{ price: 0, stockQuantity: 0 }];
+        const target = (index != null && index >= 0 && index < variants.length)
+          ? index
+          : variants.length - 1;
+        variants[target] = { ...variants[target], condition: finalName };
+        return { ...prev, variants };
+      });
+      showToast(`Đã thêm tình trạng "${finalName}".`);
+    } catch (err) {
+      console.error('Failed to create condition', err);
+      setError(err.response?.data?.error?.message || 'Không thể lưu tình trạng.');
+    }
+  };
+
+  const openConditionQuickAdd = () => {
+    setConditionQuickAddValue('');
+    setConditionQuickAddError('');
+    setShowConditionQuickAdd(true);
+  };
+
+  const closeConditionQuickAdd = () => {
+    if (conditionQuickAddSaving) return;
+    setShowConditionQuickAdd(false);
+    setConditionQuickAddError('');
+  };
+
+  // Quick-add modal: persist the typed condition and auto-select it on the
+  // last variant row without a page reload.
+  const handleCreateCondition = async () => {
+    const { name } = parseConditionInput(conditionQuickAddValue);
+    if (!name) { setConditionQuickAddError('Vui lòng nhập tên tình trạng.'); return; }
+    setConditionQuickAddSaving(true);
+    setConditionQuickAddError('');
+    try {
+      const finalName = await persistCondition(name);
+      setFormData((prev) => {
+        const nextVariants = prev.variants.length
+          ? [...prev.variants]
+          : [{ condition: finalName, price: 0, stockQuantity: 0 }];
+        const lastIndex = nextVariants.length - 1;
+        nextVariants[lastIndex] = { ...nextVariants[lastIndex], condition: finalName };
+        return { ...prev, variants: nextVariants };
+      });
+      setConditionQuickAddSaving(false);
+      setShowConditionQuickAdd(false);
+      setConditionQuickAddValue('');
+      showToast(`Đã thêm tình trạng "${finalName}".`);
+    } catch (err) {
+      setConditionQuickAddSaving(false);
+      setConditionQuickAddError(err.response?.data?.error?.message || 'Không thể lưu tình trạng.');
+    }
+  };
+
+  // ---- Dynamic Language helpers (Ngôn ngữ) ----
+  // Default language for a fresh single-card product: prefer "English" when
+  // present in the catalogue, otherwise the first option (or empty while the
+  // catalogue is still loading).
+  const defaultLanguageValue = () =>
+    languageOptions.find((o) => String(o.value).toLowerCase() === 'english')?.value
+    || languageOptions[0]?.value
+    || '';
+
+  // Keep a saved/legacy value visible even before the catalogue loads or if the
+  // language was since removed.
+  const ensureLanguageOption = (options, currentValue) => {
+    if (!currentValue) return options;
+    const v = String(currentValue).trim().toLowerCase();
+    if (options.some((o) => String(o.value).toLowerCase() === v || String(o.label).toLowerCase() === v)) {
+      return options;
+    }
+    return [...options, { value: String(currentValue), label: String(currentValue) }];
+  };
+
+  // The language catalogue is name-only — the typed text IS the stored name.
+  const parseLanguageInput = (text) => ({ name: String(text || '').trim() });
+
+  // Persist a language by its full name (Admin AND Staff) and inject it into
+  // the live options. Returns the stored name (or null). A 409 (already exists)
+  // is treated as success — the option stays selectable.
+  const persistLanguage = async (rawName) => {
+    const { name } = parseLanguageInput(rawName);
+    if (!name) return null;
+    let finalName = name;
+    try {
+      const res = await api.post('/admin/catalog-settings/languages', { name });
+      if (res.data?.data?.name) finalName = res.data.data.name;
+    } catch (err) {
+      if (err.response?.status !== 409) throw err;
+    }
+    setLanguageOptions((prev) => {
+      const exists = prev.some((o) => String(o.value).toLowerCase() === finalName.toLowerCase());
+      if (exists) return prev;
+      return [...prev, { value: finalName, label: finalName }];
+    });
+    return finalName;
+  };
+
+  // Inline CreatableSelect create — persist the typed full name and auto-select
+  // it on the product form (no page reload).
+  const handleCreateLanguageOption = async (rawName) => {
+    try {
+      const finalName = await persistLanguage(rawName);
+      if (!finalName) return;
+      setFormData((prev) => ({ ...prev, language: finalName }));
+      showToast(`Đã thêm ngôn ngữ "${finalName}".`);
+    } catch (err) {
+      console.error('Failed to create language', err);
+      setError(err.response?.data?.error?.message || 'Không thể lưu ngôn ngữ.');
     }
   };
 
@@ -327,13 +540,13 @@ const InventoryManager = () => {
 
     const variants = (product.variants || []).map(v => {
       if (isSingleCard) {
-        return { condition: v.condition || 'NEAR_MINT', price: Number(v.price), stockQuantity: v.stockQuantity };
+        return { condition: v.condition || defaultConditionValue(), price: Number(v.price), stockQuantity: v.stockQuantity };
       }
       return { price: Number(v.price), stockQuantity: v.stockQuantity };
     });
 
     const defaultVariant = isSingleCard
-      ? { condition: 'NEAR_MINT', price: 0, stockQuantity: 0 }
+      ? { condition: defaultConditionValue(), price: 0, stockQuantity: 0 }
       : { price: 0, stockQuantity: 0 };
 
     return {
@@ -348,8 +561,12 @@ const InventoryManager = () => {
       artist: product.artist || '',
       rarity: product.rarity || '',
       language: isSingleCard ? (product.variants?.[0]?.language || product.variants?.[0]?.variant || '') : '',
-      setIds: product.sets?.map(s => s.id) || [],
-      images: product.images || [],
+      images: (() => {
+        let imgs = Array.isArray(product.images) ? [...product.images] : [];
+        if (!imgs.length && product.frontImage) imgs.push(product.frontImage);
+        if (product.backImage && !imgs.includes(product.backImage)) imgs.push(product.backImage);
+        return imgs.filter((img) => typeof img === 'string' && img.trim().length > 0);
+      })(),
       backImage: product.backImage || '',
       variants: variants.length > 0 ? variants : [defaultVariant]
     };
@@ -357,37 +574,38 @@ const InventoryManager = () => {
 
   const handleEdit = (product) => {
     setEditingProduct(product);
-    setFrontImageUrl(''); setBackImageUrl('');
+    setInputImageUrl('');
     setFormData(buildFormDataFromProduct(product, categories));
   };
 
   const handleCreate = () => {
     setEditingProduct({});
-    setFrontImageUrl(''); setBackImageUrl('');
-      setFormData({
-        name: '',
-        shortName: '',
-        description: '',
-        cardNumber: '',
-        tcgplayerId: '',
-        mainCategory: '',
-        sealedType: '',
-        seriesEra: '',
-        expansionSet: '',
-        category: '',
-        setValue: '',
-        artist: '',
-        rarity: '',
-        language: '',
-        setIds: [],
-        images: [],
-        backImage: '',
-        variants: []
-      });
-    };
+    setInputImageUrl('');
+    setFormData({
+      name: '',
+      shortName: '',
+      description: '',
+      cardNumber: '',
+      tcgplayerId: '',
+      mainCategory: '',
+      sealedType: '',
+      seriesEra: '',
+      expansionSet: '',
+      category: '',
+      setValue: '',
+      artist: '',
+      rarity: '',
+      language: '',
+      setIds: [],
+      images: [],
+      backImage: '',
+      variants: []
+    });
+  };
 
   const handleCloseModal = () => {
     setEditingProduct(null);
+    setInputImageUrl('');
     setFormData({
       name: '', shortName: '', description: '', cardNumber: '', tcgplayerId: '',
       mainCategory: '', sealedType: '', seriesEra: '', expansionSet: '',
@@ -411,40 +629,40 @@ const InventoryManager = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleFrontImageUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleImageFileUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
     setUploading(true); setError('');
     try {
-      const form = new FormData(); form.append('image', file);
-      const response = await api.post('/admin/upload-image', form, { headers: { 'Content-Type': 'multipart/form-data' } });
-      const url = response.data.data.url;
-      setFormData(prev => ({ ...prev, images: [url] }));
-      showToast('Đã upload ảnh mặt trước.');
+      const uploadedUrls = [];
+      for (const file of files) {
+        const form = new FormData();
+        form.append('image', file);
+        const response = await api.post('/admin/upload-image', form, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        const url = response.data?.data?.url;
+        if (url) uploadedUrls.push(url);
+      }
+      if (uploadedUrls.length > 0) {
+        setFormData((prev) => {
+          const updated = [...(prev.images || []), ...uploadedUrls];
+          return {
+            ...prev,
+            images: updated,
+            backImage: updated[1] || ''
+          };
+        });
+        showToast(`Đã thêm ${uploadedUrls.length} ảnh vào thư viện.`);
+      }
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.error?.message || 'Không thể upload ảnh mặt trước. Bạn có thể dán link ảnh trực tiếp vào ô "Image URL".');
-    } finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
+      setError(err.response?.data?.error?.message || 'Không thể upload ảnh. Bạn có thể dán link ảnh trực tiếp.');
+    } finally {
+      setUploading(false);
+      if (imageFileInputRef.current) imageFileInputRef.current.value = '';
+    }
   };
-
-  const handleBackImageUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true); setError('');
-    try {
-      const form = new FormData(); form.append('image', file);
-      const response = await api.post('/admin/upload-image', form, { headers: { 'Content-Type': 'multipart/form-data' } });
-      const url = response.data.data.url;
-      setFormData(prev => ({ ...prev, backImage: url }));
-      showToast('Đã upload ảnh mặt sau.');
-    } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.error?.message || 'Không thể upload ảnh mặt sau. Bạn có thể dán link ảnh trực tiếp vào ô "Image URL".');
-    } finally { setUploading(false); if (backFileInputRef.current) backFileInputRef.current.value = ''; }
-  };
-
-  const handleRemoveFrontImage = () => setFormData(prev => ({ ...prev, images: [] }));
-  const handleRemoveBackImage = () => setFormData(prev => ({ ...prev, backImage: '' }));
 
   const isValidUrl = (value) => {
     try {
@@ -455,28 +673,35 @@ const InventoryManager = () => {
     }
   };
 
-  const handleApplyFrontImageUrl = () => {
-    const url = frontImageUrl.trim();
+  const handleAddImageUrl = () => {
+    const url = inputImageUrl.trim();
     if (!url) return;
-    if (!isValidUrl(url)) {
-      setError('Link ảnh mặt trước không hợp lệ (phải bắt đầu bằng http:// hoặc https://).');
+    if (!isValidUrl(url) && !url.startsWith('/')) {
+      setError('Link ảnh không hợp lệ (phải bắt đầu bằng http://, https:// hoặc /).');
       return;
     }
     setError('');
-    setFormData(prev => ({ ...prev, images: [url] }));
-    setFrontImageUrl('');
+    setFormData((prev) => {
+      const updated = [...(prev.images || []), url];
+      return {
+        ...prev,
+        images: updated,
+        backImage: updated[1] || ''
+      };
+    });
+    setInputImageUrl('');
+    showToast('Đã thêm ảnh từ link.');
   };
 
-  const handleApplyBackImageUrl = () => {
-    const url = backImageUrl.trim();
-    if (!url) return;
-    if (!isValidUrl(url)) {
-      setError('Link ảnh mặt sau không hợp lệ (phải bắt đầu bằng http:// hoặc https://).');
-      return;
-    }
-    setError('');
-    setFormData(prev => ({ ...prev, backImage: url }));
-    setBackImageUrl('');
+  const handleRemoveImage = (indexToRemove) => {
+    setFormData((prev) => {
+      const updated = (prev.images || []).filter((_, idx) => idx !== indexToRemove);
+      return {
+        ...prev,
+        images: updated,
+        backImage: updated[1] || ''
+      };
+    });
   };
 
   const showToast = (message, type = 'success') => {
@@ -488,12 +713,12 @@ const InventoryManager = () => {
     setFormData(prev => {
       // Single Cards are validated on a UNIQUE condition per product, so a new
       // row must not inherit the same default as an existing one. Pick the
-      // first condition option not already used (Near Mint → Lightly Played →
-      // … → Damaged) and only fall back to the first option once all are used.
+      // first dynamic condition option not already used and only fall back to
+      // the first option once all are used.
       if (prev.mainCategory === 'CARD') {
         const usedConditions = new Set(prev.variants.map(v => v.condition));
-        const nextCondition = CARD_CONDITIONS.find(c => !usedConditions.has(c.value))?.value
-          || CARD_CONDITIONS[0].value;
+        const nextCondition = conditionOptions.find(c => !usedConditions.has(c.value))?.value
+          || defaultConditionValue();
         return { ...prev, variants: [...prev.variants, { condition: nextCondition, price: 0, stockQuantity: 0 }] };
       }
       return { ...prev, variants: [...prev.variants, { price: 0, stockQuantity: 0 }] };
@@ -626,11 +851,15 @@ setSaving(true); setError('');
         : formData.mainCategory === 'CARD'
           ? [formData.mainCategory, formData.seriesEra, formData.expansionSet].filter(Boolean)
           : [];
+      const cleanImages = (formData.images || []).filter(
+        (img) => typeof img === 'string' && img.trim().length > 0
+      );
       const payload = {
         ...formData,
         slug,
-        images: formData.images || [],
-        backImage: formData.backImage || null,
+        images: cleanImages,
+        frontImage: cleanImages[0] || null,
+        backImage: cleanImages[1] || (formData.backImage ? formData.backImage.trim() : null) || null,
         shortName: formData.shortName || null,
         tcgplayerId: formData.tcgplayerId || null,
         setIds: matchedSet ? [matchedSet.id] : [],
@@ -641,6 +870,8 @@ setSaving(true); setError('');
         categoryPath: categoryPath.length > 1 ? categoryPath : undefined,
         variants: apiVariants
       };
+      if (!payload.backImage) payload.backImage = null;
+      if (!payload.frontImage) payload.frontImage = null;
       delete payload.setValue;
       if (editingProduct?.id) await api.patch(`/admin/products/${editingProduct.id}`, payload);
       else await api.post('/admin/products', payload);
@@ -661,6 +892,13 @@ setSaving(true); setError('');
       setDeleteTarget(null); fetchProducts();
     } catch (err) { console.error(err); setError('Không thể xóa sản phẩm.'); } finally { setDeleteLoading(false); }
   };
+
+  // Dynamic sealed-category options. Edit hydration may inject the saved slug
+  // so an existing product never renders blank, but the empty-state message is
+  // driven purely by the live catalogue (no hardcoded product-name fallback).
+  const sealedTypeOptions = ensureValueInOptions(getSealedTypes(), formData.sealedType);
+  const sealedCatalogueEmpty = getSealedTypes().length === 0;
+  const SEALED_EMPTY_MESSAGE = '-- Chưa có danh mục sealed --';
 
   return (
     <div className="space-y-6">
@@ -708,12 +946,14 @@ setSaving(true); setError('');
           ))}
         </select>
         <select
+          data-testid="language-filter"
+          aria-label={t('staff.inventory.filterLanguage')}
           value={languageFilter}
           onChange={(e) => { setLanguageFilter(e.target.value); setPage(1); }}
           className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 min-w-[150px]"
         >
           <option value="">{t('staff.inventory.filterLanguage')}</option>
-          {TCG_LANGUAGES.map((lang) => (
+          {languageOptions.map((lang) => (
             <option key={lang.value} value={lang.value}>{lang.label}</option>
           ))}
         </select>
@@ -832,13 +1072,27 @@ setSaving(true); setError('');
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-gray-700">{product.variants?.length ? formatVND(minPrice) : 'Chưa có'}</td>
-                    <td className="px-4 py-3"><span className={`font-medium ${totalStock === 0 ? 'text-red-600' : 'text-gray-800'}`}>{totalStock}</span></td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {product.variants?.length ? (
+                        minPrice === 0 ? (
+                          <span
+                            data-testid="contact-price-badge"
+                            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-pink-50 text-pink-600 dark:bg-pink-950/40 dark:text-pink-400 border border-pink-200 dark:border-pink-800"
+                          >
+                            0 đ (Liên hệ)
+                          </span>
+                        ) : (
+                          formatVND(minPrice)
+                        )
+                      ) : (
+                        'Chưa có'
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center space-x-2">
-                        <button onClick={() => handleEdit(product)} className="p-1 text-blue-600 hover:text-blue-800" title={t('staff.inventory.edit')}><Pencil className="h-5 w-5" /></button>
-                        <Link to={`/product/${product.id}`} className="p-1 text-gray-500 hover:text-gray-700" title={t('staff.inventory.view')}><Eye className="h-5 w-5" /></Link>
-                        <button onClick={() => openDeleteDialog(product)} className="p-1 text-red-500 hover:text-red-700" title={t('staff.inventory.delete')}><Trash2 className="h-5 w-5" /></button>
+                        <button onClick={() => handleEdit(product)} className="p-2 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-pink-600 hover:text-pink-800 touch-manipulation" title={t('staff.inventory.edit')}><Pencil className="h-5 w-5" /></button>
+                        <Link to={`/product/${product.id}`} className="p-2 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-gray-500 hover:text-gray-700 touch-manipulation" title={t('staff.inventory.view')}><Eye className="h-5 w-5" /></Link>
+                        <button onClick={() => openDeleteDialog(product)} className="p-2 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-rose-500 hover:text-rose-700 touch-manipulation" title={t('staff.inventory.delete')}><Trash2 className="h-5 w-5" /></button>
                       </div>
                     </td>
                   </tr>
@@ -858,7 +1112,7 @@ setSaving(true); setError('');
       )}
 
       {editingProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-none md:backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="modal-title">
           {/* Modal card: fixed viewport budget, header + scrollable body + sticky footer.
               Without the max-height + overflow-y body, many variant rows push the
               Save/Cancel actions below the fold and they become unreachable. */}
@@ -901,11 +1155,11 @@ setSaving(true); setError('');
                               sealedType: val === 'BOX' ? prev.sealedType : '',
                               seriesEra: val === 'CARD' ? prev.seriesEra : '',
                               expansionSet: val === 'CARD' ? prev.expansionSet : '',
-                              language: val === 'CARD' ? (prev.language || 'ENG') : '',
+                              language: val === 'CARD' ? (prev.language || defaultLanguageValue()) : '',
                               category: '', // will be computed on submit
                               variants: prev.variants.map(v => {
                                 if (val === 'BOX') return { price: v.price || 0, stockQuantity: v.stockQuantity || 0 };
-                                if (val === 'CARD') return { condition: 'NEAR_MINT', price: v.price || 0, stockQuantity: v.stockQuantity || 0 };
+                                if (val === 'CARD') return { condition: defaultConditionValue(), price: v.price || 0, stockQuantity: v.stockQuantity || 0 };
                                 return v;
                               })
                             }));
@@ -928,10 +1182,11 @@ setSaving(true); setError('');
                       <CreatableSelect
                         name="sealedType"
                         value={resolveCategoryValue(formData.sealedType) || ''}
-                        options={ensureValueInOptions(getSealedTypes(), formData.sealedType)}
+                        options={sealedTypeOptions}
                         onChange={(v) => setFormData(prev => ({ ...prev, sealedType: v }))}
                         onNewOptionCreated={(opt) => addCategoryToTree(opt.value, opt.label, 'sealed-products')}
-                        placeholder="-- Chọn loại --"
+                        placeholder={sealedCatalogueEmpty ? SEALED_EMPTY_MESSAGE : '-- Chọn loại --'}
+                        emptyMessage={SEALED_EMPTY_MESSAGE}
                         required
                         className="w-full"
                       />
@@ -974,15 +1229,13 @@ setSaving(true); setError('');
                           <label className="block text-xs font-medium text-gray-500 mb-1">Độ hiếm (Rarity)</label>
                           <CreatableSelect
                             name="rarity"
+                            testId="field-rarity"
                             value={resolveRarityValue(formData.rarity) || ''}
                             options={ensureRarityOption(rarityOptions, formData.rarity)}
-                            onChange={(v, meta) => setFormData(prev => ({
-                              ...prev,
-                              rarity: meta?.isNew ? parseRarityInput(v).code : v
-                            }))}
+                            onChange={(v) => setFormData(prev => ({ ...prev, rarity: v }))}
                             onNewOptionCreated={handleCreateRarityOption}
                             placeholder="-- Chọn độ hiếm --"
-                            createLabel={(text) => ` Thêm độ hiếm: "${text}"`}
+                            createLabel={(text) => `Thêm độ hiếm: "${text}"`}
                             required
                             className="w-full"
                           />
@@ -991,11 +1244,13 @@ setSaving(true); setError('');
                           <label className="block text-xs font-medium text-gray-500 mb-1">Ngôn ngữ (Language)</label>
                           <CreatableSelect
                             name="language"
+                            testId="field-language"
                             value={formData.language}
-                            options={ensureValueInOptions(SINGLE_CARD_LANGUAGES, formData.language)}
+                            options={ensureLanguageOption(languageOptions, formData.language)}
                             onChange={(v) => setFormData(prev => ({ ...prev, language: v }))}
-                            onNewOptionCreated={(opt) => setFormData(prev => ({ ...prev, language: opt.value }))}
+                            onNewOptionCreated={(opt) => handleCreateLanguageOption(opt.value)}
                             placeholder="-- Chọn ngôn ngữ --"
+                            createLabel={(text) => `Thêm ngôn ngữ: "${text}"`}
                             required
                             className="w-full"
                           />
@@ -1014,12 +1269,13 @@ setSaving(true); setError('');
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Artist (Họa sĩ)</label>
                           <CreatableSelect
                             name="artist"
+                            testId="field-artist"
                             value={formData.artist}
                             options={ensureValueInOptions(artistOptions.map((a) => ({ value: a, label: a })), formData.artist)}
                             onChange={(v) => setFormData((prev) => ({ ...prev, artist: v }))}
                             onNewOptionCreated={(opt) => setArtistOptions((prev) => [...prev, opt.value])}
                             placeholder="VD: Yuka Morii"
-                            createLabel={(text) => ` thêm họa sĩ: "${text}"`}
+                            createLabel={(text) => `Thêm họa sĩ: "${text}"`}
                           />
                       </div>
                     </div>
@@ -1039,60 +1295,138 @@ setSaving(true); setError('');
                  </div>
                  <div>
                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{t('staff.inventory.descLabel')}</label>
-                   <textarea name="description" value={formData.description} onChange={handleInputChange} rows={3} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" />
+                   <textarea name="description" value={formData.description} onChange={handleInputChange} rows={4} className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100" />
                  </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('staff.inventory.frontImage')}</label>
-                    <div className="flex items-center gap-3 mb-2">
-                      {formData.images.length > 0 ? <img src={formData.images[0]} alt="Front" className="h-20 w-20 object-contain rounded-lg border border-gray-200 dark:border-gray-700" /> : <div className="h-20 w-20 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center text-gray-400 dark:text-gray-500">{t('staff.inventory.emptyImage')}</div>}
-                      <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="inline-flex items-center gap-1.5 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50">
-                        {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />} Upload
-                      </button>
-                      {formData.images.length > 0 && <button type="button" onClick={handleRemoveFrontImage} className="text-red-500 hover:text-red-700" title={t('staff.inventory.removeImage')}><X className="h-4 w-4" /></button>}
-                      <input type="file" ref={fileInputRef} onChange={handleFrontImageUpload} accept="image/*" className="hidden" />
+                {/* Dynamic Multi-Image Gallery Uploader */}
+                <div className="space-y-3 p-4 bg-gray-50/80 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200">
+                        Thư viện ảnh sản phẩm ({formData.images?.length || 0})
+                      </label>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        Ảnh tải lên đầu tiên sẽ tự động làm <span className="font-semibold text-pink-600 dark:text-pink-400">Ảnh bìa / Chính</span> (Cover).
+                      </p>
                     </div>
+
                     <div className="flex items-center gap-2">
-                      <div className="relative flex-1">
-                        <Link2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input
-                          type="url"
-                          value={frontImageUrl}
-                          onChange={(e) => setFrontImageUrl(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleApplyFrontImageUrl(); } }}
-                          placeholder={t('staff.inventory.imageUrlHint')}
-                          className="w-full pl-8 pr-20 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                        />
-                      </div>
-                      <button type="button" onClick={handleApplyFrontImageUrl} className="px-3 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 shrink-0">{t('staff.inventory.useLink')}</button>
+                      <input
+                        type="file"
+                        ref={imageFileInputRef}
+                        onChange={handleImageFileUpload}
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => imageFileInputRef.current?.click()}
+                        disabled={uploading}
+                        data-testid="add-image-btn"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-semibold transition disabled:opacity-50 cursor-pointer shadow-sm"
+                      >
+                        {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                        + Thêm ảnh
+                      </button>
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('staff.inventory.backImage')}</label>
-                    <div className="flex items-center gap-3 mb-2">
-                      {formData.backImage ? <img src={formData.backImage} alt="Back" className="h-20 w-20 object-contain rounded-lg border border-gray-200 dark:border-gray-700" /> : <div className="h-20 w-20 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex items-center justify-center text-gray-400 dark:text-gray-500">{t('staff.inventory.emptyImage')}</div>}
-                      <button type="button" onClick={() => backFileInputRef.current?.click()} disabled={uploading} className="inline-flex items-center gap-1.5 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50">
-                        {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />} Upload
-                      </button>
-                      {formData.backImage && <button type="button" onClick={handleRemoveBackImage} className="text-red-500 hover:text-red-700" title={t('staff.inventory.removeImage')}><X className="h-4 w-4" /></button>}
-                      <input type="file" ref={backFileInputRef} onChange={handleBackImageUpload} accept="image/*" className="hidden" />
+
+                  {/* Paste Image URL Input Row */}
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Link2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="url"
+                        value={inputImageUrl}
+                        onChange={(e) => setInputImageUrl(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddImageUrl();
+                          }
+                        }}
+                        data-testid="image-url-input"
+                        placeholder="Hoặc dán URL ảnh (https://... hoặc /uploads/...) rồi nhấn Thêm"
+                        className="w-full pl-8 pr-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                      />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="relative flex-1">
-                        <Link2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input
-                          type="url"
-                          value={backImageUrl}
-                          onChange={(e) => setBackImageUrl(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleApplyBackImageUrl(); } }}
-                          placeholder={t('staff.inventory.imageUrlHint')}
-                          className="w-full pl-8 pr-20 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                        />
-                      </div>
-                      <button type="button" onClick={handleApplyBackImageUrl} className="px-3 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 shrink-0">{t('staff.inventory.useLink')}</button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddImageUrl}
+                      data-testid="add-image-url-btn"
+                      className="px-3.5 py-1.5 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg text-xs font-semibold shrink-0 cursor-pointer transition"
+                    >
+                      + Thêm URL
+                    </button>
                   </div>
+
+                  {/* Gallery Thumbnails Grid */}
+                  {formData.images && formData.images.length > 0 ? (
+                    <div
+                      data-testid="product-gallery-uploader-list"
+                      className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3 pt-2"
+                    >
+                      {formData.images.map((imgUrl, index) => (
+                        <div
+                          key={index}
+                          data-testid={`gallery-upload-item-${index}`}
+                          className={`group relative aspect-[3/4] rounded-xl overflow-hidden border-2 bg-white dark:bg-gray-800 transition shadow-sm ${
+                            index === 0
+                              ? 'border-pink-500 ring-2 ring-pink-500/25 shadow-pink-500/10'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-primary-400'
+                          }`}
+                        >
+                          <img
+                            src={imgUrl}
+                            alt={`Ảnh ${index + 1}`}
+                            className="w-full h-full object-contain p-1.5"
+                          />
+
+                          {/* Cover Badge on first image */}
+                          {index === 0 ? (
+                            <span
+                              data-testid="cover-image-badge"
+                              className="absolute top-1.5 left-1.5 z-10 bg-gradient-to-r from-pink-600 to-rose-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm uppercase tracking-wider"
+                            >
+                              Ảnh bìa / Chính
+                            </span>
+                          ) : (
+                            <span className="absolute top-1.5 left-1.5 z-10 bg-gray-900/75 backdrop-blur-xs text-white text-[9px] font-semibold px-1.5 py-0.5 rounded shadow-sm">
+                              #{index + 1}
+                            </span>
+                          )}
+
+                          {/* Hover Overlay with "Xóa" (Remove) button */}
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 z-20">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveImage(index)}
+                              data-testid={`remove-image-btn-${index}`}
+                              className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-md text-xs font-semibold flex items-center gap-1 shadow-md cursor-pointer transition transform hover:scale-105"
+                              title="Xóa ảnh"
+                              aria-label="Xóa"
+                            >
+                              <X className="h-3.5 w-3.5" /> Xóa
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => imageFileInputRef.current?.click()}
+                      className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-5 text-center cursor-pointer hover:border-primary-500 dark:hover:border-primary-400 transition bg-white/50 dark:bg-gray-800/40"
+                    >
+                      <ImagePlus className="h-7 w-7 mx-auto text-gray-400 mb-1.5" />
+                      <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                        Chưa có ảnh nào trong thư viện
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Bấm "+ Thêm ảnh" để tải file từ máy hoặc dán link ảnh vào ô trên
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -1108,7 +1442,19 @@ setSaving(true); setError('');
                         ? '1.5fr 1fr 1fr 40px'
                         : '1fr 1fr 40px'
                     }}>
-                    {usesConditionLanguageVariants && <span>{t('staff.inventory.conditionLabel')}</span>}
+                    {usesConditionLanguageVariants && (
+                      <span className="flex items-center gap-2 normal-case">
+                        {t('staff.inventory.conditionLabel')}
+                        <button
+                          type="button"
+                          data-testid="add-condition-btn"
+                          onClick={openConditionQuickAdd}
+                          className="text-xs text-pink-600 hover:text-pink-700 font-medium flex items-center gap-1 cursor-pointer"
+                        >
+                          <PlusCircle className="h-3.5 w-3.5" /> Thêm tình trạng mới
+                        </button>
+                      </span>
+                    )}
                     <span>{t('staff.inventory.priceLabel')}</span>
                     <span>{t('staff.inventory.stockLabel')}</span>
                     <span></span>
@@ -1123,15 +1469,18 @@ setSaving(true); setError('');
                             : '1fr 1fr 40px'
                         }}>
                         {usesConditionLanguageVariants && (
-                          <select
-                            value={v.condition}
-                            onChange={(e) => handleVariantChange(idx, 'condition', e.target.value)}
-                            className="flex-1 px-2 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                          >
-                            {CARD_CONDITIONS.map((cond) => (
-                              <option key={cond.value} value={cond.value}>{cond.label}</option>
-                            ))}
-                          </select>
+                          <div className="flex-1 min-w-0">
+                            <CreatableSelect
+                              name="condition"
+                              testId={`variant-condition-${idx}`}
+                              value={v.condition}
+                              options={ensureConditionOption(conditionOptions, v.condition)}
+                              onChange={(val) => handleVariantChange(idx, 'condition', val)}
+                              onNewOptionCreated={(opt) => handleCreateConditionOption(opt.value, idx)}
+                              placeholder="-- Chọn tình trạng --"
+                              createLabel={(text) => `Thêm tình trạng: "${text}"`}
+                            />
+                          </div>
                         )}
                         <input
                           type="number"
@@ -1178,6 +1527,42 @@ setSaving(true); setError('');
                   {saving ? 'Đang lưu...' : 'Lưu sản phẩm'}
                 </button>
               </div>
+
+              {/* Inline quick-add condition popup — Admin + Staff can create a
+                  new "Tình trạng thẻ" on the fly; it is persisted to the DB and
+                  auto-selected in the variant dropdown without a page reload. */}
+              {showConditionQuickAdd && (
+                <div
+                  data-testid="condition-quick-add-modal"
+                  className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-ink-950/50 dark:bg-black/70 backdrop-blur-sm"
+                  onMouseDown={(e) => { if (e.target === e.currentTarget) closeConditionQuickAdd(); }}
+                >
+                  <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-gray-900 border border-pink-100 dark:border-pink-900/40 shadow-2xl p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Tag className="h-5 w-5 text-pink-600" />
+                      <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Thêm tình trạng thẻ mới</h3>
+                    </div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Tên / mã tình trạng *</label>
+                    <input
+                      autoFocus
+                      type="text"
+                      data-testid="condition-quick-add-input"
+                      value={conditionQuickAddValue}
+                      onChange={(e) => setConditionQuickAddValue(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCreateCondition(); } }}
+                      placeholder="VD: PSA 10, Ungraded"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    />
+                    {conditionQuickAddError && <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">{conditionQuickAddError}</p>}
+                    <div className="mt-4 flex justify-end gap-2">
+                      <button type="button" onClick={closeConditionQuickAdd} disabled={conditionQuickAddSaving} className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50">Hủy</button>
+                      <button type="button" data-testid="condition-quick-add-save" onClick={handleCreateCondition} disabled={conditionQuickAddSaving} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white rounded-lg bg-pink-600 hover:bg-pink-700 disabled:opacity-50">
+                        {conditionQuickAddSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />} Lưu
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </form>
           </div>
         </div>

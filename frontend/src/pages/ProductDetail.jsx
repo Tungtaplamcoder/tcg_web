@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ShoppingCart, ArrowLeft, Loader2, Minus, Plus, Check, Zap, Package, Star
+  ShoppingCart, ArrowLeft, Loader2, Minus, Plus, Check, Zap, Package, Star,
+  MessageCircle, Phone, Mail, X
 } from 'lucide-react';
 import {
   ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -9,9 +10,10 @@ import {
 import api from '../services/api';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useShop } from '../context/ShopContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../i18n/LanguageContext';
-import { formatVND, USD_TO_VND_RATE } from '../utils/format';
+import { formatVND, formatPrice, USD_TO_VND_RATE } from '../utils/format';
 import { playTick, vibrate } from '../utils/sfx';
 import BreadcrumbBar from '../components/BreadcrumbBar';
 import ProductGallery from '../components/ProductGallery';
@@ -30,7 +32,25 @@ const CONDITION_KEYS = ['MINT', 'NEAR_MINT', 'LIGHTLY_PLAYED', 'MODERATELY_PLAYE
 
 const VARIANT_KEYS = ['NORMAL', 'HOLOFOIL', 'REVERSE_HOLOFOIL', '1ST_EDITION', '1ST_EDITION_HOLOFOIL', 'UNLIMITED_HOLOFOIL'];
 
-const formatCondition = (c, t) => t(`product.condition.${c}`) || (c ? c.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase()) : t('product.condition.NEAR_MINT'));
+/**
+ * Safe condition label resolver.
+ *
+ * The condition catalogue became dynamic ("Tình trạng thẻ"), so a variant can
+ * hold a free-text value (e.g. "PSA 10", "abc") that has NO matching
+ * `product.condition.*` i18n key. The lightweight i18n helper returns the raw
+ * key when a translation is missing, which leaked strings like
+ * "product.condition.PSA 10" onto the page. When the resolved string still
+ * contains the key prefix, render the raw dynamic condition text directly.
+ */
+const formatConditionLabel = (condition, t) => {
+  if (!condition) return t('product.condition.NEAR_MINT');
+  const key = `product.condition.${condition}`;
+  const translated = t(key);
+  if (typeof translated === 'string' && !translated.includes('product.condition.')) {
+    return translated;
+  }
+  return String(condition);
+};
 const formatVariant = (v, t) => {
   if (!v || v === '') return t('product.variantType.NORMAL');
   const key = `product.variantType.${v}`;
@@ -62,11 +82,13 @@ const ProductDetail = () => {
   const [isLoadingRange, setIsLoadingRange] = useState(false);
   const [added, setAdded] = useState(false);
   const [toast, setToast] = useState(null);
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const cacheRef = useRef(new Map());
   const addedTimerRef = useRef(null);
   const toastTimerRef = useRef(null);
   const { addItem } = useCartStore();
   const { isAuthenticated } = useAuthStore();
+  const { shop } = useShop();
   const { theme } = useTheme();
   const { t } = useLanguage();
   const chartTheme = CHART_THEMES[theme] || CHART_THEMES.light;
@@ -177,7 +199,9 @@ const ProductDetail = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const selectedVariant = product?.variants?.find(v => v.id === selectedVariantId);
+  const selectedVariant = product?.variants?.find(v => v.id === selectedVariantId) || product?.variants?.[0] || null;
+  const currentPrice = selectedVariant ? Number(selectedVariant.price) : Number(product?.price || product?.minPrice || 0);
+  const isZeroPrice = !currentPrice || currentPrice <= 0;
 
   const loadPriceData = useCallback(async (range) => {
     if (!product?.tcgplayerId) return;
@@ -231,6 +255,10 @@ const ProductDetail = () => {
      Stays on the current product page. No navigate('/cart'), no redirect
      for guests either — the cart is a local, persistent store. */
   const handleAddToCart = () => {
+    if (isZeroPrice || Number(selectedVariant?.price) <= 0) {
+      setIsContactModalOpen(true);
+      return;
+    }
     if (!selectedVariantId || !selectedVariant?.stockQuantity) return;
 
     addItem({
@@ -252,6 +280,10 @@ const ProductDetail = () => {
   };
 
   const handleBuyNow = () => {
+    if (isZeroPrice || Number(selectedVariant?.price) <= 0) {
+      setIsContactModalOpen(true);
+      return;
+    }
     if (!isAuthenticated) {
       navigate('/login', { state: { from: `/product/${id}` } });
       return;
@@ -380,7 +412,7 @@ const ProductDetail = () => {
           <div className="flex flex-wrap items-center gap-2 mb-3">
             <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${
               isBox
-                ? 'bg-amber-400/15 text-amber-700 dark:text-amber-300 ring-1 ring-amber-400/30'
+                ? 'bg-pink-500/10 text-pink-500 dark:text-pink-400 ring-1 ring-pink-400/30'
                 : 'bg-primary-400/15 text-primary-700 dark:text-primary-300 ring-1 ring-primary-400/30'
             }`}>
               {isBox ? <Package className="h-3 w-3" /> : <Zap className="h-3 w-3" />}
@@ -399,18 +431,24 @@ const ProductDetail = () => {
           )}
 
           <div className="mt-4 flex items-center gap-2.5">
-            <div className="flex text-amber-400">
-              {[...Array(5)].map((_, i) => <Star key={i} className="h-[18px] w-[18px] fill-current" />)}
+            <div className="flex text-pink-500">
+              {[...Array(5)].map((_, i) => <Star key={i} className="h-[18px] w-[18px] fill-pink-500" />)}
             </div>
             <span className="text-sm text-ink-400 dark:text-ink-300">({t('product.reviews', { count: 0 })})</span>
           </div>
 
           {/* Price + live inventory badge */}
           <div className="mt-6 flex flex-wrap items-center gap-4">
-            <div className="pd-price-chip">
-              <span className="text-3xl sm:text-4xl font-display font-bold text-gradient-brand">
-                {selectedVariant ? formatVND(selectedVariant.price) : t('product.selectCondition')}
-              </span>
+            <div className="pd-price-chip" data-testid="product-detail-price">
+              {isZeroPrice ? (
+                <span className="text-3xl sm:text-4xl font-display font-semibold text-pink-500 dark:text-pink-400">
+                  Liên hệ
+                </span>
+              ) : (
+                <span className="text-3xl sm:text-4xl font-display font-bold text-gradient-brand">
+                  {selectedVariant ? formatPrice(selectedVariant.price) : t('product.selectCondition')}
+                </span>
+              )}
             </div>
             {selectedVariant && (
               <span className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider ${
@@ -447,7 +485,7 @@ const ProductDetail = () => {
                           : 'glass-panel text-strong ring-1 ring-transparent hover:ring-primary-400/50 hover:-translate-y-0.5'
                       } disabled:opacity-45 disabled:pointer-events-none`}
                     >
-                      {formatCondition(v.condition, t)} <span className={isSelected ? 'text-white/70' : 'text-faint'}>•</span> {formatVariant(v.variant, t)}
+                      {formatConditionLabel(v.condition, t)} <span className={isSelected ? 'text-white/70' : 'text-faint'}>•</span> {formatVariant(v.variant, t)}
                       <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${
                         inStock
                           ? 'bg-emerald-400/15 text-emerald-600 dark:text-emerald-300'
@@ -481,7 +519,7 @@ const ProductDetail = () => {
                           : 'glass-panel text-strong ring-1 ring-transparent hover:ring-primary-400/50 hover:-translate-y-0.5'
                       } disabled:opacity-45 disabled:pointer-events-none`}
                     >
-                      {formatVND(Number(v.price))}
+                      {formatPrice(Number(v.price))}
                       <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${
                         inStock
                           ? 'bg-emerald-400/15 text-emerald-600 dark:text-emerald-300'
@@ -497,66 +535,86 @@ const ProductDetail = () => {
             </div>
           )}
 
-          {/* ── Action area: quantity + CTA ─────────────────────── */}
-          <div className="mt-7 flex items-stretch gap-3">
-            <div className="inline-flex items-center self-stretch rounded-xl border border-subtle surface overflow-hidden shrink-0">
+          {/* ── Action area: quantity + CTA OR Zero-Price Contact Consultation Button ── */}
+          {isZeroPrice ? (
+            <div className="mt-7 space-y-3" data-testid="zero-price-contact-container">
               <button
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="p-3 text-ink-500 dark:text-ink-300 hover:text-primary-700 hover:bg-primary-50 dark:hover:bg-primary-400/10 transition-colors"
-                aria-label={t('cart.decreaseQty')}
+                type="button"
+                onClick={() => setIsContactModalOpen(true)}
+                data-testid="contact-consult-btn"
+                className="btn-primary w-full !py-3.5 text-base flex items-center justify-center gap-2.5 shadow-soft-lg hover:shadow-soft transition-all"
               >
-                <Minus className="h-4 w-4" />
+                <MessageCircle className="h-5 w-5" />
+                <span>Liên hệ tư vấn</span>
               </button>
-              <span className="px-5 py-3 font-bold text-ink-900 dark:text-white min-w-[3rem] text-center tabular-nums">{quantity}</span>
-              <button
-                onClick={() => setQuantity(Math.min(selectedVariant?.stockQuantity || 10, quantity + 1))}
-                className="p-3 text-ink-500 dark:text-ink-300 hover:text-primary-700 hover:bg-primary-50 dark:hover:bg-primary-400/10 transition-colors"
-                aria-label={t('cart.increaseQty')}
-              >
-                <Plus className="h-4 w-4" />
-              </button>
+              <div className="p-3.5 rounded-2xl border border-pink-100/70 dark:border-pink-900/30 bg-pink-50/50 dark:bg-pink-950/20 text-xs text-ink-600 dark:text-neutral-300 flex items-center gap-2.5">
+                <Package className="h-4 w-4 text-pink-500 shrink-0" />
+                <span>Sản phẩm đặc biệt / liên hệ — vui lòng liên hệ tư vấn để nhận báo giá và ưu đãi trực tiếp.</span>
+              </div>
             </div>
-            <button
-              onClick={handleAddToCart}
-              disabled={!selectedVariantId || !selectedVariant?.stockQuantity || added}
-              className={`btn-primary flex-1 w-full !py-3.5 text-base ${added ? '!from-emerald-500 !to-teal-500' : ''}`}
-            >
-              {added ? (<><Check className="h-5 w-5" /> {t('product.added')}</>) : (<><ShoppingCart className="h-5 w-5" /> {t('product.addToCart')}</>)}
-            </button>
-          </div>
+          ) : (
+            <>
+              <div className="mt-7 flex items-stretch gap-3">
+                <div className="inline-flex items-center self-stretch rounded-xl border border-subtle surface overflow-hidden shrink-0">
+                  <button
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="p-3 text-ink-500 dark:text-ink-300 hover:text-primary-700 hover:bg-primary-50 dark:hover:bg-primary-400/10 transition-colors"
+                    aria-label={t('cart.decreaseQty')}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <span className="px-5 py-3 font-bold text-ink-900 dark:text-white min-w-[3rem] text-center tabular-nums">{quantity}</span>
+                  <button
+                    onClick={() => setQuantity(Math.min(selectedVariant?.stockQuantity || 10, quantity + 1))}
+                    className="p-3 text-ink-500 dark:text-ink-300 hover:text-primary-700 hover:bg-primary-50 dark:hover:bg-primary-400/10 transition-colors"
+                    aria-label={t('cart.increaseQty')}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+                <button
+                  onClick={handleAddToCart}
+                  disabled={!selectedVariantId || !selectedVariant?.stockQuantity || added}
+                  className={`btn-primary flex-1 w-full !py-3.5 text-base ${added ? '!from-emerald-500 !to-teal-500' : ''}`}
+                >
+                  {added ? (<><Check className="h-5 w-5" /> {t('product.added')}</>) : (<><ShoppingCart className="h-5 w-5" /> {t('product.addToCart')}</>)}
+                </button>
+              </div>
 
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={handleBuyNow}
-              disabled={!selectedVariantId || !selectedVariant?.stockQuantity}
-              className="btn-aura w-full !py-3.5 text-base"
-            >
-              <Zap className="h-5 w-5" /> {t('product.buyNow')}
-            </button>
-          </div>
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={handleBuyNow}
+                  disabled={!selectedVariantId || !selectedVariant?.stockQuantity}
+                  className="btn-aura w-full !py-3.5 text-base"
+                >
+                  <Zap className="h-5 w-5" /> {t('product.buyNow')}
+                </button>
+              </div>
+            </>
+          )}
 
           {/* ── Trust badges ────────────────────────────────────── */}
           <div className="mt-6">
             <TrustBadges />
           </div>
-
-          {/* ── Description: classic unified block ──────────────── */}
-          {product.description && (
-            <section className="mt-8">
-              <p className="section-eyebrow">{t('product.specifications')}</p>
-              <h2 className="heading-display text-xl mt-1 mb-4">
-                {isBox ? t('product.boxDetailsTitle') : t('product.cardDetailsTitle')}
-              </h2>
-              <div className="rounded-2xl bg-white/80 dark:bg-[#1c1216]/90 md:bg-white/50 dark:md:bg-white/5 ring-1 ring-ink-900/5 dark:ring-white/10 backdrop-blur-sm md:backdrop-blur-md p-6">
-                <p className="text-sm text-ink-600 dark:text-ink-300 leading-relaxed whitespace-pre-wrap font-medium">
-                  {product.description}
-                </p>
-              </div>
-            </section>
-          )}
         </div>
       </div>
+
+      {/* ── Specifications / Product Details: full-width info section ── */}
+      {product.description && (
+        <section className="mt-10 w-full" data-testid="product-description-section">
+          <p className="section-eyebrow">{t('product.specifications')}</p>
+          <h2 className="heading-display text-xl sm:text-2xl mt-1 mb-4">
+            {isBox ? t('product.boxDetailsTitle') : t('product.cardDetailsTitle')}
+          </h2>
+          <div className="w-full bg-white dark:bg-neutral-900/60 border border-neutral-200 dark:border-neutral-800 rounded-xl p-5 text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
+            <p className="whitespace-pre-line leading-relaxed">
+              {product.description}
+            </p>
+          </div>
+        </section>
+      )}
 
       {/* ==================== MARKET PRICE TRENDS ==================== */}
       {product.tcgplayerId && (
@@ -700,7 +758,7 @@ const ProductDetail = () => {
                           {metrics?.price_points?.volatility || 'Med Volatility'}
                         </span>
                         <div className="w-full h-1.5 bg-white/80 dark:bg-[#1c1216]/80 rounded-full mt-1.5 overflow-hidden">
-                          <div className="h-1.5 rounded-full bg-gradient-to-r from-emerald-500 via-amber-400 to-rose-500" style={{ width: '50%' }} />
+                          <div className="h-1.5 rounded-full bg-gradient-to-r from-emerald-500 via-pink-400 to-rose-500" style={{ width: '50%' }} />
                         </div>
                       </div>
                     </div>
@@ -753,6 +811,114 @@ const ProductDetail = () => {
       )}
 
       </div>
+
+      {/* ── Contact Consultation Modal (Zero-Price Products) ── */}
+      {isContactModalOpen && (
+        <div
+          data-testid="contact-consultation-modal"
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-tcg-reveal"
+        >
+          <div
+            className="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#1a1219] p-6 sm:p-7 shadow-2xl border border-pink-100 dark:border-pink-900/40 text-left overflow-hidden"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-pink-100 dark:border-pink-900/30">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-pink-500/10 dark:bg-pink-400/15 flex items-center justify-center text-pink-500 dark:text-pink-400">
+                  <MessageCircle className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold font-display text-ink-900 dark:text-white">
+                    Liên hệ tư vấn
+                  </h3>
+                  <p className="text-xs text-ink-500 dark:text-neutral-400">
+                    Báo giá & thông tin tình trạng thẻ
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                data-testid="close-contact-modal-btn"
+                onClick={() => setIsContactModalOpen(false)}
+                className="p-2 rounded-xl text-ink-400 hover:text-ink-700 dark:hover:text-white hover:bg-pink-50 dark:hover:bg-white/5 transition-colors"
+                aria-label="Đóng"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Product Summary */}
+            <div className="mt-4 p-3.5 rounded-2xl bg-pink-50/50 dark:bg-pink-950/20 border border-pink-100/70 dark:border-pink-900/30">
+              <p className="text-xs font-semibold uppercase tracking-wider text-pink-600 dark:text-pink-400">
+                Sản phẩm quan tâm
+              </p>
+              <p className="text-sm font-bold text-ink-900 dark:text-white line-clamp-2 mt-0.5">
+                {product?.name}
+              </p>
+              <div className="mt-2 flex items-center justify-between pt-2 border-t border-pink-100/50 dark:border-pink-900/20">
+                <span className="text-xs text-ink-500 dark:text-neutral-400">Mức giá:</span>
+                <span className="font-semibold text-pink-500 dark:text-pink-400 text-sm">Liên hệ</span>
+              </div>
+            </div>
+
+            {/* Channels */}
+            <div className="mt-5 space-y-3">
+              <p className="text-xs text-ink-500 dark:text-neutral-400 leading-relaxed">
+                Sản phẩm này có giá trị biến động theo thị trường hoặc số lượng giới hạn. Vui lòng liên hệ trực tiếp với chúng tôi qua các kênh sau để nhận báo giá ưu đãi:
+              </p>
+
+              <a
+                href={`tel:${shop?.support_phone || '0987654321'}`}
+                className="flex items-center justify-between p-3.5 rounded-2xl bg-neutral-50 dark:bg-white/5 hover:bg-pink-50 dark:hover:bg-pink-950/30 border border-neutral-200/70 dark:border-white/10 hover:border-pink-300 dark:hover:border-pink-800 transition-all group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-pink-100/60 dark:bg-pink-900/40 text-pink-600 dark:text-pink-300 flex items-center justify-center">
+                    <Phone className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] block text-ink-400 dark:text-neutral-400 font-medium">Hotline / Zalo tư vấn</span>
+                    <span className="text-sm font-bold text-ink-900 dark:text-white group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors">
+                      {shop?.support_phone || '0987 654 321'}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-xs font-semibold text-pink-600 dark:text-pink-400">Gọi ngay →</span>
+              </a>
+
+              <a
+                href={`mailto:${shop?.support_email || 'support@tcgstore.com'}?subject=Tư vấn báo giá sản phẩm: ${encodeURIComponent(product?.name || '')}`}
+                className="flex items-center justify-between p-3.5 rounded-2xl bg-neutral-50 dark:bg-white/5 hover:bg-pink-50 dark:hover:bg-pink-950/30 border border-neutral-200/70 dark:border-white/10 hover:border-pink-300 dark:hover:border-pink-800 transition-all group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-pink-100/60 dark:bg-pink-900/40 text-pink-600 dark:text-pink-300 flex items-center justify-center">
+                    <Mail className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] block text-ink-400 dark:text-neutral-400 font-medium">Email hỗ trợ</span>
+                    <span className="text-sm font-bold text-ink-900 dark:text-white group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors">
+                      {shop?.support_email || 'support@tcgstore.com'}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-xs font-semibold text-pink-600 dark:text-pink-400">Gửi mail →</span>
+              </a>
+            </div>
+
+            {/* Footer action */}
+            <div className="mt-6 pt-4 border-t border-pink-100 dark:border-pink-900/30 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsContactModalOpen(false)}
+                className="w-full py-2.5 rounded-xl font-semibold text-sm bg-neutral-100 dark:bg-white/10 text-ink-700 dark:text-neutral-200 hover:bg-neutral-200 dark:hover:bg-white/15 transition-colors"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Add-to-cart success toast (no navigation) ─────────── */}
       {toast && (

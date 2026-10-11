@@ -201,8 +201,30 @@ exports.Prisma.SetScalarFieldEnum = {
 exports.Prisma.RarityScalarFieldEnum = {
   id: 'id',
   name: 'name',
-  code: 'code',
-  description: 'description',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.SealedCategoryScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.CardConditionOptionScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.CardLanguageScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
   isActive: 'isActive',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
@@ -226,6 +248,7 @@ exports.Prisma.ProductScalarFieldEnum = {
   attributes: 'attributes',
   status: 'status',
   version: 'version',
+  viewCount: 'viewCount',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   deletedAt: 'deletedAt'
@@ -385,6 +408,7 @@ exports.Prisma.VirtualBoxScalarFieldEnum = {
   gradient: 'gradient',
   price: 'price',
   status: 'status',
+  viewCount: 'viewCount',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -557,6 +581,9 @@ exports.Prisma.ModelName = {
   Category: 'Category',
   Set: 'Set',
   Rarity: 'Rarity',
+  SealedCategory: 'SealedCategory',
+  CardConditionOption: 'CardConditionOption',
+  CardLanguage: 'CardLanguage',
   Product: 'Product',
   ProductVariant: 'ProductVariant',
   Card: 'Card',

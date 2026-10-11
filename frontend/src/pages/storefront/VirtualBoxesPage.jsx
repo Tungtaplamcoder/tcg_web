@@ -5,41 +5,9 @@ import api from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useLanguage } from '../../i18n/LanguageContext';
 import VirtualBoxCard from '../../components/gacha/VirtualBoxCard';
-import GachaOpeningModal from '../../components/gacha/GachaOpeningModal';
+import { boxBackground } from '../../utils/boxBackground';
 
-const TOKEN_GRADIENTS = {
-  'from-violet-500 to-fuchsia-500': 'linear-gradient(135deg, #8b5cf6, #d946ef)',
-  'from-cyan-500 to-blue-600': 'linear-gradient(135deg, #06b6d4, #2563eb)',
-  'from-slate-600 to-ink-900': 'linear-gradient(135deg, #475569, #0f172a)',
-  'from-amber-400 to-orange-600': 'linear-gradient(135deg, #fbbf24, #ea580c)',
-  'from-emerald-500 to-teal-600': 'linear-gradient(135deg, #10b981, #0d9488)',
-  'from-rose-500 to-pink-600': 'linear-gradient(135deg, #f43f5e, #db2777)',
-  'from-sky-400 to-violet-500': 'linear-gradient(135deg, #38bdf8, #8b5cf6)',
-  'from-fuchsia-500 to-amber-400': 'linear-gradient(135deg, #d946ef, #fbbf24)'
-};
-
-const FALLBACK_GRADIENTS = [
-  'linear-gradient(135deg, #7c3aed 0%, #d946ef 60%, #f43f5e 110%)',
-  'linear-gradient(135deg, #0ea5e9 0%, #6366f1 55%, #8b5cf6 100%)',
-  'linear-gradient(135deg, #0f766e 0%, #10b981 55%, #a3e635 110%)',
-  'linear-gradient(135deg, #b45309 0%, #f59e0b 55%, #fbbf24 100%)',
-  'linear-gradient(135deg, #be185d 0%, #ec4899 55%, #f9a8d4 110%)',
-  'linear-gradient(135deg, #1e293b 0%, #475569 55%, #8b5cf6 120%)'
-];
-
-const hashId = (id) => {
-  let h = 0;
-  const s = String(id || '');
-  for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return h;
-};
-
-export const boxBackground = (box, index = 0) => {
-  const raw = (box.gradient || '').trim();
-  if (raw.includes('gradient(') || raw.startsWith('radial')) return raw;
-  if (TOKEN_GRADIENTS[raw]) return TOKEN_GRADIENTS[raw];
-  return FALLBACK_GRADIENTS[(hashId(box.id) + index) % FALLBACK_GRADIENTS.length];
-};
+export { boxBackground };
 
 const VirtualBoxesPage = () => {
   const navigate = useNavigate();
@@ -52,8 +20,6 @@ const VirtualBoxesPage = () => {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  const [activeBox, setActiveBox] = useState(null);
 
   const fetchBoxes = useCallback(async (targetPage) => {
     setLoading(true);
@@ -72,15 +38,11 @@ const VirtualBoxesPage = () => {
 
   useEffect(() => { fetchBoxes(page); }, [fetchBoxes, page]);
 
+  /* Listing cards open the free detail/opening page. Viewing is public —
+     the sign-in gate lives on the detail page's open CTA. */
   const handlePlay = (box) => {
-    if (!isAuthenticated) {
-      navigate('/login', { state: { from: location } });
-      return;
-    }
-    setActiveBox(box);
+    navigate(`/virtual-boxes/${box.id}`);
   };
-
-  const closeModal = () => setActiveBox(null);
 
   return (
     <div className="relative min-h-screen">
@@ -99,7 +61,7 @@ const VirtualBoxesPage = () => {
             <button
               type="button"
               onClick={() => navigate('/login', { state: { from: location } })}
-              className="inline-flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-purple-500/25 ring-1 ring-inset ring-white/20 touch-manipulation transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-purple-500/30 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 focus-visible:ring-offset-2 active:translate-y-0 active:scale-[0.98]"
+              className="inline-flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-primary-600 to-primary-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-pink-500/25 ring-1 ring-inset ring-white/20 touch-manipulation transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-pink-500/30 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 active:translate-y-0 active:scale-[0.98]"
             >
               {t('virtualBox.signInToPlay')}
             </button>
@@ -173,20 +135,6 @@ const VirtualBoxesPage = () => {
           </>
         )}
       </div>
-
-      {/* ===================== INTERACTIVE UNBOXING MODAL =====================
-          Immersive 3-tap tear ceremony: sealed pack → jolt/ripple taps →
-          foil tear with particle sparks → face-down card → 3D Y-axis flip →
-          rarity reveal with light sweep + dynamic rarity glow + Done /
-          Open Another. */}
-      <GachaOpeningModal
-        open={Boolean(activeBox)}
-        boxId={activeBox?.id || null}
-        boxName={activeBox?.name || 'Mystery Box'}
-        boxGradient={activeBox ? boxBackground(activeBox) : undefined}
-        boxImageUrl={activeBox?.imageUrl || null}
-        onClose={closeModal}
-      />
     </div>
   );
 };
